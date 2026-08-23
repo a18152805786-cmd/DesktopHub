@@ -7,7 +7,7 @@ This directory is the long-term private maintenance clone of `limbo666/DesktopFr
 ```text
 Task=DesktopHubBaselineAdoption
 Status=BLOCKED
-Reason=Release build succeeds, but safe launch is gated because the upstream startup path writes HKCU registry state, installs global input hooks, and touches the desktop icon window.
+Reason=Release build succeeds, but isolated runtime validation is unavailable: Windows Sandbox is not installed, and the existing CodexSandboxOffline account has no usable authentication session in this task.
 SourceChanges=none
 Origin=https://github.com/a18152805786-cmd/DesktopHub.git (PRIVATE; configured and pushed)
 Upstream=https://github.com/limbo666/DesktopFramesPlus.git
@@ -43,7 +43,7 @@ The audit found high-impact behavior in the original code. Important defaults su
 - `FrameManager` initializes `DesktopIconManager` and calls `ShowWindow` on the Windows desktop list view.
 - `RemoteInfoManager` starts a delayed GitHub manifest request from the tray initialization path.
 
-Because this phase forbids registry and real desktop changes, no GUI launch was attempted. See [audit/system-integration.md](audit/system-integration.md) and [audit/build-environment.md](audit/build-environment.md).
+Because this phase forbids registry and real desktop changes, no GUI launch was attempted. See [audit/system-integration.md](audit/system-integration.md), [audit/build-environment.md](audit/build-environment.md), and the runtime maps below.
 
 ## Local files
 
@@ -52,6 +52,9 @@ Because this phase forbids registry and real desktop changes, no GUI launch was 
 - [audit/filesystem-behavior.md](audit/filesystem-behavior.md)
 - [audit/system-integration.md](audit/system-integration.md)
 - [audit/network-behavior.md](audit/network-behavior.md)
+- [audit/runtime-registry-map.md](audit/runtime-registry-map.md)
+- [audit/runtime-hooks-map.md](audit/runtime-hooks-map.md)
+- [audit/runtime-desktop-window-map.md](audit/runtime-desktop-window-map.md)
 - [audit/build-environment.md](audit/build-environment.md)
 - [build/BUILD_NOTES.md](build/BUILD_NOTES.md)
 - [docs/UPSTREAM_SYNC.md](docs/UPSTREAM_SYNC.md)
