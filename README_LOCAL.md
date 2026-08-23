@@ -9,7 +9,7 @@ Task=DesktopHubBaselineAdoption
 Status=BLOCKED
 Reason=Release build succeeds, but safe launch is gated because the upstream startup path writes HKCU registry state, installs global input hooks, and touches the desktop icon window.
 SourceChanges=none
-Origin=planned private repository: https://github.com/a18152805786-cmd/DesktopHub.git
+Origin=https://github.com/a18152805786-cmd/DesktopHub.git (PRIVATE; configured and pushed)
 Upstream=https://github.com/limbo666/DesktopFramesPlus.git
 ```
 
