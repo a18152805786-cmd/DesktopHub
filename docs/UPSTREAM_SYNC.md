@@ -52,7 +52,7 @@ git pull upstream main
 - `upstream/main`: read-only remote-tracking view of the public source.
 - `integration/upstream-*`: disposable review branch for one upstream update.
 
-The current clone has a complete local `main` branch and `upstream/main`. The recommended baseline tag was intentionally not created because safe runtime validation is blocked by mandatory startup side effects.
+The current clone has local `main` and `develop` branches plus `upstream/main`. `main` remains the default branch. The recommended baseline tag was intentionally not created because safe runtime validation is blocked by mandatory startup side effects.
 
 ## Baseline tag rule
 

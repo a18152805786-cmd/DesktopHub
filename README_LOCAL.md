@@ -11,9 +11,10 @@ Reason=Release build succeeds, but safe launch is gated because the upstream sta
 SourceChanges=none
 Origin=https://github.com/a18152805786-cmd/DesktopHub.git (PRIVATE; configured and pushed)
 Upstream=https://github.com/limbo666/DesktopFramesPlus.git
+Branches=main and develop created; upstream/main retained as the public remote-tracking branch
 ```
 
-The executable was not launched. Therefore this baseline deliberately does not claim runtime validation or a baseline tag.
+The executable was not launched. Therefore this baseline deliberately does not claim runtime validation or a baseline tag. `main` and `develop` currently contain the local audit commit; `main` remains the default branch.
 
 ## Actual layout
 
