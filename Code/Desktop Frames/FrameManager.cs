@@ -2572,7 +2572,7 @@ namespace Desktop_Frames
                         else if (propertyName == "IsRolled")
                         {
                             bool isRolled = value?.ToLower() == "true";
-                            double targetHeight = isRolled ? 28 : Convert.ToDouble(actualFrame.UnrolledHeight?.ToString() ?? "130"); //rolled height
+                            double targetHeight = isRolled ? FrameVisualStyleHelper.CollapsedHeight : Convert.ToDouble(actualFrame.UnrolledHeight?.ToString() ?? "130");
                             var heightAnimation = new DoubleAnimation(win.Height, targetHeight, TimeSpan.FromSeconds(0.3))
                             {
                                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
@@ -3730,43 +3730,29 @@ namespace Desktop_Frames
                 }
             }
             DockPanel dp = new DockPanel();
-            // Get frame border color and thickness from frame data
+            // Preserve an explicit per-frame border color while the Fluent surface
+            // owns the global one-pixel border and corner radius.
             System.Windows.Media.Brush borderBrush = null;
-            double borderThickness = 0;
             try
             {
                 string borderColorName = frame.FrameBorderColor?.ToString();
-                int customThickness = Convert.ToInt32(frame.FrameBorderThickness?.ToString() ?? "2");
                 if (!string.IsNullOrEmpty(borderColorName))
                 {
                     var borderColor = Utility.GetColorFromName(borderColorName);
                     borderBrush = new SolidColorBrush(borderColor);
-                    borderThickness = customThickness; // Use custom thickness
-                    LogManager.Log(LogManager.LogLevel.Debug, LogManager.LogCategory.General, $"Applied border color '{borderColorName}' with thickness {borderThickness} to frame '{frame.Title}'");
-                }
-                else if (customThickness > 0)
-                {
-                    // Even without color, apply thickness with default color
-                    borderBrush = new SolidColorBrush(System.Windows.Media.Colors.Gray);
-                    borderThickness = customThickness;
-                    LogManager.Log(LogManager.LogLevel.Debug, LogManager.LogCategory.General, $"Applied default border with thickness {borderThickness} to frame '{frame.Title}'");
+                    LogManager.Log(LogManager.LogLevel.Debug, LogManager.LogCategory.General, $"Applied border color '{borderColorName}' to frame '{frame.Title}'");
                 }
             }
             catch (Exception ex)
             {
                 LogManager.Log(LogManager.LogLevel.Debug, LogManager.LogCategory.General, $"Error applying border: {ex.Message}");
                 borderBrush = null;
-                borderThickness = 0;
             }
             Border cborder = new Border
             {
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 0, 0, 0)),
-                // --- APPLY HIDDEN SETTING: Sharp corners if enabled, otherwise default 6px round ---
-                CornerRadius = SettingsManager.FramesWithNoRoundCorners ? new CornerRadius(0) : new CornerRadius(6),
-                BorderBrush = borderBrush, // Apply border color
-                BorderThickness = new Thickness(borderThickness), // Apply border thickness
                 Child = dp
             };
+            FrameVisualStyleHelper.ApplySurface(cborder, SettingsManager.FramesWithNoRoundCorners, borderBrush);
             // Add Double Click Handler
             cborder.MouseLeftButtonDown += (s, e) =>
             {
@@ -3779,11 +3765,11 @@ namespace Desktop_Frames
 
 
             //  Add heart symbol in top-left corner
-            string MenuSymbol = "♥";
+            string MenuSymbol = "⋯";
 
             if (SettingsManager.MenuIcon == 0)
             {
-                MenuSymbol = "♥";
+                MenuSymbol = "⋯";
               
             }
             else if (SettingsManager.MenuIcon == 1)
@@ -3805,46 +3791,14 @@ namespace Desktop_Frames
 
                 Name = "FrameMenuIcon", // New! Name
                 Text = MenuSymbol,
-                FontSize = 22,
-                Foreground = System.Windows.Media.Brushes.White, // Match title and icon text color
-                Margin = new Thickness(5, -3, 0, 0), // Position top-left, aligned with title
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top,
-                Cursor = Cursors.Hand,
-                Opacity = (double)SettingsManager.MenuTintValue / 100 // 0.3 // Lower tint by default
+                FontSize = 18,
+                ToolTip = Strings.MenuCustomize
 
             };
   
             _heartTextBlocks[frame] = heart;
 
 
-
-            heart.MouseEnter += (s, e) =>
-            {
-                // Remove previous animation 
-                heart.BeginAnimation(UIElement.OpacityProperty, null);
-
-                heart.Opacity = 1.0;
-            };
-
-            heart.MouseLeave += (s, e) =>
-            {
-                double targetOpacity = (double)SettingsManager.MenuTintValue / 100;
-
-                DoubleAnimation fadeBack = new DoubleAnimation
-                {
-                    From = 1.0,
-                    To = targetOpacity,
-                    Duration = TimeSpan.FromMilliseconds(300),
-                    BeginTime = TimeSpan.FromMilliseconds(800)
-                };
-
-                heart.BeginAnimation(UIElement.OpacityProperty, fadeBack);
-            };
-
-
-            dp.Children.Add(heart);
-            Panel.SetZIndex(heart, 100); // Ensure heart is above titleGrid to receive clicks
 
             // Store heart TextBlock reference for this frame
             _heartTextBlocks[frame] = heart;
@@ -3921,38 +3875,8 @@ namespace Desktop_Frames
                 //     Text = "🔓",
                 Name = "FrameLockIcon", // New! Name
                 Text = LockSymbol,//"🛡️",
-                                FontSize = 14,
-                Foreground = frame.IsLocked?.ToString().ToLower() == "true" ? System.Windows.Media.Brushes.Red : System.Windows.Media.Brushes.White,
-                Margin = new Thickness(0, 3, 2, 0), // Adjusted for top-right positioning
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Top,
-                Cursor = Cursors.Hand,
-                ToolTip = frame.IsLocked?.ToString().ToLower() == "true" ? Strings.FrameLockedTooltip : Strings.FrameUnlockedTooltip,
-                Opacity = (double)SettingsManager.MenuTintValue / 100 // 0.3 // Lower tint by default
-            };
-
-  
-            lockIcon.MouseEnter += (s, e) =>
-            {
-                // Remove previous animation
-                lockIcon.BeginAnimation(UIElement.OpacityProperty, null);
-
-                lockIcon.Opacity = 1.0;
-            };
-
-            lockIcon.MouseLeave += (s, e) =>
-            {
-                double targetOpacity = (double)SettingsManager.MenuTintValue / 100;
-
-                DoubleAnimation fadeBack = new DoubleAnimation
-                {
-                    From = 1.0,
-                    To = targetOpacity,
-                    Duration = TimeSpan.FromMilliseconds(300),
-                    BeginTime = TimeSpan.FromMilliseconds(800)
-                };
-
-                lockIcon.BeginAnimation(UIElement.OpacityProperty, fadeBack);
+                FontSize = 14,
+                ToolTip = frame.IsLocked?.ToString().ToLower() == "true" ? Strings.FrameLockedTooltip : Strings.FrameUnlockedTooltip
             };
 
 
@@ -4007,14 +3931,11 @@ namespace Desktop_Frames
 
 
             // Create a Grid for the titlebar - move here to ensure it is created before mouse handler
-            Grid titleGrid = new Grid
-            {
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 0, 0, 0))
-            };
-            titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0, GridUnitType.Pixel) }); // Col 0: Spacer
+            Grid titleGrid = new Grid();
+            titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32, GridUnitType.Pixel) }); // Col 0: Menu
             titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Col 1: Title
             titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                      // Col 2: Filter Icon (Auto width)
-            titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30, GridUnitType.Pixel) }); // Col 3: Lock Icon
+            titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32, GridUnitType.Pixel) }); // Col 3: Lock Icon
                                                                                                                       // End of ctrl+click handler
             ContextMenu CnMnFramemanager = new ContextMenu();
 
@@ -4087,6 +4008,7 @@ namespace Desktop_Frames
                 Left = (double)frame.X,
                 Tag = frame.Id?.ToString() ?? Guid.NewGuid().ToString() // Ensure ID exists
             };
+            FrameVisualStyleHelper.ApplyWindowPresentation(win);
             // Add Note frame specific context menu items after window creation
             if (frame.ItemsType?.ToString() == "Note")
             {
@@ -4356,7 +4278,7 @@ namespace Desktop_Frames
                 LogManager.Log(LogManager.LogLevel.Debug, LogManager.LogCategory.FrameCreation, $"Applied lock state for frame '{frame.Title}' on load: IsLocked={frame.IsLocked?.ToString().ToLower()}");
                 // Apply IsRolled state
                 bool isRolled = frame.IsRolled?.ToString().ToLower() == "true";
-                double targetHeight = 28; // Default for rolled-up state  //rolled height
+                double targetHeight = FrameVisualStyleHelper.CollapsedHeight;
                 if (!isRolled)
                 {
                     double unrolledHeight = (double)frame.Height; // Default to frame.Height
@@ -4484,7 +4406,7 @@ namespace Desktop_Frames
                     if (!isRolled)
                     {
 
-                        if (Math.Abs(newHeight - 28) > 5) // Only if height is significantly different from rolled-up height   //rolled height
+                        if (Math.Abs(newHeight - FrameVisualStyleHelper.CollapsedHeight) > 5)
                         {
                             double heightDifference = Math.Abs(newHeight - oldUnrolledHeight);
                             // DebugLog("LOGIC", frameId, $"Height difference from old UnrolledHeight: {heightDifference:F1}");
@@ -4626,7 +4548,7 @@ namespace Desktop_Frames
                     _framesInTransition.Add(frameIdForTimer);
 
                     double currentHeight = win.Height;
-                    double targetHeight = 28;
+                    double targetHeight = FrameVisualStyleHelper.CollapsedHeight;
 
                     var heightAnimation = new DoubleAnimation(currentHeight, targetHeight, TimeSpan.FromSeconds(0.3))
                     {
@@ -4836,53 +4758,60 @@ namespace Desktop_Frames
                 isBoldTitle = frame.BoldTitleText?.ToString().ToLower() == "true";
             }
             catch { /* Safe fallback */ }
-            // Get title text color or use default white
-            System.Windows.Media.Brush titleTextBrush = System.Windows.Media.Brushes.White; // Default
+            // Preserve explicit title color preferences without overriding the
+            // theme-aware Fluent default.
+            System.Windows.Media.Brush titleTextBrush = null;
             try
             {
                 string titleColorName = frame.TitleTextColor?.ToString();
                 if (!string.IsNullOrEmpty(titleColorName))
                 {
                     var titleColor = Utility.GetColorFromName(titleColorName);
-                    titleTextBrush = new SolidColorBrush(titleColor);
+                    if (titleColor != System.Windows.Media.Colors.Transparent)
+                    {
+                        titleTextBrush = new SolidColorBrush(titleColor);
+                    }
                 }
             }
             catch
             {
-                titleTextBrush = System.Windows.Media.Brushes.White; // Fallback
+                titleTextBrush = null;
             }
             // Get title text size from frame data
-            double titleFontSize = 12; // Default Medium size
+            double titleFontSize = 13.5; // Fluent V1 default
             try
             {
                 string titleSizeValue = frame.TitleTextSize?.ToString() ?? "Medium";
                 switch (titleSizeValue)
                 {
                     case "Small":
-                        titleFontSize = 10;
+                        titleFontSize = 12;
                         break;
                     case "Large":
                         titleFontSize = 16;
                         break;
                     default: // Medium
-                        titleFontSize = 12;
+                        titleFontSize = 13.5;
                         break;
                 }
             }
             catch
             {
-                titleFontSize = 12; // Fallback to Medium
+                titleFontSize = 13.5; // Fallback to Medium
             }
             Label titlelabel = new Label
             {
                 Content = frame.Title.ToString(),
-                Foreground = titleTextBrush, // Changed from hardcoded White
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                Cursor = Cursors.SizeAll,
-                FontWeight = isBoldTitle ? FontWeights.Bold : FontWeights.Normal,
-                FontSize = titleFontSize // Apply custom title text size
+                Cursor = Cursors.SizeAll
             };
+            FrameVisualStyleHelper.ApplyHeader(titleGrid);
+            FrameVisualStyleHelper.ApplyTitle(titlelabel, titletb, frame.Title?.ToString(), isBoldTitle);
+            titlelabel.FontSize = titleFontSize;
+            if (titleTextBrush != null) titlelabel.Foreground = titleTextBrush;
+            FrameVisualStyleHelper.ApplyHeaderControl(heart);
+            FrameVisualStyleHelper.ApplyLockState(lockIcon, frame.IsLocked?.ToString().ToLower() == "true");
+            Grid.SetColumn(heart, 0);
+            titleGrid.Children.Add(heart);
             Grid.SetColumn(titlelabel, 1);
             titleGrid.Children.Add(titlelabel);
 
@@ -5591,10 +5520,10 @@ namespace Desktop_Frames
                         // --- BUG FIX: The "Stuck at 28" Safeguard ---
                         // If currentHeight is suspiciously small (like the title bar height), it means the 
                         // WPF layout data is stale. We reject it and use the last known good UnrolledHeight.
-                        if (currentHeight <= 35)
+                        if (currentHeight <= FrameVisualStyleHelper.CollapsedHeight + 7)
                         {
                             currentHeight = Convert.ToDouble(currentFrame.UnrolledHeight?.ToString() ?? "130");
-                            if (currentHeight <= 35) currentHeight = 130; // Ultimate fallback
+                            if (currentHeight <= FrameVisualStyleHelper.CollapsedHeight + 7) currentHeight = 130; // Ultimate fallback
                         }
 
                         // DebugLog("ROLLUP_HEIGHT_SOURCE", frameId, $"Using frame.Height:{frameHeight:F1} (win.Height was stale:{win.Height:F1})");
@@ -5610,7 +5539,7 @@ namespace Desktop_Frames
                         FrameDataManager.SaveFrameData();
                         // DebugLog("SAVE", frameId, $"Saved ROLLUP state | UnrolledHeight:{currentHeight:F1} | IsRolled:true");
                         // Roll up animation - starts from current height
-                        double targetHeight = 28;   //rolled height
+                        double targetHeight = FrameVisualStyleHelper.CollapsedHeight;
                         var heightAnimation = new DoubleAnimation(currentHeight, targetHeight, TimeSpan.FromSeconds(0.3))
                         {
                             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
@@ -5733,7 +5662,7 @@ namespace Desktop_Frames
                     if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
                     {
                         // Rename frame (swapped from double-click)
-                        titletb.Text = titlelabel.Content.ToString();
+                        titletb.Text = frame.Title?.ToString() ?? titlelabel.Content?.ToString() ?? string.Empty;
                         titlelabel.Visibility = Visibility.Collapsed;
                         titletb.Visibility = Visibility.Visible;
                         win.BeginKeyboardInteractiveEdit(titletb);
@@ -7728,7 +7657,7 @@ namespace Desktop_Frames
 
             {
                 // Update lock icon
-                lockIcon.Foreground = isLocked ? System.Windows.Media.Brushes.DeepPink : System.Windows.Media.Brushes.White;
+                FrameVisualStyleHelper.ApplyLockState(lockIcon, isLocked);
                 lockIcon.ToolTip = isLocked ? Strings.FrameLockedTooltip : Strings.FrameUnlockedTooltip;
 
                 // Find the NonActivatingWindow

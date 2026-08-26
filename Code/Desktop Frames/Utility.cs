@@ -202,29 +202,11 @@ namespace Desktop_Frames
             var frameControl = frame.Content as Border; // Matches your structure
             if (frameControl == null) return;
 
-            // --- THE ARCHITECTURAL FIX ---
-            // We now properly distinguish between an explicit custom color and a global fallback
             bool isDefault = string.IsNullOrEmpty(colorName) || colorName == "Default";
-
-            Color finalColor;
-            if (isDefault)
-            {
-                finalColor = SettingsManager.EnableChameleonMode
-                             ? WallpaperColorManager.CurrentWallpaperColor
-                             : GetColorFromName(SettingsManager.SelectedColor);
-            }
-            else
-            {
-                finalColor = GetColorFromName(colorName);
-            }
-
             LogManager.Log(LogManager.LogLevel.Debug, LogManager.LogCategory.Settings,
-                $"ApplyTintAndColorToFrame: TintValue={SettingsManager.TintValue}, Color={(isDefault ? "Default" : colorName)}, Opacity={SettingsManager.TintValue / 100.0}");
+                $"ApplyTintAndColorToFrame: Fluent surface, Color={(isDefault ? "Default" : colorName)}");
 
-            // Use TintValue from SettingsManager to determine if tint is applied
-            frameControl.Background = SettingsManager.TintValue > 0
-                ? new SolidColorBrush(finalColor) { Opacity = SettingsManager.TintValue / 100.0 }
-                : Brushes.Transparent;
+            FrameVisualStyleHelper.ApplySurfaceColor(frameControl, isDefault ? null : colorName);
 
             // TABS FEATURE: Refresh tab colors when frame color changes
             if (frame is NonActivatingWindow frameWindow)
@@ -271,7 +253,7 @@ namespace Desktop_Frames
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
                 // 1. Prepare Symbols
-                string[] menuSymbols = { "♥", "☰", "≣", "𓃑" };
+                string[] menuSymbols = { "⋯", "☰", "≣", "𓃑" };
                 string[] lockSymbols = { "🛡️", "🔑", "🔐", "🔒" };
 
                 int menuIdx = SettingsManager.MenuIcon;
@@ -282,7 +264,6 @@ namespace Desktop_Frames
 
                 string menuSymbol = menuSymbols[menuIdx];
                 string lockSymbol = lockSymbols[lockIdx];
-                double iconOpacity = (double)SettingsManager.MenuTintValue / 100.0;
 
                 // Get Data List Once
                 var allFrames = Framemanager.GetFrameData();
@@ -347,18 +328,14 @@ namespace Desktop_Frames
                     if (menuIcon != null)
                     {
                         menuIcon.Text = menuSymbol;
-                        menuIcon.BeginAnimation(UIElement.OpacityProperty, null);
-                        menuIcon.Opacity = iconOpacity;
+                        FrameVisualStyleHelper.ApplyHeaderControl(menuIcon);
                     }
 
                     var lockIcon = FindChild<TextBlock>(win, "FrameLockIcon");
                     if (lockIcon != null)
                     {
                         lockIcon.Text = lockSymbol;
-                        lockIcon.BeginAnimation(UIElement.OpacityProperty, null);
-                        lockIcon.Opacity = iconOpacity;
-
-                        // Re-apply Lock Color (Red/White)
+                        // Re-apply lock state using the Fluent palette.
                         bool isLocked = false;
                         if (FrameData != null)
                         {
@@ -367,7 +344,7 @@ namespace Desktop_Frames
                             else try { lockedStr = FrameData.IsLocked?.ToString(); } catch { }
                             isLocked = lockedStr?.ToLower() == "true";
                         }
-                        lockIcon.Foreground = isLocked ? System.Windows.Media.Brushes.Red : System.Windows.Media.Brushes.White;
+                        FrameVisualStyleHelper.ApplyLockState(lockIcon, isLocked);
                     }
 
                     // 5. Update Note Text Contrast (if applicable)
