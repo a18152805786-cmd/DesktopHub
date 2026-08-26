@@ -1,5 +1,6 @@
 ﻿using Desktop_Frames.Localization;
 using IWshRuntimeLibrary;
+using Desktop_Frames.ReferenceGrouping;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -1380,6 +1381,8 @@ namespace Desktop_Frames
 
                 string filePath = iconDict.ContainsKey("Filename") ? (string)iconDict["Filename"] : "Unknown";
                 bool isFolder = iconDict.ContainsKey("IsFolder") && (bool)iconDict["IsFolder"];
+                bool isReference = iconDict.ContainsKey("ItemKind") &&
+                    string.Equals(iconDict["ItemKind"]?.ToString(), "Reference", StringComparison.OrdinalIgnoreCase);
 
                 // HELPER: Function to find the LIVE item in memory (Handles Tabs vs Main)
                 // We need this because 'item' becomes stale after an update.
@@ -1423,7 +1426,10 @@ namespace Desktop_Frames
                 // --- GROUP 1: MANIPULATION ---
                 MenuItem miEdit = new MenuItem { Header = Strings.MenuEdit };
                 MenuItem miMove = new MenuItem { Header = Strings.MenuMove };
-                MenuItem miRemove = new MenuItem { Header = Strings.MenuRemove };
+                MenuItem miRemove = new MenuItem
+                {
+                    Header = isReference ? Strings.ReferenceRemoveFromGroup : Strings.MenuRemove
+                };
 
                 iconContextMenu.Items.Add(miEdit);
                 iconContextMenu.Items.Add(miMove);
@@ -1442,6 +1448,14 @@ namespace Desktop_Frames
                 {
                     sepClipboard.Visibility = Visibility.Collapsed;
                     miCopyItem.Visibility = Visibility.Collapsed;
+                }
+
+                if (isReference)
+                {
+                    // Reference items are membership metadata, not Profile-owned files.
+                    miEdit.Visibility = Visibility.Collapsed;
+                    miCopyItem.Visibility = Visibility.Collapsed;
+                    sepClipboard.Visibility = Visibility.Collapsed;
                 }
 
                 // --- GROUP 3: EXECUTION (Conditional) ---
@@ -1526,7 +1540,10 @@ namespace Desktop_Frames
                 miCopyPathRoot.Items.Add(miCopyFolder);
                 miCopyPathRoot.Items.Add(miCopyFullPath);
 
-                MenuItem miFindTarget = new MenuItem { Header = Strings.MenuOpenTargetFolder };
+                MenuItem miFindTarget = new MenuItem
+                {
+                    Header = isReference ? Strings.ReferenceOpenLocation : Strings.MenuOpenTargetFolder
+                };
 
                 iconContextMenu.Items.Add(miCopyPathRoot);
                 iconContextMenu.Items.Add(miFindTarget);
@@ -1587,6 +1604,17 @@ namespace Desktop_Frames
                 miCopyItem.Click += (s, e) => CopyPasteManager.CopyItem(item, frame);
 
                 miFindTarget.Click += (s, e) => {
+                    if (isReference)
+                    {
+                        string originalPath = (iconDict.ContainsKey("OriginalPath")
+                            ? iconDict["OriginalPath"]?.ToString()
+                            : filePath) ?? string.Empty;
+                        if (System.IO.Directory.Exists(originalPath))
+                            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{originalPath}\"") { UseShellExecute = true });
+                        else if (System.IO.File.Exists(originalPath))
+                            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{originalPath}\"") { UseShellExecute = true });
+                        return;
+                    }
                     string target = Utility.GetShortcutTarget(filePath);
                     if (!string.IsNullOrEmpty(target) && (System.IO.File.Exists(target) || System.IO.Directory.Exists(target)))
                         Process.Start("explorer.exe", $"/select,\"{target}\"");
@@ -1629,7 +1657,7 @@ namespace Desktop_Frames
                         iconContextMenu.Items.Remove(miAlwaysRunAsDifferentUser);
 
                     // 1. Send to Desktop (Ctrl only, Skip for spacers)
-                    if (isCtrl && !isSpacer)
+                    if (isCtrl && !isSpacer && !isReference)
                     {
                         miSendToDesktop = new MenuItem { Header = Strings.MenuSendToDesktop };
                         miSendToDesktop.Click += (sender, args) => CopyPasteManager.SendToDesktop(item);
@@ -6229,6 +6257,35 @@ namespace Desktop_Frames
                             // --- DATA FRAME LOGIC ---
                             if (frame.ItemsType?.ToString() == "Data")
                             {
+                                // Desktop .lnk/.url/folder drops are reference-only.
+                                // This branch never moves, copies, deletes, or renames the source.
+                                if (ReferenceFrameItem.IsSupportedPath(droppedFile))
+                                {
+                                    if (ReferenceFrameItemService.TryAddDroppedReference(
+                                        frame, droppedFile, out JObject? referenceItem, out string referenceReason))
+                                    {
+                                        JObject persistedReference = referenceItem!;
+                                        AddIcon(persistedReference, wpcont, frame);
+                                        StackPanel? referencePanel = wpcont.Children[wpcont.Children.Count - 1] as StackPanel;
+                                        if (referencePanel != null)
+                                        {
+                                            bool referenceIsFolder = persistedReference["IsFolder"]?.ToObject<bool>() == true;
+                                            string referenceArgs = persistedReference["Arguments"]?.ToString() ?? string.Empty;
+                                            ClickEventAdder(referencePanel, droppedFile, referenceIsFolder, referenceArgs);
+                                            AttachIconContextMenu(referencePanel, persistedReference, frame, win);
+                                        }
+
+                                        LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.FrameCreation,
+                                            $"Added reference-only Frame membership for '{droppedFile}'");
+                                    }
+                                    else
+                                    {
+                                        LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.FrameCreation,
+                                            $"Reference-only drop skipped for '{droppedFile}': {referenceReason}");
+                                    }
+                                    continue;
+                                }
+
                                 if (!System.IO.Directory.Exists("Shortcuts")) System.IO.Directory.CreateDirectory("Shortcuts");
                                 string baseShortcutName = System.IO.Path.Combine("Shortcuts", System.IO.Path.GetFileName(droppedFile));
                                 string shortcutName = baseShortcutName;
@@ -6895,7 +6952,15 @@ namespace Desktop_Frames
                 lbl.Effect = new DropShadowEffect { Color = Colors.Black, Direction = 315, ShadowDepth = 2, BlurRadius = 3, Opacity = 0.8 };
 
             sp.Children.Add(lbl);
-            sp.Tag = new { FilePath = filePath, IsFolder = isFolder, Arguments = (string)(iconDict.ContainsKey("Arguments") ? iconDict["Arguments"] : null) };
+            bool isReferenceItem = iconDict.ContainsKey("ItemKind") &&
+                string.Equals(iconDict["ItemKind"]?.ToString(), "Reference", StringComparison.OrdinalIgnoreCase);
+            sp.Tag = new
+            {
+                FilePath = filePath,
+                IsFolder = isFolder,
+                Arguments = (string)(iconDict.ContainsKey("Arguments") ? iconDict["Arguments"] : null),
+                IsReference = isReferenceItem
+            };
             sp.ToolTip = new ToolTip { Content = originalDisplayName + "\nLoading target..." };
 
             wpcont.Children.Add(sp); // ADD TO UI INSTANTLY!
@@ -8283,8 +8348,14 @@ namespace Desktop_Frames
 
         public static void ClickEventAdder(StackPanel sp, string path, bool isFolder, string arguments = null)
         {
-            // Store only path, isFolder, and arguments in Tag
-            sp.Tag = new { FilePath = path, IsFolder = isFolder, Arguments = arguments };
+            bool isReference = false;
+            try
+            {
+                isReference = Convert.ToBoolean(
+                    sp.Tag?.GetType().GetProperty("IsReference")?.GetValue(sp.Tag) ?? false);
+            }
+            catch { }
+            sp.Tag = new { FilePath = path, IsFolder = isFolder, Arguments = arguments, IsReference = isReference };
 
             // --- HANG FIX 1 (Startup): Removed synchronous Utility.GetShortcutTarget(path) from here. ---
             // The folder double-check is deferred until the exact moment of clicking to prevent startup freezing.
@@ -8605,6 +8676,34 @@ namespace Desktop_Frames
                 string extension = System.IO.Path.GetExtension(fullPath).ToLower();
                 bool isUrlFile = extension == ".url";
                 bool isLnk = extension == ".lnk";
+
+                bool isReference = false;
+                try
+                {
+                    isReference = Convert.ToBoolean(
+                        sp.Tag?.GetType().GetProperty("IsReference")?.GetValue(sp.Tag) ?? false);
+                }
+                catch { }
+
+                // Preserve the original Windows Shell semantics for reference items.
+                // In particular, the .lnk remains responsible for arguments,
+                // working directory, Steam URI, and Store-app activation behavior.
+                if (isReference)
+                {
+                    if (!System.IO.File.Exists(fullPath) && !System.IO.Directory.Exists(fullPath))
+                    {
+                        MessageBoxesManager.ShowOKOnlyMessageBoxForm(Strings.ReferenceMissing, Strings.DlgLaunchError);
+                        return;
+                    }
+
+                    ProcessStartInfo referenceStart = System.IO.Directory.Exists(fullPath)
+                        ? new ProcessStartInfo("explorer.exe", $"\"{fullPath}\"") { UseShellExecute = true }
+                        : new ProcessStartInfo(fullPath) { UseShellExecute = true };
+                    Process.Start(referenceStart);
+                    LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                        $"Launched reference source: {fullPath}");
+                    return;
+                }
 
                 string targetPath = fullPath;
                 string workingDirectory = "";

@@ -1,5 +1,6 @@
 ﻿using Desktop_Frames.Localization;
 using System;
+using Desktop_Frames.ReferenceGrouping;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -555,6 +556,11 @@ namespace Desktop_Frames
 
                 // Perform the move
                 sourceItems.Remove(itemToMove);
+                if (itemToMove is JObject referenceItem)
+                {
+                    ReferenceFrameItemService.MarkManualOverride(
+                        referenceItem, targetFrame.Id?.ToString() ?? string.Empty);
+                }
                 destItems.Add(itemToMove);
 
                 // Save changes

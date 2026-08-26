@@ -2010,4 +2010,14 @@
   <data name="Search_CategoryImage" xml:space="preserve"><value>图片</value></data>
   <data name="Search_CategoryArchive" xml:space="preserve"><value>压缩包</value></data>
   <data name="Search_CategoryInstaller" xml:space="preserve"><value>安装包</value></data>
+  <data name="Group_AI_Dev" xml:space="preserve"><value>AI · 开发</value></data>
+  <data name="Group_Research" xml:space="preserve"><value>科研 · 学习</value></data>
+  <data name="Group_Work" xml:space="preserve"><value>工作工具</value></data>
+  <data name="Group_Games" xml:space="preserve"><value>游戏</value></data>
+  <data name="Group_Daily" xml:space="preserve"><value>日常工具</value></data>
+  <data name="Grouping_Unassigned" xml:space="preserve"><value>未分组</value></data>
+  <data name="Reference_RemoveFromGroup" xml:space="preserve"><value>从分组中移除</value></data>
+  <data name="Reference_OpenLocation" xml:space="preserve"><value>打开文件位置</value></data>
+  <data name="Reference_Missing" xml:space="preserve"><value>项目已移动或不存在。</value></data>
+  <data name="Grouping_Preview" xml:space="preserve"><value>视觉分组预览</value></data>
 </root>

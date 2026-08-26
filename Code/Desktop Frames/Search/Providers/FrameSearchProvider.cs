@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using Desktop_Frames.ReferenceGrouping;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,7 +43,9 @@ namespace Desktop_Frames.Search.Providers
 
             foreach (JToken item in items)
             {
-                string storedPath = item["Filename"]?.ToString() ?? string.Empty;
+                string storedPath = ReferenceFrameItem.IsReference(item)
+                    ? ReferenceFrameItem.GetOriginalPath(item)
+                    : item["Filename"]?.ToString() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(storedPath)) continue;
 
                 string path = ResolveFramePath(storedPath);
@@ -52,6 +55,15 @@ namespace Desktop_Frames.Search.Providers
                 result.FrameId = frame.Id?.ToString() ?? string.Empty;
                 result.FrameTitle = frame.Title?.ToString() ?? string.Empty;
                 result.IsFolder = item["IsFolder"]?.ToObject<bool>() ?? Directory.Exists(path);
+                if (ReferenceFrameItem.IsReference(item))
+                {
+                    result.OriginalPath = storedPath;
+                    result.TargetPath = item["TargetPath"]?.ToString() ?? result.TargetPath;
+                    result.LaunchArguments = item["Arguments"]?.ToString() ?? result.LaunchArguments;
+                    result.Uri = item["Uri"]?.ToString() ?? result.Uri;
+                    result.LaunchTarget = storedPath;
+                    result.IconSource = item["IconSource"]?.ToString() ?? storedPath;
+                }
                 result.Subtitle = string.IsNullOrWhiteSpace(result.FrameTitle)
                     ? SearchProviderUtilities.FriendlyPath(path)
                     : result.FrameTitle + " · " + SearchProviderUtilities.FriendlyPath(path);

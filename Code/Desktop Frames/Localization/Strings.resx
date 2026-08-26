@@ -1938,4 +1938,14 @@ Path: {1}</value>
   <data name="Search_CategoryImage" xml:space="preserve"><value>Image</value></data>
   <data name="Search_CategoryArchive" xml:space="preserve"><value>Archive</value></data>
   <data name="Search_CategoryInstaller" xml:space="preserve"><value>Installer</value></data>
+  <data name="Group_AI_Dev" xml:space="preserve"><value>AI · Development</value></data>
+  <data name="Group_Research" xml:space="preserve"><value>Research · Study</value></data>
+  <data name="Group_Work" xml:space="preserve"><value>Work Tools</value></data>
+  <data name="Group_Games" xml:space="preserve"><value>Games</value></data>
+  <data name="Group_Daily" xml:space="preserve"><value>Daily Tools</value></data>
+  <data name="Grouping_Unassigned" xml:space="preserve"><value>Unassigned</value></data>
+  <data name="Reference_RemoveFromGroup" xml:space="preserve"><value>Remove from group</value></data>
+  <data name="Reference_OpenLocation" xml:space="preserve"><value>Open file location</value></data>
+  <data name="Reference_Missing" xml:space="preserve"><value>This item has been moved or no longer exists.</value></data>
+  <data name="Grouping_Preview" xml:space="preserve"><value>Visual grouping preview</value></data>
 </root>

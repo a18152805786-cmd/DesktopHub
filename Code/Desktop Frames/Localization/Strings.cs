@@ -783,6 +783,16 @@ namespace Desktop_Frames.Localization
         public static string TermSettings => Get("TermSettings");
         public static string TermStartupDirectory => Get("TermStartupDirectory");
         public static string TermTargetShell => Get("TermTargetShell");
+        public static string GroupAiDev => Get("Group_AI_Dev");
+        public static string GroupResearch => Get("Group_Research");
+        public static string GroupWork => Get("Group_Work");
+        public static string GroupGames => Get("Group_Games");
+        public static string GroupDaily => Get("Group_Daily");
+        public static string GroupingUnassigned => Get("Grouping_Unassigned");
+        public static string ReferenceRemoveFromGroup => Get("Reference_RemoveFromGroup");
+        public static string ReferenceOpenLocation => Get("Reference_OpenLocation");
+        public static string ReferenceMissing => Get("Reference_Missing");
+        public static string GroupingPreview => Get("Grouping_Preview");
         public static string VuAttack => Get("VuAttack");
         public static string VuAttackHint => Get("VuAttackHint");
         public static string VuBallistics => Get("VuBallistics");
