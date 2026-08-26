@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using Desktop_Frames;
+using Desktop_Frames.NativeDesktop;
 
 public class NonActivatingWindow : Window
 {
@@ -11,10 +12,20 @@ public class NonActivatingWindow : Window
     private const int SC_RESTORE = 0xF120;
 
     private const int WM_MOUSEACTIVATE = 0x0021;
+    private const int WM_NCHITTEST = 0x0084;
     private const int MA_NOACTIVATE = 3;
+    private const int HTLEFT = 10;
+    private const int HTRIGHT = 11;
+    private const int HTBOTTOM = 15;
+    private const int HTBOTTOMLEFT = 16;
+    private const int HTBOTTOMRIGHT = 17;
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_NOACTIVATE = 0x08000000;
     private bool _focusPreventionEnabled = true;
+    private NativeFrameSurfaceManager? _nativeSurfacePrototype;
+
+    public bool NativeSurfacePrototypeEnabled { get; set; }
+    public NativeFrameRegionGeometry? NativeSurfacePrototypeGeometry => _nativeSurfacePrototype?.LastGeometry;
 
     // --- Idle Fade-Out Fields ---
     private System.Windows.Threading.DispatcherTimer _idleTimer;
@@ -28,6 +39,25 @@ public class NonActivatingWindow : Window
         hwndSource.AddHook(WndProc);
         SetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE, GetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
         SetupIdleTimer();
+        if (NativeSurfacePrototypeEnabled)
+        {
+            _nativeSurfacePrototype = new NativeFrameSurfaceManager(this);
+            _nativeSurfacePrototype.Attach();
+        }
+    }
+
+    public void RefreshNativeSurfacePrototype()
+    {
+        if (!NativeSurfacePrototypeEnabled || _nativeSurfacePrototype == null)
+            throw new InvalidOperationException("The native surface prototype is not enabled for this Frame.");
+        _nativeSurfacePrototype.ApplyNow();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _nativeSurfacePrototype?.Dispose();
+        _nativeSurfacePrototype = null;
+        base.OnClosed(e);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -43,6 +73,12 @@ public class NonActivatingWindow : Window
         else if (msg == WM_EXITSIZEMOVE)
         {
             Framemanager.OnResizingEnded(this);
+        }
+
+        if (msg == WM_NCHITTEST && TryGetNativeSurfaceResizeHit(hwnd, lParam, out int resizeHit))
+        {
+            handled = true;
+            return new IntPtr(resizeHit);
         }
 
         // Handle existing focus prevention
@@ -67,6 +103,32 @@ public class NonActivatingWindow : Window
         return IntPtr.Zero;
     }
 
+    private bool TryGetNativeSurfaceResizeHit(IntPtr hwnd, IntPtr lParam, out int hit)
+    {
+        hit = 0;
+        NativeFrameRegionGeometry? geometry = NativeSurfacePrototypeGeometry;
+        if (!NativeSurfacePrototypeEnabled || geometry == null || ResizeMode == ResizeMode.NoResize)
+            return false;
+
+        if (!GetWindowRect(hwnd, out NativeRect rectangle))
+            return false;
+
+        long packedPoint = lParam.ToInt64();
+        int screenX = unchecked((short)(packedPoint & 0xffff));
+        int screenY = unchecked((short)((packedPoint >> 16) & 0xffff));
+        int localX = screenX - rectangle.Left;
+        int localY = screenY - rectangle.Top;
+        int rim = geometry.ResizeBorderPx;
+        bool left = localX >= 0 && localX < rim;
+        bool right = localX >= geometry.WidthPx - rim && localX < geometry.WidthPx;
+        bool bottom = localY >= geometry.HeightPx - rim && localY < geometry.HeightPx;
+
+        hit = bottom
+            ? left ? HTBOTTOMLEFT : right ? HTBOTTOMRIGHT : HTBOTTOM
+            : left ? HTLEFT : right ? HTRIGHT : 0;
+        return hit != 0;
+    }
+
     public void EnableFocusPrevention(bool enable)
     {
         _focusPreventionEnabled = enable;
@@ -85,10 +147,22 @@ public class NonActivatingWindow : Window
 
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect rectangle);
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     private const int SW_SHOWNOACTIVATE = 4;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
     public void ShowWithoutActivation()
     {
