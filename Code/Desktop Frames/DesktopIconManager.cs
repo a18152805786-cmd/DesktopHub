@@ -65,7 +65,7 @@ namespace Desktop_Frames
             _isInitialized = true;
         }
 
-        private static IntPtr GetDesktopListView()
+        internal static IntPtr GetDesktopListView()
         {
             IntPtr progman = FindWindow("Progman", null);
             IntPtr shelldll = FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
