@@ -1304,6 +1304,11 @@ namespace Desktop_Frames
 
                     BackupManager.BackupDeletedFrame(frame);
 
+                    // A Startup Tips deletion is an explicit user dismissal.
+                    // This call is intentionally adjacent to the confirmed
+                    // delete action and never runs during load or cleanup.
+                    StartupTipsManager.HandleUserFrameDeletion(frame);
+
                     FrameDataManager.FrameData.Remove(frame);
                     _heartTextBlocks.Remove(frame);
 
@@ -3380,6 +3385,12 @@ namespace Desktop_Frames
                 MigrateLegacyJson();
             }
 
+            // Reconcile the built-in Startup Tips after generic frame
+            // migration and before any windows are created. This only marks
+            // one exact legacy template or removes an already-dismissed,
+            // identified Tips frame; ordinary Notes are untouched.
+            StartupTipsManager.ReconcileLoadedFrames();
+
             // Sanitize Portal Frames with missing target folders
             var invalidFrames = new List<dynamic>();
             foreach (dynamic frame in FrameDataManager.FrameData.ToList()) // Use ToList to avoid collection modification issues
@@ -3624,6 +3635,7 @@ namespace Desktop_Frames
                 var noteFrame = new
                 {
                     Id = Guid.NewGuid().ToString(), // Unique ID
+                    SystemFrameId = StartupTipsManager.StartupTipsSystemId,
                     Title = Strings.StartupTipsTitle, // Explicit Name
                     X = 20.0,   // Positioned below the data frame
                     Y = 200.0,  // Data frame ends then this frame begins
@@ -3658,8 +3670,13 @@ namespace Desktop_Frames
                     FrameBorderThickness = 2
                 };
 
-                // 3. Combine and Save
-                var frames = new List<object> { dataFrame, noteFrame };
+                // 3. Combine and Save. A global dismissal suppresses only the
+                // built-in Tips frame; the ordinary Data frame still exists.
+                var frames = new List<object> { dataFrame };
+                if (StartupTipsManager.ShouldCreateForEmptyProfile())
+                {
+                    frames.Add(noteFrame);
+                }
                 string defaultJson = JsonConvert.SerializeObject(frames, Formatting.Indented);
 
                 System.IO.File.WriteAllText(FrameDataManager.JsonFilePath, defaultJson);
@@ -3668,7 +3685,9 @@ namespace Desktop_Frames
                 FrameDataManager.FrameData = JsonConvert.DeserializeObject<List<dynamic>>(defaultJson);
 
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.FrameCreation,
-                    "Initialized default configuration with Data Frame and Startup Tips");
+                    StartupTipsManager.ShouldCreateForEmptyProfile()
+                        ? "Initialized default configuration with Data Frame and Startup Tips"
+                        : "Initialized default configuration with Data Frame; Startup Tips are dismissed");
             }
             catch (Exception ex)
             {

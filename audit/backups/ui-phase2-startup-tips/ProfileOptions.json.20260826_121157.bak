@@ -1,0 +1,11 @@
+{
+  "ActiveProfile": "Default",
+  "LastModified": "2026-08-23T22:08:06.1354189+08:00",
+  "DisplayProfileNameOnSwitch": false,
+  "Profiles": [
+    {
+      "Name": "Default",
+      "Id": 0
+    }
+  ]
+}

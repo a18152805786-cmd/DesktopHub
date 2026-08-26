@@ -30,6 +30,10 @@ namespace Desktop_Frames
         // NEW OPTION: Display OSD on switch
         public static bool DisplayProfileNameOnSwitch { get; set; } = false;
 
+        // Global onboarding state. This belongs to the application profile
+        // configuration rather than an individual Desktop Hub profile.
+        public static bool StartupTipsDismissed { get; private set; } = false;
+
         public static void SetManualBaseProfile(string name) => _manualBaseProfile = name;
 
         private static string _appBaseDir;
@@ -194,7 +198,24 @@ namespace Desktop_Frames
             }
             else
             {
-                DisplayProfileNameOnSwitch = config["DisplayProfileNameOnSwitch"].Value<bool>();
+                DisplayProfileNameOnSwitch = config["DisplayProfileNameOnSwitch"]!.Value<bool>();
+            }
+
+            // Startup Tips are onboarding content, so dismissal is global.
+            // Missing values are intentionally treated as false for old configs.
+            if (config["StartupTipsDismissed"] == null)
+            {
+                StartupTipsDismissed = false;
+                saveNeeded = true;
+            }
+            else
+            {
+                try { StartupTipsDismissed = config["StartupTipsDismissed"]!.Value<bool>(); }
+                catch
+                {
+                    StartupTipsDismissed = false;
+                    saveNeeded = true;
+                }
             }
 
             if (saveNeeded) SaveConfigInternal();
@@ -208,6 +229,7 @@ namespace Desktop_Frames
                 config["ActiveProfile"] = _currentProfileName;
                 config["LastModified"] = DateTime.Now.ToString("o");
                 config["DisplayProfileNameOnSwitch"] = DisplayProfileNameOnSwitch; // Save the option
+                config["StartupTipsDismissed"] = StartupTipsDismissed;
 
                 JArray profilesArr = new JArray();
                 foreach (var p in _profileCache.OrderBy(x => x.Id))
@@ -230,6 +252,19 @@ namespace Desktop_Frames
             {
                 LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General, $"Failed to save ProfileOptions: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Records an explicit user dismissal of the built-in Startup Tips.
+        /// This is intentionally global and is only called from a user action
+        /// or an explicitly authorized legacy cleanup path.
+        /// </summary>
+        public static void SetStartupTipsDismissed(bool dismissed)
+        {
+            if (StartupTipsDismissed == dismissed) return;
+
+            StartupTipsDismissed = dismissed;
+            SaveConfigInternal();
         }
 
         // --- PUBLIC API ---
