@@ -156,6 +156,9 @@ Desktop Frames + is maintained by Nikos Georgousis, has been enhanced and optimi
   <data name="AutoOrgFilenameContains" xml:space="preserve">
     <value>And Filename Contains (Optional, leave blank for any):</value>
   </data>
+  <data name="AutoOrgFilenameStartsWith" xml:space="preserve">
+    <value>Filename Starts With (Optional, leave blank for any):</value>
+  </data>
   <data name="AutoOrgGeneratePortal" xml:space="preserve">
     <value>Generate new Portal Frame for this folder</value>
   </data>
@@ -1840,6 +1843,9 @@ Restart now?</value>
   </data>
   <data name="ConflictOverwrite" xml:space="preserve">
     <value>Overwrite (Send old file to Recycle Bin)</value>
+  </data>
+  <data name="ConflictOverwriteDisabled" xml:space="preserve">
+    <value>Overwrite (disabled for safety)</value>
   </data>
   <data name="ConflictSkip" xml:space="preserve">
     <value>Skip (Leave on Desktop)</value>

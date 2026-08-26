@@ -215,6 +215,9 @@
   <data name="AutoOrgFilenameContains" xml:space="preserve">
     <value>且文件名包含（可选，留空表示不限）：</value>
   </data>
+  <data name="AutoOrgFilenameStartsWith" xml:space="preserve">
+    <value>文件名以以下内容开头（可选，留空表示不限）：</value>
+  </data>
   <data name="AutoOrgGeneratePortal" xml:space="preserve">
     <value>为此文件夹创建文件夹面板</value>
   </data>
@@ -1899,6 +1902,9 @@
   </data>
   <data name="ConflictOverwrite" xml:space="preserve">
     <value>覆盖（旧文件移入回收站）</value>
+  </data>
+  <data name="ConflictOverwriteDisabled" xml:space="preserve">
+    <value>覆盖（出于安全原因已禁用）</value>
   </data>
   <data name="ConflictSkip" xml:space="preserve">
     <value>跳过（保留在桌面）</value>

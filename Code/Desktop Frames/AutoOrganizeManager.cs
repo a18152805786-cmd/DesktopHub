@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Newtonsoft.Json;
 using Desktop_Frames.Localization;
-using Microsoft.VisualBasic.FileIO; // Required for sending to Recycle Bin
 
 namespace Desktop_Frames
 {
@@ -17,6 +18,7 @@ namespace Desktop_Frames
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; }
         public string Extensions { get; set; } = "";
+        public string NameStartsWith { get; set; } = "";
         public string NameContains { get; set; } = "";
         public string TargetFolderPath { get; set; }
         public RuleConflictAction ConflictAction { get; set; } = RuleConflictAction.Rename;
@@ -29,6 +31,16 @@ namespace Desktop_Frames
     public static class AutoOrganizeManager
     {
         private static FileSystemWatcher _watcher;
+        private static readonly ConcurrentDictionary<string, byte> _queuedFiles = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _queueLock = new();
+        private static CancellationTokenSource _queueCancellation = new();
+        private const int FileEventDebounceMilliseconds = 1000;
+        private const int StabilityCheckDelayMilliseconds = 2000;
+        private const int MaxStabilityChecks = 5;
+        private static readonly HashSet<string> TemporaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".tmp", ".temp", ".crdownload", ".part", ".partial", ".download", ".opdownload", ".aria2"
+        };
         public static List<OrganizeRule> Rules = new List<OrganizeRule>(); // Expose to the UI
         private static string _rulesFilePath => ProfileManager.GetProfileFilePath("auto_organize.json");
         private static readonly string _desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
@@ -79,11 +91,11 @@ namespace Desktop_Frames
                     EnableRaisingEvents = true
                 };
 
-                // --- THE BROWSER SHIELD ---
-                // Delay exactly 3 seconds before processing. This prevents browsers from panicking 
-                // and deleting the file when we move it before they finish writing the Mark of the Web!
-                _watcher.Created += (s, e) => Task.Run(async () => { await Task.Delay(3000); await ProcessFileAsync(e.FullPath); });
-                _watcher.Renamed += (s, e) => Task.Run(async () => { await Task.Delay(3000); await ProcessFileAsync(e.FullPath); });
+                // FileSystemWatcher may emit Created/Changed/Renamed several times for one file.
+                // Queue through one short debounce window so one path cannot be moved twice.
+                _watcher.Created += OnFileEvent;
+                _watcher.Changed += OnFileEvent;
+                _watcher.Renamed += OnFileRenamed;
 
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General, "Auto-Organize engine started.");
             }
@@ -95,6 +107,13 @@ namespace Desktop_Frames
 
         public static void Stop()
         {
+            lock (_queueLock)
+            {
+                _queueCancellation.Cancel();
+                _queueCancellation = new CancellationTokenSource();
+                _queuedFiles.Clear();
+            }
+
             if (_watcher != null)
             {
                 _watcher.EnableRaisingEvents = false;
@@ -102,6 +121,45 @@ namespace Desktop_Frames
                 _watcher = null;
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General, "Auto-Organize engine stopped.");
             }
+        }
+
+        private static void OnFileEvent(object sender, FileSystemEventArgs e) => QueueFile(e.FullPath);
+
+        private static void OnFileRenamed(object sender, RenamedEventArgs e) => QueueFile(e.FullPath);
+
+        private static void QueueFile(string filePath)
+        {
+            if (!SettingsManager.EnableAutoOrganize || string.IsNullOrWhiteSpace(filePath)) return;
+
+            string fullPath;
+            try { fullPath = Path.GetFullPath(filePath); }
+            catch { return; }
+
+            CancellationToken cancellationToken;
+            lock (_queueLock)
+            {
+                if (!_queuedFiles.TryAdd(fullPath, 0)) return;
+                cancellationToken = _queueCancellation.Token;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(FileEventDebounceMilliseconds, cancellationToken);
+                    if (!cancellationToken.IsCancellationRequested)
+                        await ProcessFileAsync(fullPath, cancellationToken);
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General, $"Auto-Organize queue failed for {fullPath}: {ex.Message}");
+                }
+                finally
+                {
+                    _queuedFiles.TryRemove(fullPath, out _);
+                }
+            });
         }
   
         // FIX: Added 'silent' parameter so the engine can sweep seamlessly in the background
@@ -127,16 +185,16 @@ namespace Desktop_Frames
             });
         }
 
-        private static async Task ProcessFileAsync(string filePath)
+        private static async Task ProcessFileAsync(string filePath, CancellationToken cancellationToken = default)
         {
-            if (!File.Exists(filePath) || !SettingsManager.EnableAutoOrganize) return;
+            if (cancellationToken.IsCancellationRequested || !File.Exists(filePath) || !SettingsManager.EnableAutoOrganize) return;
 
             string fileName = Path.GetFileName(filePath);
             string ext = Path.GetExtension(filePath).ToLower();
 
-            // --- THE SHORTCUT SHIELD ---
-            // Ignore virtual items and active temp downloads
-            if (ext == ".lnk" || ext == ".url" || ext == ".crdownload" || ext == ".part" || ext == ".tmp") return;
+            // Ignore virtual items, temporary downloads, desktop shell metadata, and
+            // hidden/system files. If attributes cannot be read, fail closed.
+            if (IsIgnoredFile(filePath, fileName, ext)) return;
 
             // Sort rules by priority (lower number = higher priority)
             var activeRules = Rules.Where(r => r.IsEnabled).OrderBy(r => r.Priority).ToList();
@@ -145,9 +203,27 @@ namespace Desktop_Frames
             {
                 if (DoesFileMatchRule(fileName, rule))
                 {
-                    await ExecuteMoveAsync(filePath, rule);
+                    await ExecuteMoveAsync(filePath, rule, cancellationToken);
                     break; // File processed, stop checking rules
                 }
+            }
+        }
+
+        private static bool IsIgnoredFile(string filePath, string fileName, string extension)
+        {
+            if (fileName.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) return true;
+            if (fileName.StartsWith("~$", StringComparison.OrdinalIgnoreCase)) return true;
+            if (extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase) || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)) return true;
+            if (TemporaryExtensions.Contains(extension)) return true;
+
+            try
+            {
+                var attributes = File.GetAttributes(filePath);
+                return (attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0;
+            }
+            catch
+            {
+                return true;
             }
         }
 
@@ -164,7 +240,12 @@ namespace Desktop_Frames
                 if (!allowedExts.Contains(fileExt)) return false;
             }
 
-            // 2. Check Name Contains (AND condition)
+            // 2. Check a strict filename prefix (AND condition)
+            if (!string.IsNullOrWhiteSpace(rule.NameStartsWith) &&
+                !fileName.StartsWith(rule.NameStartsWith, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // 3. Check Name Contains (AND condition)
             if (!string.IsNullOrWhiteSpace(rule.NameContains))
             {
                 // If the filename does NOT contain the required text, reject it
@@ -176,21 +257,25 @@ namespace Desktop_Frames
             return true;
         }
 
-        private static async Task ExecuteMoveAsync(string sourcePath, OrganizeRule rule)
+        private static async Task ExecuteMoveAsync(string sourcePath, OrganizeRule rule, CancellationToken cancellationToken = default)
         {
+            if (cancellationToken.IsCancellationRequested || !SettingsManager.EnableAutoOrganize) return;
+
             if (!Directory.Exists(rule.TargetFolderPath))
             {
                 try { Directory.CreateDirectory(rule.TargetFolderPath); }
                 catch { return; }
             }
 
-            // --- THE DOWNLOAD WAITER ---
-            // Wait up to 60 seconds for the browser/app to release the file lock
-            if (!await WaitForFileUnlockAsync(sourcePath, 60000))
+            // Wait for two consecutive unchanged length/write-time observations and
+            // a safe read open. This prevents moving a file while it is still written.
+            if (!await WaitForFileStabilityAsync(sourcePath, cancellationToken))
             {
-                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General, $"Auto-Organize skipped {Path.GetFileName(sourcePath)}: File was locked.");
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General, $"Auto-Organize skipped {Path.GetFileName(sourcePath)}: File was active, locked, or unstable.");
                 return;
             }
+
+            if (cancellationToken.IsCancellationRequested || !SettingsManager.EnableAutoOrganize) return;
 
             string fileName = Path.GetFileName(sourcePath);
             string destPath = Path.Combine(rule.TargetFolderPath, fileName);
@@ -200,14 +285,7 @@ namespace Desktop_Frames
                 // --- CONFLICT PROTOCOL ---
                 if (File.Exists(destPath))
                 {
-                    if (rule.ConflictAction == RuleConflictAction.Skip) return;
-
-                    if (rule.ConflictAction == RuleConflictAction.Overwrite)
-                    {
-                        // Safely send the existing file to the Recycle Bin before overwriting
-                        FileSystem.DeleteFile(destPath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    else if (rule.ConflictAction == RuleConflictAction.Rename)
+                    if (rule.ConflictAction == RuleConflictAction.Rename)
                     {
                         string nameOnly = Path.GetFileNameWithoutExtension(fileName);
                         string ext = Path.GetExtension(fileName);
@@ -219,10 +297,18 @@ namespace Desktop_Frames
                             count++;
                         }
                     }
+                    else
+                    {
+                        // Overwrite is intentionally fail-closed for old rules and old JSON.
+                        // The existing destination and source are both preserved.
+                        LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General, $"Auto-Organize skipped {fileName}: destination already exists and overwrite is disabled.");
+                        return;
+                    }
                 }
 
                 // Execute Physical Move
-                File.Move(sourcePath, destPath);
+                if (cancellationToken.IsCancellationRequested || !SettingsManager.EnableAutoOrganize) return;
+                File.Move(sourcePath, destPath, overwrite: false);
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General, $"Auto-Organize moved {fileName} to {rule.TargetFolderPath}");
 
                 // --- SUCCESS TRACKING & NOTIFICATIONS ---
@@ -325,24 +411,45 @@ namespace Desktop_Frames
             LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General, $"Auto-Organize spawned a new Portal Frame for {targetFolder}");
         }
 
-        private static async Task<bool> WaitForFileUnlockAsync(string filePath, int timeoutMs)
+        private static async Task<bool> WaitForFileStabilityAsync(string filePath, CancellationToken cancellationToken)
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < timeoutMs)
+            long previousLength = -1;
+            DateTime previousWriteTimeUtc = DateTime.MinValue;
+
+            for (int attempt = 0; attempt < MaxStabilityChecks; attempt++)
             {
+                if (cancellationToken.IsCancellationRequested || !SettingsManager.EnableAutoOrganize || !File.Exists(filePath))
+                    return false;
+
                 try
                 {
-                    using (FileStream fs = File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                    var info = new FileInfo(filePath);
+                    long currentLength = info.Length;
+                    DateTime currentWriteTimeUtc = info.LastWriteTimeUtc;
+                    bool unchanged = currentLength == previousLength && currentWriteTimeUtc == previousWriteTimeUtc;
+                    previousLength = currentLength;
+                    previousWriteTimeUtc = currentWriteTimeUtc;
+
+                    if (unchanged)
                     {
-                        return true; // Lock acquired successfully, file is ready
+                        using (FileStream fs = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            return true;
                     }
                 }
                 catch (IOException)
                 {
-                    await Task.Delay(500); // Wait half a second and try again
+                    // The file is still being written or otherwise unavailable.
                 }
+                catch (UnauthorizedAccessException)
+                {
+                    return false;
+                }
+
+                try { await Task.Delay(StabilityCheckDelayMilliseconds, cancellationToken); }
+                catch (OperationCanceledException) { return false; }
             }
-            return false; // Timed out
+
+            return false;
         }
 
 

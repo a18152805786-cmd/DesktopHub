@@ -20,6 +20,7 @@ namespace Desktop_Frames
         private ComboBox _cmbCondition;
         private Border _customExtBorder;
         private TextBox _txtCustomExt;
+        private TextBox _txtNameStartsWith;
         private TextBox _txtNameContains;
         private ComboBox _cmbTarget;
         private CheckBox _chkAutoCreate;
@@ -52,6 +53,7 @@ namespace Desktop_Frames
                 Id = r.Id,
                 Name = r.Name,
                 Extensions = r.Extensions,
+                NameStartsWith = r.NameStartsWith,
                 NameContains = r.NameContains,
                 TargetFolderPath = r.TargetFolderPath,
                 ConflictAction = r.ConflictAction,
@@ -114,7 +116,7 @@ namespace Desktop_Frames
 
         private void AutoOrganizeForm_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter && !_txtCustomExt.IsFocused && !_txtName.IsFocused && !_txtNameContains.IsFocused)
+            if (e.Key == Key.Enter && !_txtCustomExt.IsFocused && !_txtName.IsFocused && !_txtNameStartsWith.IsFocused && !_txtNameContains.IsFocused)
             {
                 Save_Click(this, new RoutedEventArgs());
                 e.Handled = true;
@@ -333,6 +335,11 @@ namespace Desktop_Frames
             _customExtBorder.Child = customExtStack;
             sp2.Children.Add(_customExtBorder);
 
+            sp2.Children.Add(new TextBlock { Text = Strings.Get("AutoOrgFilenameStartsWith"), FontSize = 12, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(Color.FromRgb(95, 99, 104)), Margin = new Thickness(0, 12, 0, 8) });
+            _txtNameStartsWith = new TextBox { FontSize = 13, Padding = new Thickness(8, 6, 8, 6), BorderBrush = new SolidColorBrush(Color.FromRgb(218, 220, 224)), BorderThickness = new Thickness(1), Background = Brushes.White, Foreground = new SolidColorBrush(Color.FromRgb(32, 33, 36)) };
+            _txtNameStartsWith.TextChanged += (s, e) => { if (!_isLoadingRule && _selectedRule != null) _selectedRule.NameStartsWith = _txtNameStartsWith.Text; };
+            sp2.Children.Add(_txtNameStartsWith);
+
             sp2.Children.Add(new TextBlock { Text = Strings.AutoOrgFilenameContains, FontSize = 12, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(Color.FromRgb(95, 99, 104)), Margin = new Thickness(0, 12, 0, 8) });
             _txtNameContains = new TextBox { FontSize = 13, Padding = new Thickness(8, 6, 8, 6), BorderBrush = new SolidColorBrush(Color.FromRgb(218, 220, 224)), BorderThickness = new Thickness(1), Background = Brushes.White, Foreground = new SolidColorBrush(Color.FromRgb(32, 33, 36)) };
             _txtNameContains.TextChanged += (s, e) => { if (!_isLoadingRule && _selectedRule != null) _selectedRule.NameContains = _txtNameContains.Text; };
@@ -358,10 +365,14 @@ namespace Desktop_Frames
 
             sp3.Children.Add(new TextBlock { Text = Strings.AutoOrgIfExists, FontSize = 12, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(Color.FromRgb(95, 99, 104)), Margin = new Thickness(0, 12, 0, 8) });
             _cmbConflict = new ComboBox { FontSize = 13, Padding = new Thickness(8, 6, 8, 6), BorderBrush = new SolidColorBrush(Color.FromRgb(218, 220, 224)), BorderThickness = new Thickness(1), Background = Brushes.White, Foreground = new SolidColorBrush(Color.FromRgb(32, 33, 36)) };
-            _cmbConflict.Items.Add(Strings.ConflictAutoRename);
-            _cmbConflict.Items.Add(Strings.ConflictOverwrite);
-            _cmbConflict.Items.Add(Strings.ConflictSkip);
-            _cmbConflict.SelectionChanged += (s, e) => { if (!_isLoadingRule && _selectedRule != null) _selectedRule.ConflictAction = (RuleConflictAction)_cmbConflict.SelectedIndex; };
+            _cmbConflict.Items.Add(new ComboBoxItem { Content = Strings.ConflictAutoRename, Tag = RuleConflictAction.Rename });
+            _cmbConflict.Items.Add(new ComboBoxItem { Content = Strings.Get("ConflictOverwriteDisabled"), Tag = RuleConflictAction.Overwrite, IsEnabled = false });
+            _cmbConflict.Items.Add(new ComboBoxItem { Content = Strings.ConflictSkip, Tag = RuleConflictAction.Skip });
+            _cmbConflict.SelectionChanged += (s, e) =>
+            {
+                if (!_isLoadingRule && _selectedRule != null && _cmbConflict.SelectedItem is ComboBoxItem item && item.Tag is RuleConflictAction action)
+                    _selectedRule.ConflictAction = action;
+            };
             sp3.Children.Add(_cmbConflict);
 
             group3.Child = sp3;
@@ -504,9 +515,9 @@ namespace Desktop_Frames
             }
 
             RuleConflictAction newConflict = RuleConflictAction.Rename;
-            if (_cmbConflict.SelectedIndex >= 0)
+            if (_cmbConflict.SelectedItem is ComboBoxItem selectedConflict && selectedConflict.Tag is RuleConflictAction conflict)
             {
-                newConflict = (RuleConflictAction)_cmbConflict.SelectedIndex;
+                newConflict = conflict;
             }
 
             var rule = new OrganizeRule
@@ -553,7 +564,7 @@ namespace Desktop_Frames
             _editorPanel.IsEnabled = rule != null;
             if (rule == null)
             {
-                _txtName.Text = ""; _txtCustomExt.Text = ""; _txtNameContains.Text = ""; _chkAutoCreate.Visibility = Visibility.Collapsed;
+                _txtName.Text = ""; _txtCustomExt.Text = ""; _txtNameStartsWith.Text = ""; _txtNameContains.Text = ""; _chkAutoCreate.Visibility = Visibility.Collapsed;
                 _chkIsEnabled.IsChecked = false;
                 _isLoadingRule = false;
                 return;
@@ -561,6 +572,7 @@ namespace Desktop_Frames
 
             _txtName.Text = rule.Name;
             _chkIsEnabled.IsChecked = rule.IsEnabled;
+            _txtNameStartsWith.Text = rule.NameStartsWith ?? "";
             _txtNameContains.Text = rule.NameContains ?? "";
             // Add this to update the timestamp!
             _txtLastRun.Text = rule.LastRun.HasValue ? Strings.Get("LastRunAt", rule.LastRun.Value.ToString("g")) : Strings.LastRunNever;
