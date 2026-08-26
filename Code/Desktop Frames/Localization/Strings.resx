@@ -1859,4 +1859,64 @@ Restart now?</value>
   <data name="LastRunAt" xml:space="preserve">
     <value>Last successful run: {0}</value>
   </data>
+  <data name="AppDisplayName" xml:space="preserve">
+    <value>Desktop Frames +</value>
+  </data>
+  <data name="FrameNewTitle" xml:space="preserve">
+    <value>New Frame - Drop your shortcuts here</value>
+  </data>
+  <data name="FrameNamePrompt" xml:space="preserve">
+    <value>Enter name for new Frame:</value>
+  </data>
+  <data name="FrameCreateTitle" xml:space="preserve">
+    <value>Create Frame</value>
+  </data>
+  <data name="FrameLockedTooltip" xml:space="preserve">
+    <value>Frame is locked (click to unlock)</value>
+  </data>
+  <data name="FrameUnlockedTooltip" xml:space="preserve">
+    <value>Frame is unlocked (click to lock)</value>
+  </data>
+  <data name="FrameDrawInstruction" xml:space="preserve">
+    <value>Draw a box to create a Frame (Esc to cancel)</value>
+  </data>
+  <data name="FrameRefreshingConfiguration" xml:space="preserve">
+    <value>Refreshing configuration...</value>
+  </data>
+  <data name="FrameRefreshingFrames" xml:space="preserve">
+    <value>Refreshing frames, please wait...</value>
+  </data>
+  <data name="StartupTipsTitle" xml:space="preserve">
+    <value>Desktop Frames + Startup Tips</value>
+  </data>
+  <data name="StartupTipsContent" xml:space="preserve">
+    <value>WELCOME TO DESKTOP FRAMES +
+---------------------------
+• Roll Up/Down: Double-click the frame title bar.
+• Rename: Ctrl + Click the title bar (Enter to save).
+• Search (SpotSearch): Press Ctrl + ` (Tilde) to find any icon instantly.
+• Options: Click the '♥' menu icon (top-left).
+• Reorder Icons on a frame: Ctrl + Drag icon to new position.
+• Context Menu: Right-click icons or Frames for more options.
+
+TIP: Ctrl + Click or Ctrl + Right-click, gives even more options.
+
+Try customizing this frame! Right-click the title bar -&gt; Customize...</value>
+  </data>
+  <data name="ProfileNamePrompt" xml:space="preserve">
+    <value>Enter name for new profile:</value>
+  </data>
+  <data name="ProfileCreateTitle" xml:space="preserve">
+    <value>New Profile</value>
+  </data>
+  <data name="TrayIconTitle" xml:space="preserve">
+    <value>Desktop Frames + ({0})</value>
+  </data>
+  <data name="AutoOrgNewRuleName" xml:space="preserve">
+    <value>New Rule</value>
+  </data>
+  <data name="SearchResultTooltip" xml:space="preserve">
+    <value>Location: {0}
+Path: {1}</value>
+  </data>
 </root>

@@ -379,7 +379,7 @@ namespace Desktop_Frames
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General, "Reloading all frames...");
 
                 // 1. Life Support
-                Window lifeSupport = MessageBoxesManager.CreateWaitWindow("Desktop Frames +", "Refreshing configuration...");
+                Window lifeSupport = MessageBoxesManager.CreateWaitWindow(Strings.AppDisplayName, Strings.FrameRefreshingConfiguration);
                 lifeSupport.Show();
                 System.Windows.Forms.Application.DoEvents();
 
@@ -835,7 +835,7 @@ namespace Desktop_Frames
                     LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.UI,
                         $"Creating life support window - about to close {framesToClose} of {totalFrameCount} total frames");
 
-                    lifeSupportWindow = MessageBoxesManager.CreateWaitWindow("Desktop Frames +", "Refreshing frames, please wait...");
+                    lifeSupportWindow = MessageBoxesManager.CreateWaitWindow(Strings.AppDisplayName, Strings.FrameRefreshingFrames);
                     lifeSupportWindow.Show();
                 }
 
@@ -3467,7 +3467,7 @@ namespace Desktop_Frames
             string defaultName = CoreUtilities.GenerateUniqueFrameName();
 
             // 2. Ask for Name (Pre-filled with the random name)
-            string name = Microsoft.VisualBasic.Interaction.InputBox("Enter name for new Frame:", "Create Frame", defaultName);
+            string name = Microsoft.VisualBasic.Interaction.InputBox(Strings.FrameNamePrompt, Strings.FrameCreateTitle, defaultName);
             if (string.IsNullOrWhiteSpace(name)) return;
 
             // 2. Create Data
@@ -3595,7 +3595,7 @@ namespace Desktop_Frames
                 var dataFrame = new
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Title = "New Frame - Drop your shortcuts here",
+                    Title = Strings.FrameNewTitle,
                     X = 20.0,
                     Y = 20.0,
                     Width = 360.0,
@@ -3624,7 +3624,7 @@ namespace Desktop_Frames
                 var noteFrame = new
                 {
                     Id = Guid.NewGuid().ToString(), // Unique ID
-                    Title = "Desktop Frames + Startup Tips", // Explicit Name
+                    Title = Strings.StartupTipsTitle, // Explicit Name
                     X = 20.0,   // Positioned below the data frame
                     Y = 200.0,  // Data frame ends then this frame begins
                     Width = 555.0,
@@ -3637,17 +3637,7 @@ namespace Desktop_Frames
                     TextColor = "Teal",         // Teal text
 
                     // Note Settings
-                    NoteContent = "WELCOME TO DESKTOP FRAMES +\r\n" +
-                                  "---------------------------\r\n" +
-                                  "• Roll Up/Down: Double-click the frame title bar.\r\n" +
-                                  "• Rename: Ctrl + Click the title bar (Enter to save).\r\n" +
-                                  "• Search (SpotSearch): Press Ctrl + ` (Tilde) to find any icon instantly.\r\n" +
-                                  "• Options: Click the '♥' menu icon (top-left).\r\n" +
-                                  "• Reorder Icons on a frame: Ctrl + Drag icon to new position.\r\n" +
-                                  "• Context Menu: Right-click icons or Frames for more options.\r\n" +
-                                  " \r\n" +
-                                  "TIP: Ctrl + Click or Ctrl + Right-click, gives even more options.\r\n\r\n" +
-                                  "Try customizing this frame! Right-click the title bar -> Customize...",
+                    NoteContent = Strings.StartupTipsContent,
 
                     NoteFontSize = "Medium",
                     NoteFontFamily = "Segoe UI",
@@ -3918,7 +3908,7 @@ namespace Desktop_Frames
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Cursor = Cursors.Hand,
-                ToolTip = frame.IsLocked?.ToString().ToLower() == "true" ? "Frame is locked (click to unlock)" : "Frame is unlocked (click to lock)",
+                ToolTip = frame.IsLocked?.ToString().ToLower() == "true" ? Strings.FrameLockedTooltip : Strings.FrameUnlockedTooltip,
                 Opacity = (double)SettingsManager.MenuTintValue / 100 // 0.3 // Lower tint by default
             };
 
@@ -4065,7 +4055,7 @@ namespace Desktop_Frames
                 AllowDrop = true,
                 AllowsTransparency = true,
                 Background = System.Windows.Media.Brushes.Transparent,
-                Title = frame.Title?.ToString() ?? "New Frame", // Handle null title
+                Title = frame.Title?.ToString() ?? Strings.MenuNewFrame, // Handle null title
                 ShowInTaskbar = false,
                 WindowStyle = WindowStyle.None,
                 Content = cborder,
@@ -7720,7 +7710,7 @@ namespace Desktop_Frames
             {
                 // Update lock icon
                 lockIcon.Foreground = isLocked ? System.Windows.Media.Brushes.DeepPink : System.Windows.Media.Brushes.White;
-                lockIcon.ToolTip = isLocked ? "Frame is locked (click to unlock)" : "frame is unlocked (click to lock)";
+                lockIcon.ToolTip = isLocked ? Strings.FrameLockedTooltip : Strings.FrameUnlockedTooltip;
 
                 // Find the NonActivatingWindow
                 NonActivatingWindow win = FindVisualParent<NonActivatingWindow>(lockIcon);

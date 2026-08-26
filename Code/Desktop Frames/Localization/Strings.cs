@@ -30,7 +30,26 @@ namespace Desktop_Frames.Localization
         /// <summary>Forces a language; null (the default) follows Windows.</summary>
         public static CultureInfo? OverrideCulture { get; set; }
 
-        private static CultureInfo Culture => OverrideCulture ?? CultureInfo.CurrentUICulture;
+        private static CultureInfo Culture => NormalizeCulture(OverrideCulture ?? CultureInfo.CurrentUICulture);
+
+        /// <summary>
+        /// The Chinese resources in this project are stored under zh-Hans.
+        /// Normalize the common simplified-Chinese culture names before both
+        /// language-pack and compiled-resource lookup. Traditional Chinese
+        /// cultures are deliberately left untouched.
+        /// </summary>
+        private static CultureInfo NormalizeCulture(CultureInfo culture)
+        {
+            if (culture.Name.Equals("zh-CN", StringComparison.OrdinalIgnoreCase) ||
+                culture.Name.Equals("zh-SG", StringComparison.OrdinalIgnoreCase) ||
+                culture.Name.Equals("zh-Hans", StringComparison.OrdinalIgnoreCase) ||
+                culture.Name.StartsWith("zh-Hans-", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CultureInfo("zh-Hans");
+            }
+
+            return culture;
+        }
 
         // ── Language packs dropped in by hand ───────────────────────────────
         //
@@ -198,7 +217,7 @@ namespace Desktop_Frames.Localization
                 OverrideCulture = null;
                 return;
             }
-            try { OverrideCulture = new CultureInfo(cultureName); }
+            try { OverrideCulture = NormalizeCulture(new CultureInfo(cultureName)); }
             catch (CultureNotFoundException) { OverrideCulture = null; }
         }
 
@@ -281,6 +300,22 @@ namespace Desktop_Frames.Localization
         public static string MenuSpacerBlank => Get("MenuSpacerBlank");
         public static string MenuSpacerDot => Get("MenuSpacerDot");
         public static string MenuViewAsDetails => Get("MenuViewAsDetails");
+
+        // ── High-visibility UI text ────────────────────────────────────────
+        public static string AppDisplayName => Get("AppDisplayName");
+        public static string FrameNewTitle => Get("FrameNewTitle");
+        public static string FrameNamePrompt => Get("FrameNamePrompt");
+        public static string FrameCreateTitle => Get("FrameCreateTitle");
+        public static string FrameLockedTooltip => Get("FrameLockedTooltip");
+        public static string FrameUnlockedTooltip => Get("FrameUnlockedTooltip");
+        public static string FrameDrawInstruction => Get("FrameDrawInstruction");
+        public static string FrameRefreshingConfiguration => Get("FrameRefreshingConfiguration");
+        public static string FrameRefreshingFrames => Get("FrameRefreshingFrames");
+        public static string StartupTipsTitle => Get("StartupTipsTitle");
+        public static string StartupTipsContent => Get("StartupTipsContent");
+        public static string ProfileNamePrompt => Get("ProfileNamePrompt");
+        public static string ProfileCreateTitle => Get("ProfileCreateTitle");
+        public static string TrayIconTitle => Get("TrayIconTitle");
 
         // ── Frame tooltips and inline labels ───────────────────────────────
         public static string TooltipAutoReposition => Get("TooltipAutoReposition");
@@ -563,6 +598,7 @@ namespace Desktop_Frames.Localization
         public static string AutoOrgMoveTo => Get("AutoOrgMoveTo");
         public static string AutoOrgRemove => Get("AutoOrgRemove");
         public static string AutoOrgRuleName => Get("AutoOrgRuleName");
+        public static string AutoOrgNewRuleName => Get("AutoOrgNewRuleName");
         public static string AutoOrgSaveRules => Get("AutoOrgSaveRules");
         public static string AutoOrgTitle => Get("AutoOrgTitle");
         public static string AutomationClickTarget => Get("AutomationClickTarget");
@@ -605,6 +641,7 @@ namespace Desktop_Frames.Localization
         public static string ProfileActive => Get("ProfileActive");
         public static string ProfileManagerTitle => Get("ProfileManagerTitle");
         public static string SearchPlaceholder => Get("SearchPlaceholder");
+        public static string SearchResultTooltip => Get("SearchResultTooltip");
         public static string SearchTitle => Get("SearchTitle");
         public static string TextAppearance => Get("TextAppearance");
         public static string TextBehavior => Get("TextBehavior");

@@ -226,7 +226,7 @@ namespace Desktop_Frames
             {
                 Icon = Icon.ExtractAssociatedIcon(exePath),
                 Visible = true,
-                Text = $"Desktop Frames ({ProfileManager.CurrentProfileName})"
+                Text = Strings.Get("TrayIconTitle", ProfileManager.CurrentProfileName)
             };
 
             _trayIcon.DoubleClick += OnTrayIconDoubleClick;
@@ -319,7 +319,7 @@ namespace Desktop_Frames
         {
             var waitWindow = new System.Windows.Window
             {
-                Title = "Desktop Frames +",
+                Title = Strings.AppDisplayName,
                 Width = 300,
                 Height = 150,
                 WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
@@ -353,7 +353,7 @@ namespace Desktop_Frames
 
             var titleText = new System.Windows.Controls.TextBlock
             {
-                Text = "Desktop Frames +",
+                Text = Strings.AppDisplayName,
                 FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
                 FontSize = 16,
                 FontWeight = System.Windows.FontWeights.Medium,
@@ -561,7 +561,7 @@ namespace Desktop_Frames
                         ProfileManager.SwitchToProfile(profile.Name);
                         // Update the 'Home' profile so automation reverts to this manual choice later
                         ProfileManager.SetManualBaseProfile(profile.Name);
-                        _trayIcon.Text = $"Desktop Frames ({profile.Name})";
+                        _trayIcon.Text = Strings.Get("TrayIconTitle", profile.Name);
                         UpdateProfilesMenu();
                     };
                 }
@@ -574,7 +574,7 @@ namespace Desktop_Frames
             var createItem = new ToolStripMenuItem(Strings.TrayCreateNewProfile);
             createItem.Click += (s, e) =>
             {
-                string newName = Microsoft.VisualBasic.Interaction.InputBox("Enter name for new profile:", "New Profile");
+                string newName = Microsoft.VisualBasic.Interaction.InputBox(Strings.ProfileNamePrompt, Strings.ProfileCreateTitle);
 
                 if (!string.IsNullOrWhiteSpace(newName))
                 {
@@ -765,7 +765,7 @@ namespace Desktop_Frames
             if (Showintray == true)
             {
                 // FIX: Update the tooltip text to match the current profile
-                _trayIcon.Text = $"Desktop Frames + ({ProfileManager.CurrentProfileName})";
+                _trayIcon.Text = Strings.Get("TrayIconTitle", ProfileManager.CurrentProfileName);
 
                 if (HiddenFrames.Count > 0)
                 {

@@ -1,6 +1,6 @@
 # Desktop Hub 中文文案草案（zh-CN）
 
-状态：设计草案，不是已应用的翻译资源。
+状态：Phase 1 已实施高可见文案；未迁移部分仍保留草案状态。
 原则：自然、简洁、像桌面工具；不做逐词机械直译。当前代码仍可能从 `.resx` 或 C# 硬编码读取英文。
 
 ## 1. 核心词汇建议
@@ -12,12 +12,12 @@
 | New Frame | 新建分组 | 动作导向 |
 | Drop your shortcuts here | 将快捷方式拖到这里 | 避免“放置”式生硬翻译 |
 | Startup Tips | 使用提示 | 不让提示看起来像常驻工具 |
-| Desktop Frames + Startup Tips | Desktop Hub 使用提示 | 仅作为未来文案映射，不改当前生产 UI |
+| Desktop Frames + Startup Tips | Desktop Frames + 使用提示 | `[IMPLEMENTED]` 正文已进入 `Strings.zh-Hans.resx`；产品名暂不 rename |
 | Search | 搜索 | 统一名词 |
 | Search desktop, files, apps… | 搜索桌面、文件和应用… | 搜索框 placeholder |
 | Options | 设置 | Windows 用户熟悉 |
 | Customize | 个性化 | Frame/外观语境 |
-| Profile | 配置 | 若指 Profile 切换，可用“配置方案” |
+| Profile | 配置方案 | `[IMPLEMENTED]` Profile 输入框和菜单采用“配置方案” |
 | Auto Organize | 自动整理 | 与当前产品功能一致 |
 | Portal | 文件夹视图 | 避免用户误解为网络 portal |
 | Startup | 开机启动 | 设置项使用；普通 start 动作则用“启动” |
@@ -43,7 +43,7 @@
 
 ```text
 New Frame - Drop your shortcuts here
-→ 新建分组 · 将快捷方式拖到这里
+→ 新建分组 - 将快捷方式拖到这里（[IMPLEMENTED]）
 
 Frame is locked (click to unlock)
 → 分组已锁定（点击解锁）
@@ -96,3 +96,25 @@ Shortcut                      → 快捷方式
 ## 6. 实施备注
 
 当前最小稳定路线是继续使用现有 `.resx`/`Strings.cs`。未来可将 `zh-CN` 规范化为现有 `zh-Hans`，或新增同键 `Strings.zh-CN.resx`；不要另建一套 WPF XAML 字符串系统。英文 `Strings.resx` 保持 fallback，语言切换第一版继续重启生效。
+
+## 7. Phase 1 已采用（IMPLEMENTED）
+
+以下译法已实际写入英文/`zh-Hans` 资源并接入高可见 UI：
+
+- `[IMPLEMENTED]` `Frame` → `分组`
+- `[IMPLEMENTED]` `New Frame` → `新建分组`
+- `[IMPLEMENTED]` `Drop your shortcuts here` → `将快捷方式拖到这里`
+- `[IMPLEMENTED]` `Startup Tips` → `使用提示`
+- `[IMPLEMENTED]` `Search` → `搜索`
+- `[IMPLEMENTED]` `Options` → `设置`
+- `[IMPLEMENTED]` `Customize` → `个性化`
+- `[IMPLEMENTED]` `Profile` → `配置方案`
+- `[IMPLEMENTED]` `Auto Organize` → `自动整理`
+- `[IMPLEMENTED]` `Portal` → `文件夹视图`
+- `[IMPLEMENTED]` `Rename` → `重命名`
+- `[IMPLEMENTED]` `Close` → `关闭`
+- `[IMPLEMENTED]` `Hide` / `Show` → `隐藏` / `显示`
+- `[IMPLEMENTED]` `Lock` / `Unlock` → `锁定` / `解锁`
+- `[IMPLEMENTED]` `Press Enter to open` 等按键说明继续保留按键名称原格式
+
+实现细节和剩余缺口见 `docs/UI_PHASE1_LOCALIZATION.md` 与 `audit/localization-phase1-remaining.md`。本阶段没有实现“不再显示”逻辑，也没有改写已有 Profile 中保存的旧 Startup Tips 文本。

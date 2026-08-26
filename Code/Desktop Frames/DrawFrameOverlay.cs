@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Runtime.InteropServices; // Required for GetCursorPos
+using Desktop_Frames.Localization;
 
 namespace Desktop_Frames
 {
@@ -46,7 +47,7 @@ namespace Desktop_Frames
             Content = _canvas;
 
         
-            _hintBox = MessageBoxesManager.CreateUnifiedMessage("Draw a box to create a Frame (Esc to cancel)");
+            _hintBox = MessageBoxesManager.CreateUnifiedMessage(Strings.FrameDrawInstruction);
 
             _canvas.Children.Add(_hintBox);
 

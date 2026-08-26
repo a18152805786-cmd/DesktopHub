@@ -522,7 +522,7 @@ namespace Desktop_Frames
 
             var rule = new OrganizeRule
             {
-                Name = "New Rule",
+                Name = Strings.AutoOrgNewRuleName,
                 Extensions = newExt,
                 TargetFolderPath = newTarget,
                 ConflictAction = newConflict,

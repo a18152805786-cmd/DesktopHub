@@ -147,7 +147,7 @@ namespace Desktop_Frames
             // 1. The App Title (Visible initially)
             _appTitle = new TextBlock
             {
-                Text = "Desktop Frames +",
+                Text = Strings.AppDisplayName,
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Utility.GetColorFromName(SettingsManager.SelectedColor)),
@@ -315,7 +315,7 @@ namespace Desktop_Frames
 
                 sp.Children.Add(img);
                 sp.Children.Add(txt);
-                sp.ToolTip = $"Location: {match.frameTitle}\nPath: {match.Path}";
+                sp.ToolTip = Strings.Get("SearchResultTooltip", match.frameTitle, match.Path);
 
                 sp.MouseLeftButtonDown += (s, ev) => { if (ev.ClickCount == 1) LaunchResult(match); };
                 _resultsPanel.Children.Add(sp);

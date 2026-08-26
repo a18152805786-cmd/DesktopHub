@@ -219,7 +219,7 @@
     <value>文件名以以下内容开头（可选，留空表示不限）：</value>
   </data>
   <data name="AutoOrgGeneratePortal" xml:space="preserve">
-    <value>为此文件夹创建文件夹面板</value>
+    <value>为此文件夹创建文件夹视图</value>
   </data>
   <data name="AutoOrgIfExists" xml:space="preserve">
     <value>若文件已存在：</value>
@@ -240,7 +240,7 @@
     <value>保存规则</value>
   </data>
   <data name="AutoOrgTitle" xml:space="preserve">
-    <value>智能桌面规则</value>
+    <value>自动整理规则</value>
   </data>
   <data name="BackupSelectExportFile" xml:space="preserve">
     <value>选择面板导出文件</value>
@@ -315,7 +315,7 @@
     <value>将面板移回屏幕内</value>
   </data>
   <data name="BtnSmartDesktopRules" xml:space="preserve">
-    <value>智能桌面规则…</value>
+    <value>自动整理规则…</value>
   </data>
   <data name="ButtonNo" xml:space="preserve">
     <value>否</value>
@@ -561,7 +561,7 @@
     <value>整理桌面</value>
   </data>
   <data name="DlgUpdatePortalFrame" xml:space="preserve">
-    <value>更新文件夹面板</value>
+    <value>更新文件夹视图</value>
   </data>
   <data name="DlgValidationError" xml:space="preserve">
     <value>输入无效</value>
@@ -576,10 +576,10 @@
     <value>编辑快捷方式</value>
   </data>
   <data name="FocusFrameTitle" xml:space="preserve">
-    <value>定位面板</value>
+    <value>定位分组</value>
   </data>
   <data name="FocusSearchActive" xml:space="preserve">
-    <value>搜索面板：</value>
+    <value>搜索分组：</value>
   </data>
   <data name="FxAgitate" xml:space="preserve">
     <value>抖动</value>
@@ -660,7 +660,7 @@
     <value>上一个工作区</value>
   </data>
   <data name="HkSpotSearch" xml:space="preserve">
-    <value>快速搜索</value>
+    <value>搜索快捷键</value>
   </data>
   <data name="IconPickerHint" xml:space="preserve">
     <value>从可用图标中选择一个，然后单击“确定”。</value>
@@ -825,7 +825,7 @@
     <value>自定义启动效果：</value>
   </data>
   <data name="LblDefaultPortalView" xml:space="preserve">
-    <value>默认文件夹面板视图：</value>
+    <value>默认文件夹视图：</value>
   </data>
   <data name="LblDisableTextShadow" xml:space="preserve">
     <value>关闭文字阴影</value>
@@ -882,7 +882,7 @@
     <value>通知声音：</value>
   </data>
   <data name="LblPortalView" xml:space="preserve">
-    <value>文件夹面板视图：</value>
+    <value>文件夹视图：</value>
   </data>
   <data name="LblProcessName" xml:space="preserve">
     <value>进程名称（选择或输入）：</value>
@@ -948,7 +948,7 @@
     <value>复制路径</value>
   </data>
   <data name="MenuCustomize" xml:space="preserve">
-    <value>自定义…</value>
+    <value>个性化…</value>
   </data>
   <data name="MenuCutItem" xml:space="preserve">
     <value>剪切项目</value>
@@ -981,7 +981,7 @@
     <value>完整路径</value>
   </data>
   <data name="MenuHideFrame" xml:space="preserve">
-    <value>隐藏此面板</value>
+    <value>隐藏分组</value>
   </data>
   <data name="MenuImportFrame" xml:space="preserve">
     <value>导入面板…</value>
@@ -993,19 +993,19 @@
     <value>以目标路径命名此面板</value>
   </data>
   <data name="MenuNewFrame" xml:space="preserve">
-    <value>新建面板</value>
+    <value>新建分组</value>
   </data>
   <data name="MenuNewNoteFrame" xml:space="preserve">
-    <value>新建便签面板</value>
+    <value>新建便签分组</value>
   </data>
   <data name="MenuNewPortalFrame" xml:space="preserve">
-    <value>新建文件夹面板</value>
+    <value>新建文件夹视图</value>
   </data>
   <data name="MenuNoPluginsAvailable" xml:space="preserve">
     <value>（此级别没有可用插件）</value>
   </data>
   <data name="MenuOpenFrameFolder" xml:space="preserve">
-    <value>打开面板所在文件夹</value>
+    <value>打开分组所在文件夹</value>
   </data>
   <data name="MenuOpenTargetFolder" xml:space="preserve">
     <value>打开目标文件夹…</value>
@@ -1014,7 +1014,7 @@
     <value>打开方式…</value>
   </data>
   <data name="MenuOptions" xml:space="preserve">
-    <value>选项…</value>
+    <value>设置</value>
   </data>
   <data name="MenuPasteItem" xml:space="preserve">
     <value>粘贴项目</value>
@@ -1029,7 +1029,7 @@
     <value>移除</value>
   </data>
   <data name="MenuRenameItem" xml:space="preserve">
-    <value>重命名项目</value>
+    <value>重命名</value>
   </data>
   <data name="MenuResetColumns" xml:space="preserve">
     <value>重置列</value>
@@ -1361,7 +1361,7 @@
     <value>无法访问</value>
   </data>
   <data name="NoteAutoOrganize" xml:space="preserve">
-    <value>提示：自动整理会持续监视桌面上的新文件。符合已启用规则的文件会被实际移动到指定的文件夹面板或目标文件夹，可用于长期保持桌面整洁，并让下载文件自动归位。</value>
+    <value>提示：自动整理会持续监视桌面上的新文件。符合已启用规则的文件会被实际移动到指定的文件夹视图或目标文件夹，可用于长期保持桌面整洁，并让下载文件自动归位。</value>
   </data>
   <data name="NoteAutoRoll" xml:space="preserve">
     <value>提示：需在每个面板的右键菜单中逐一开启自动收起功能。</value>
@@ -1418,7 +1418,7 @@
     <value>显示运行通知</value>
   </data>
   <data name="OptFocusFrameHotkey" xml:space="preserve">
-    <value>定位面板快捷键</value>
+    <value>定位分组快捷键</value>
   </data>
   <data name="OptFrameTint" xml:space="preserve">
     <value>将面板色调同时应用到图标和文字</value>
@@ -1433,13 +1433,13 @@
     <value>空闲时淡出面板</value>
   </data>
   <data name="OptionsHeading" xml:space="preserve">
-    <value>选项</value>
+    <value>设置</value>
   </data>
   <data name="OptionsTitle" xml:space="preserve">
-    <value>Desktop Frames + - 选项</value>
+    <value>Desktop Frames + - 设置</value>
   </data>
   <data name="OptNewFrameContextMenu" xml:space="preserve">
-    <value>在桌面右键菜单中显示“新建面板”</value>
+    <value>在桌面右键菜单中显示“新建分组”</value>
   </data>
   <data name="OptNoteWatermark" xml:space="preserve">
     <value>便签面板水印（即将推出）</value>
@@ -1448,7 +1448,7 @@
     <value>文件夹面板水印</value>
   </data>
   <data name="OptProfileHotkeys" xml:space="preserve">
-    <value>工作区切换快捷键</value>
+    <value>配置方案切换快捷键</value>
   </data>
   <data name="OptRecycleBin" xml:space="preserve">
     <value>文件夹面板中的“删除项目”改为放入回收站</value>
@@ -1460,7 +1460,7 @@
     <value>与相邻面板吸附</value>
   </data>
   <data name="OptSpotSearchHotkey" xml:space="preserve">
-    <value>快速搜索快捷键</value>
+    <value>搜索快捷键</value>
   </data>
   <data name="OptStartWithWindows" xml:space="preserve">
     <value>随 Windows 启动</value>
@@ -1553,7 +1553,7 @@
     <value>当前使用中</value>
   </data>
   <data name="ProfileManagerTitle" xml:space="preserve">
-    <value>工作区管理</value>
+    <value>配置方案管理</value>
   </data>
   <data name="QueueConfig" xml:space="preserve">
     <value>系统队列配置</value>
@@ -1631,16 +1631,16 @@
     <value>维护</value>
   </data>
   <data name="SecProfileManagement" xml:space="preserve">
-    <value>工作区管理</value>
+    <value>配置方案管理</value>
   </data>
   <data name="SecProfileSwitching" xml:space="preserve">
-    <value>工作区切换</value>
+    <value>配置方案切换</value>
   </data>
   <data name="SecSelections" xml:space="preserve">
     <value>选项</value>
   </data>
   <data name="SecSmartDesktopAuto" xml:space="preserve">
-    <value>智能桌面（自动整理）</value>
+    <value>自动整理</value>
   </data>
   <data name="SecStartup" xml:space="preserve">
     <value>启动</value>
@@ -1688,7 +1688,7 @@
     <value>新建标签页（Ctrl+单击可导入）</value>
   </data>
   <data name="TabFrame" xml:space="preserve">
-    <value>面板</value>
+    <value>分组</value>
   </data>
   <data name="TabGeneral" xml:space="preserve">
     <value>常规</value>
@@ -1709,13 +1709,13 @@
     <value>右移</value>
   </data>
   <data name="TabProfiles" xml:space="preserve">
-    <value>工作区</value>
+    <value>配置方案</value>
   </data>
   <data name="TabRename" xml:space="preserve">
     <value>重命名标签页</value>
   </data>
   <data name="TabSmartDesktop" xml:space="preserve">
-    <value>智能桌面</value>
+    <value>自动整理</value>
   </data>
   <data name="TabStyleFx" xml:space="preserve">
     <value>样式与效果</value>
@@ -1784,7 +1784,7 @@
     <value>将当前文件夹设为此文件夹面板的起始目录</value>
   </data>
   <data name="TrayCreateNewProfile" xml:space="preserve">
-    <value>新建工作区…</value>
+    <value>新建配置方案…</value>
   </data>
   <data name="TrayExportDoneText" xml:space="preserve">
     <value>注册表值已导出到程序文件夹。</value>
@@ -1799,22 +1799,22 @@
     <value>Desktop Frames + - 错误</value>
   </data>
   <data name="TrayFocusFrame" xml:space="preserve">
-    <value>定位面板…（{0}）</value>
+    <value>定位分组…（{0}）</value>
   </data>
   <data name="TrayManageProfiles" xml:space="preserve">
-    <value>管理工作区…</value>
+    <value>管理配置方案…</value>
   </data>
   <data name="TrayProfiles" xml:space="preserve">
-    <value>工作区</value>
+    <value>配置方案</value>
   </data>
   <data name="TrayReloadAllFrames" xml:space="preserve">
-    <value>重新加载所有面板</value>
+    <value>重新加载所有分组</value>
   </data>
   <data name="TrayReloadingFrames" xml:space="preserve">
     <value>正在重新加载面板…</value>
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
-    <value>显示隐藏的面板</value>
+    <value>显示隐藏的分组</value>
   </data>
   <data name="UpdateAvailable" xml:space="preserve">
     <value>有可用更新</value>
@@ -1910,13 +1910,73 @@
     <value>跳过（保留在桌面）</value>
   </data>
   <data name="TargetPortalFrame" xml:space="preserve">
-    <value>文件夹面板：{0}</value>
+    <value>文件夹视图：{0}</value>
   </data>
   <data name="LastRunNever" xml:space="preserve">
     <value>上次成功运行：尚未运行</value>
   </data>
   <data name="LastRunAt" xml:space="preserve">
     <value>上次成功运行：{0}</value>
+  </data>
+  <data name="AppDisplayName" xml:space="preserve">
+    <value>Desktop Frames +</value>
+  </data>
+  <data name="FrameNewTitle" xml:space="preserve">
+    <value>新建分组 - 将快捷方式拖到这里</value>
+  </data>
+  <data name="FrameNamePrompt" xml:space="preserve">
+    <value>请输入新分组名称：</value>
+  </data>
+  <data name="FrameCreateTitle" xml:space="preserve">
+    <value>新建分组</value>
+  </data>
+  <data name="FrameLockedTooltip" xml:space="preserve">
+    <value>分组已锁定（点击解锁）</value>
+  </data>
+  <data name="FrameUnlockedTooltip" xml:space="preserve">
+    <value>分组未锁定（点击锁定）</value>
+  </data>
+  <data name="FrameDrawInstruction" xml:space="preserve">
+    <value>拖出区域以创建分组（按 Esc 取消）</value>
+  </data>
+  <data name="FrameRefreshingConfiguration" xml:space="preserve">
+    <value>正在刷新配置…</value>
+  </data>
+  <data name="FrameRefreshingFrames" xml:space="preserve">
+    <value>正在刷新分组，请稍候…</value>
+  </data>
+  <data name="StartupTipsTitle" xml:space="preserve">
+    <value>Desktop Frames + 使用提示</value>
+  </data>
+  <data name="StartupTipsContent" xml:space="preserve">
+    <value>欢迎使用 Desktop Frames +
+---------------------------
+• 展开/收起：双击分组标题栏。
+• 重命名：按住 Ctrl 点击标题栏（按 Enter 保存）。
+• 搜索（SpotSearch）：按 Ctrl + ` 快速查找图标。
+• 设置：点击左上角的“♥”菜单图标。
+• 重排图标：按住 Ctrl 拖动图标到新位置。
+• 右键菜单：右键点击图标或分组查看更多操作。
+
+提示：按住 Ctrl 点击或 Ctrl + 右键点击，可查看更多选项。
+
+试试个性化这个分组！右键点击标题栏 → 个性化…</value>
+  </data>
+  <data name="ProfileNamePrompt" xml:space="preserve">
+    <value>请输入新配置方案名称：</value>
+  </data>
+  <data name="ProfileCreateTitle" xml:space="preserve">
+    <value>新建配置方案</value>
+  </data>
+  <data name="TrayIconTitle" xml:space="preserve">
+    <value>Desktop Frames +（{0}）</value>
+  </data>
+  <data name="AutoOrgNewRuleName" xml:space="preserve">
+    <value>新规则</value>
+  </data>
+  <data name="SearchResultTooltip" xml:space="preserve">
+    <value>位置：{0}
+路径：{1}</value>
   </data>
   <data name="TabInterface" xml:space="preserve">
     <value>界面</value>
