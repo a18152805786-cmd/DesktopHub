@@ -122,6 +122,17 @@ namespace Desktop_Frames
                     // Load frames (Now loads from Profile/frames.json)
                     Framemanager.LoadAndCreateFrames(_targetChecker);
 
+                    // Explicit production rollout hook: reuse the existing guarded
+                    // organizer for one initial sweep without changing normal startup.
+                    bool isInitialOrganizeStartup = e.Args.Any(arg => arg.Equals("--initial-organize", StringComparison.OrdinalIgnoreCase))
+                                                     || Environment.GetCommandLineArgs().Any(arg => arg.Equals("--initial-organize", StringComparison.OrdinalIgnoreCase));
+                    if (isInitialOrganizeStartup && SettingsManager.EnableAutoOrganize)
+                    {
+                        LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                            "Startup: Explicit initial Auto-Organize sweep requested.");
+                        AutoOrganizeManager.ProcessDesktopNow(true);
+                    }
+
                     // --- PRODUCTION START LOGIC ---
                     if (SettingsManager.EnableProfileAutomation)
                     {
