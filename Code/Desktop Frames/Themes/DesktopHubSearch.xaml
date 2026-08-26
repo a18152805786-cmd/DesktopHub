@@ -1,0 +1,76 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="DesktopHubSearchDarkBackgroundBrush" Color="#F21A1E24" />
+    <SolidColorBrush x:Key="DesktopHubSearchDarkBorderBrush" Color="#42FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchDarkTextBrush" Color="#F2FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchDarkMutedTextBrush" Color="#A8FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchDarkHoverBrush" Color="#22FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchDarkSelectedBrush" Color="#3D60A5FA" />
+    <SolidColorBrush x:Key="DesktopHubSearchDarkSelectedTextBrush" Color="#FFFFFFFF" />
+
+    <SolidColorBrush x:Key="DesktopHubSearchLightBackgroundBrush" Color="#F2F8F8F8" />
+    <SolidColorBrush x:Key="DesktopHubSearchLightBorderBrush" Color="#40000000" />
+    <SolidColorBrush x:Key="DesktopHubSearchLightTextBrush" Color="#E6000000" />
+    <SolidColorBrush x:Key="DesktopHubSearchLightMutedTextBrush" Color="#99000000" />
+    <SolidColorBrush x:Key="DesktopHubSearchLightHoverBrush" Color="#10000000" />
+    <SolidColorBrush x:Key="DesktopHubSearchLightSelectedBrush" Color="#30245EA8" />
+    <SolidColorBrush x:Key="DesktopHubSearchLightSelectedTextBrush" Color="#FF000000" />
+
+    <SolidColorBrush x:Key="DesktopHubSearchBackgroundBrush" Color="#F21A1E24" />
+    <SolidColorBrush x:Key="DesktopHubSearchBorderBrush" Color="#42FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchTextBrush" Color="#F2FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchMutedTextBrush" Color="#A8FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchHoverBrush" Color="#22FFFFFF" />
+    <SolidColorBrush x:Key="DesktopHubSearchSelectedBrush" Color="#3D60A5FA" />
+    <SolidColorBrush x:Key="DesktopHubSearchSelectedTextBrush" Color="#FFFFFFFF" />
+
+    <Style x:Key="DesktopHubSearchSurfaceStyle" TargetType="{x:Type Border}">
+        <Setter Property="Background" Value="{DynamicResource DesktopHubSearchBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DesktopHubSearchBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="DesktopHubSearchTextBoxStyle" TargetType="{x:Type TextBox}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource DesktopHubSearchTextBrush}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource DesktopHubSearchTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style x:Key="DesktopHubSearchResultItemStyle" TargetType="{x:Type ListBoxItem}">
+        <Setter Property="Foreground" Value="{DynamicResource DesktopHubSearchTextBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Margin" Value="6,1" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                    <Border x:Name="RowBorder"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="7"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource DesktopHubSearchHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource DesktopHubSearchSelectedBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource DesktopHubSearchSelectedTextBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

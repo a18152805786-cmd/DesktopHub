@@ -1993,4 +1993,21 @@
   <data name="MsgTemplateExported" xml:space="preserve">
     <value>语言模板已成功导出！</value>
   </data>
+  <data name="Search_Placeholder" xml:space="preserve"><value>搜索桌面、文件、应用…</value></data>
+  <data name="Search_NoResults" xml:space="preserve"><value>未找到结果</value></data>
+  <data name="Search_ScopeHint" xml:space="preserve"><value>搜索 Desktop Hub 管理的桌面内容</value></data>
+  <data name="Search_KeyboardHint" xml:space="preserve"><value>↑↓ 选择   Enter 打开   Esc 关闭</value></data>
+  <data name="Search_ItemMissing" xml:space="preserve"><value>项目不存在或已被移动。</value></data>
+  <data name="Search_CategoryDesktop" xml:space="preserve"><value>桌面</value></data>
+  <data name="Search_CategoryFolder" xml:space="preserve"><value>文件夹</value></data>
+  <data name="Search_CategoryShortcut" xml:space="preserve"><value>快捷方式</value></data>
+  <data name="Search_CategoryUrl" xml:space="preserve"><value>网页快捷方式</value></data>
+  <data name="Search_CategoryFrameItem" xml:space="preserve"><value>分组项目</value></data>
+  <data name="Search_CategoryDocument" xml:space="preserve"><value>文档</value></data>
+  <data name="Search_CategoryPpt" xml:space="preserve"><value>PPT</value></data>
+  <data name="Search_CategoryPdf" xml:space="preserve"><value>PDF</value></data>
+  <data name="Search_CategoryData" xml:space="preserve"><value>数据</value></data>
+  <data name="Search_CategoryImage" xml:space="preserve"><value>图片</value></data>
+  <data name="Search_CategoryArchive" xml:space="preserve"><value>压缩包</value></data>
+  <data name="Search_CategoryInstaller" xml:space="preserve"><value>安装包</value></data>
 </root>

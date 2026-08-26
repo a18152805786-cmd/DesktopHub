@@ -643,6 +643,11 @@ namespace Desktop_Frames.Localization
         public static string SearchPlaceholder => Get("SearchPlaceholder");
         public static string SearchResultTooltip => Get("SearchResultTooltip");
         public static string SearchTitle => Get("SearchTitle");
+        public static string SearchManagedPlaceholder => Get("Search_Placeholder");
+        public static string SearchNoResults => Get("Search_NoResults");
+        public static string SearchScopeHint => Get("Search_ScopeHint");
+        public static string SearchKeyboardHint => Get("Search_KeyboardHint");
+        public static string SearchItemMissing => Get("Search_ItemMissing");
         public static string TextAppearance => Get("TextAppearance");
         public static string TextBehavior => Get("TextBehavior");
         public static string TextFormatTitle => Get("TextFormatTitle");

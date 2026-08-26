@@ -1919,4 +1919,23 @@ Try customizing this frame! Right-click the title bar -&gt; Customize...</value>
     <value>Location: {0}
 Path: {1}</value>
   </data>
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>Search desktop, files, and apps…</value>
+  </data>
+  <data name="Search_NoResults" xml:space="preserve"><value>No results</value></data>
+  <data name="Search_ScopeHint" xml:space="preserve"><value>Search content managed by Desktop Hub</value></data>
+  <data name="Search_KeyboardHint" xml:space="preserve"><value>↑↓ Select   Enter Open   Esc Close</value></data>
+  <data name="Search_ItemMissing" xml:space="preserve"><value>This item no longer exists or has been moved.</value></data>
+  <data name="Search_CategoryDesktop" xml:space="preserve"><value>Desktop</value></data>
+  <data name="Search_CategoryFolder" xml:space="preserve"><value>Folder</value></data>
+  <data name="Search_CategoryShortcut" xml:space="preserve"><value>Shortcut</value></data>
+  <data name="Search_CategoryUrl" xml:space="preserve"><value>Web shortcut</value></data>
+  <data name="Search_CategoryFrameItem" xml:space="preserve"><value>Frame item</value></data>
+  <data name="Search_CategoryDocument" xml:space="preserve"><value>Document</value></data>
+  <data name="Search_CategoryPpt" xml:space="preserve"><value>PPT</value></data>
+  <data name="Search_CategoryPdf" xml:space="preserve"><value>PDF</value></data>
+  <data name="Search_CategoryData" xml:space="preserve"><value>Data</value></data>
+  <data name="Search_CategoryImage" xml:space="preserve"><value>Image</value></data>
+  <data name="Search_CategoryArchive" xml:space="preserve"><value>Archive</value></data>
+  <data name="Search_CategoryInstaller" xml:space="preserve"><value>Installer</value></data>
 </root>

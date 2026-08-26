@@ -1,52 +1,42 @@
-﻿using Desktop_Frames.Localization;
-using Newtonsoft.Json.Linq;
+using Desktop_Frames.Localization;
+using Desktop_Frames.Search;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation; // Needed for Animation
-using System.Windows.Media.Effects;
-using System.Windows.Media.Imaging;
 
 namespace Desktop_Frames
 {
+    /// <summary>
+    /// Activating, keyboard-focused SpotSearch popup. Data collection, ranking,
+    /// and deduplication live in SearchService so this class remains UI/lifecycle only.
+    /// </summary>
     public class SearchFormManager : Window
     {
-        #region Private Fields
-        private TextBox _searchBox;
-        private TextBlock _watermark; // "Search..." text
-        private TextBlock _appTitle;  // "Desktop Frames +" text
-        private WrapPanel _resultsPanel;
-        private ScrollViewer _scrollViewer;
-        private List<SearchResult> _allShortcuts;
-        private static SearchFormManager _instance;
-        private bool _isClosing = false;
+        private const double WindowWidth = 640;
+        private const double CompactHeight = 132;
+        private const double MaximumWindowHeight = 540;
+        private const double ResultRowHeight = 58;
 
-        // Layout Constants
-        private const double WINDOW_WIDTH = 600;
-        private const double HEADER_HEIGHT = 50; // Height of search box area
-        private const double TITLE_HEIGHT = 30;  // Height of "Desktop Frames +" label
-        private const double ITEM_HEIGHT = 90;   // Height of one icon row
-        private const double ITEM_WIDTH = 80;    // Width of one icon
-        private const int ITEMS_PER_ROW = 7;     // 600 / 80 = 7.5
-        private const double MAX_WINDOW_HEIGHT = 600;
-        #endregion
+        private static SearchFormManager? _instance;
 
-        #region Data Structure
-        public class SearchResult
-        {
-            public string Name { get; set; }
-            public string Path { get; set; }
-            public bool IsFolder { get; set; }
-            public string frameId { get; set; }
-            public string frameTitle { get; set; }
-        }
-        #endregion
+        private readonly SearchService _searchService = new SearchService();
+        private readonly SearchResultIconProvider _iconProvider = new SearchResultIconProvider();
+        private readonly List<SearchResult> _visibleResults = new List<SearchResult>();
+        private TextBox _searchBox = null!;
+        private TextBlock _watermark = null!;
+        private TextBlock _emptyState = null!;
+        private ListBox _resultsList = null!;
+        private bool _isClosing;
 
-        #region Singleton / Static Access
+        internal long LastRefreshMilliseconds { get; private set; }
+        internal long LastQueryMilliseconds { get; private set; }
+
         public static void ToggleSearch()
         {
             if (_instance == null || !_instance.IsLoaded || _instance._isClosing)
@@ -61,419 +51,384 @@ namespace Desktop_Frames
                 _instance.SafeClose();
             }
         }
-        #endregion
 
         public SearchFormManager()
         {
+            SearchVisualStyleHelper.EnsurePalette();
             InitializeComponent();
-            LoadAllShortcuts();
+            Loaded += OnLoaded;
         }
 
         private void InitializeComponent()
         {
-            // 1. Window Setup
-            this.Title = Strings.SearchTitle;
-            this.Width = WINDOW_WIDTH;
-            this.Height = HEADER_HEIGHT + TITLE_HEIGHT; // Initial Compact Size
-            this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            this.WindowStyle = WindowStyle.None;
-            this.AllowsTransparency = true;
-            this.Background = Brushes.Transparent;
-            this.ResizeMode = ResizeMode.NoResize;
-            this.Topmost = true;
-            this.ShowInTaskbar = false;
+            Title = Strings.SearchTitle;
+            Width = WindowWidth;
+            Height = CompactHeight;
+            MaxHeight = MaximumWindowHeight;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+            ResizeMode = ResizeMode.NoResize;
+            Topmost = true;
+            ShowInTaskbar = false;
+            UseLayoutRounding = true;
+            SnapsToDevicePixels = true;
 
-            this.Deactivated += (s, e) => this.SafeClose();
+            Deactivated += (_, _) => SafeClose();
+            PreviewKeyDown += OnSearchKeyDown;
 
-            // 2. Main Card (Rounded, White, Shadow)
-            Border mainBorder = new Border
+            var surface = new Border();
+            surface.SetResourceReference(FrameworkElement.StyleProperty, "DesktopHubSearchSurfaceStyle");
+
+            var layout = new Grid();
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) });
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1) });
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(32) });
+
+            Grid searchRow = CreateSearchRow();
+            Grid.SetRow(searchRow, 0);
+            layout.Children.Add(searchRow);
+
+            var separator = new Border { BorderThickness = new Thickness(0, 0, 0, 1) };
+            separator.SetResourceReference(Border.BorderBrushProperty, "DesktopHubSearchBorderBrush");
+            Grid.SetRow(separator, 1);
+            layout.Children.Add(separator);
+
+            _resultsList = new ListBox
             {
-                Background = new SolidColorBrush(Color.FromRgb(252, 252, 252)),
-                CornerRadius = new CornerRadius(12), // Modern rounded corners
-                BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)),
-                Effect = new DropShadowEffect { BlurRadius = 25, ShadowDepth = 10, Opacity = 0.4, Color = Colors.Black }
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0, 5, 0, 5),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
             };
+            ScrollViewer.SetVerticalScrollBarVisibility(_resultsList, ScrollBarVisibility.Auto);
+            Grid.SetRow(_resultsList, 2);
+            layout.Children.Add(_resultsList);
 
-            Grid mainGrid = new Grid();
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(HEADER_HEIGHT) }); // Row 0: Search Input
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Row 1: Dynamic Content
+            _emptyState = new TextBlock
+            {
+                Text = Strings.SearchScopeHint,
+                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
+                FontSize = 12,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                IsHitTestVisible = false
+            };
+            _emptyState.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
+            Grid.SetRow(_emptyState, 2);
+            layout.Children.Add(_emptyState);
 
-            // --- SEARCH INPUT AREA ---
-            Grid searchContainer = new Grid { Margin = new Thickness(10, 0, 10, 0) };
+            var footer = new TextBlock
+            {
+                Text = Strings.SearchKeyboardHint,
+                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
+                FontSize = 11,
+                Margin = new Thickness(14, 0, 14, 7),
+                VerticalAlignment = VerticalAlignment.Bottom,
+                TextAlignment = TextAlignment.Right
+            };
+            footer.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
+            Grid.SetRow(footer, 3);
+            layout.Children.Add(footer);
+
+            surface.Child = layout;
+            Content = surface;
+        }
+
+        private Grid CreateSearchRow()
+        {
+            var row = new Grid { Margin = new Thickness(16, 0, 16, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var glyph = new TextBlock
+            {
+                Text = "\uE721",
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 19,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            glyph.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
+            Grid.SetColumn(glyph, 0);
+            row.Children.Add(glyph);
+
+            var inputLayer = new Grid();
+            Grid.SetColumn(inputLayer, 1);
 
             _watermark = new TextBlock
             {
-                Text = Strings.SearchPlaceholder,
+                Text = Strings.SearchManagedPlaceholder,
+                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
                 FontSize = 18,
-                Foreground = Brushes.Gray,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0, 0, 0),
                 IsHitTestVisible = false
             };
+            _watermark.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
 
-            _searchBox = new TextBox
-            {
-                FontSize = 18,
-                FontFamily = new FontFamily("Segoe UI"),
-                VerticalContentAlignment = VerticalAlignment.Center,
-                BorderThickness = new Thickness(0),
-                Background = Brushes.Transparent,
-                Foreground = Brushes.Black,
-                CaretBrush = Brushes.Black,
-                Tag = "Search..."
-            };
+            _searchBox = new TextBox();
+            _searchBox.SetResourceReference(FrameworkElement.StyleProperty, "DesktopHubSearchTextBoxStyle");
             _searchBox.TextChanged += OnSearchTextChanged;
-            _searchBox.PreviewKeyDown += OnSearchKeyDown;
 
-            searchContainer.Children.Add(_watermark);
-            searchContainer.Children.Add(_searchBox);
-            Grid.SetRow(searchContainer, 0);
+            inputLayer.Children.Add(_watermark);
+            inputLayer.Children.Add(_searchBox);
+            row.Children.Add(inputLayer);
+            return row;
+        }
 
-            // --- SEPARATOR LINE ---
-            Border separator = new Border
-            {
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
-                VerticalAlignment = VerticalAlignment.Bottom
-            };
-            Grid.SetRow(separator, 0);
-
-            // --- DYNAMIC CONTENT AREA (Row 1) ---
-            // This grid holds both the "Title" (when empty) and the "Results" (when searching)
-            Grid contentArea = new Grid();
-            Grid.SetRow(contentArea, 1);
-
-            // 1. The App Title (Visible initially)
-            _appTitle = new TextBlock
-            {
-                Text = Strings.AppDisplayName,
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Utility.GetColorFromName(SettingsManager.SelectedColor)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 5, 0, 0),
-                Opacity = 1.0
-            };
-
-            // 2. The Results Panel (Hidden initially)
-            _resultsPanel = new WrapPanel
-            {
-                Orientation = Orientation.Horizontal,
-                ItemWidth = ITEM_WIDTH,
-                ItemHeight = ITEM_HEIGHT,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-
-            _scrollViewer = new ScrollViewer
-            {
-                Content = _resultsPanel,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Padding = new Thickness(0, 5, 0, 5),
-                Opacity = 0.0, // Start hidden
-                Visibility = Visibility.Collapsed
-            };
-
-            contentArea.Children.Add(_appTitle);
-            contentArea.Children.Add(_scrollViewer);
-
-            // Assemble
-            mainGrid.Children.Add(searchContainer);
-            mainGrid.Children.Add(separator);
-            mainGrid.Children.Add(contentArea);
-
-            mainBorder.Child = mainGrid;
-            this.Content = mainBorder;
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            var timer = Stopwatch.StartNew();
+            _searchService.Refresh();
+            timer.Stop();
+            LastRefreshMilliseconds = timer.ElapsedMilliseconds;
+            FocusSearch();
         }
 
         public void FocusSearch()
         {
             _searchBox.Focus();
+            Keyboard.Focus(_searchBox);
         }
 
-        private void SafeClose()
-        {
-            if (_isClosing) return;
-            _isClosing = true;
-            this.Close();
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            base.OnClosed(e);
-            _isClosing = true;
-            if (_instance == this) _instance = null;
-        }
-
-        // --- LOGIC: Load Data ---
-        private void LoadAllShortcuts()
-        {
-            _allShortcuts = new List<SearchResult>();
-            var frames = Framemanager.GetFrameData();
-
-            foreach (var frame in frames)
-            {
-                if (frame.ItemsType?.ToString() != "Data") continue;
-                JArray items = frame.Items as JArray;
-                bool tabsEnabled = frame.TabsEnabled?.ToString().ToLower() == "true";
-
-                if (tabsEnabled)
-                {
-                    var tabs = frame.Tabs as JArray;
-                    if (tabs != null)
-                    {
-                        foreach (var tab in tabs)
-                        {
-                            var tabItems = tab["Items"] as JArray;
-                            if (tabItems != null) AddItemsToCache(tabItems, frame);
-                        }
-                    }
-                }
-                else if (items != null)
-                {
-                    AddItemsToCache(items, frame);
-                }
-            }
-        }
-
-        private void AddItemsToCache(JArray items, dynamic frame)
-        {
-            foreach (var item in items)
-            {
-                string name = item["DisplayName"]?.ToString() ?? System.IO.Path.GetFileNameWithoutExtension(item["Filename"]?.ToString());
-                _allShortcuts.Add(new SearchResult
-                {
-                    Name = name,
-                    Path = item["Filename"]?.ToString(),
-                    IsFolder = item["IsFolder"]?.ToObject<bool>() ?? false,
-                    frameId = frame.Id?.ToString(),
-                    frameTitle = frame.Title?.ToString()
-                });
-            }
-        }
-
-        // --- LOGIC: Search & Animation ---
         private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
-            string query = _searchBox.Text.Trim().ToLower();
+            _watermark.Visibility = string.IsNullOrEmpty(_searchBox.Text)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-            // 1. Toggle Watermark
-            _watermark.Visibility = string.IsNullOrEmpty(_searchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
+            var timer = Stopwatch.StartNew();
+            IReadOnlyList<SearchResult> matches = _searchService.Search(_searchBox.Text);
+            timer.Stop();
+            LastQueryMilliseconds = timer.ElapsedMilliseconds;
 
-            _resultsPanel.Children.Clear();
-
-            if (string.IsNullOrEmpty(query))
-            {
-                // STATE: Empty -> Show Title, Shrink Window
-                AnimateTransition(showResults: false);
-                return;
-            }
-
-            // 2. Filter Logic
-            var matches = _allShortcuts
-                .Where(x => x.Name.ToLower().Contains(query))
-                .Take(21) // Limit (3 rows of 7)
-                .ToList();
-
-            if (matches.Count == 0)
-            {
-                // STATE: No Matches -> Show Title (or maybe "No Results"), Shrink
-                AnimateTransition(showResults: false);
-                return;
-            }
-
-            // 3. Populate Results
-            foreach (var match in matches)
-            {
-                // Create Icon UI
-                StackPanel sp = new StackPanel
-                {
-                    Width = ITEM_WIDTH - 10,
-                    Height = ITEM_HEIGHT - 10,
-                    Margin = new Thickness(5),
-                    Cursor = Cursors.Hand,
-                    Background = Brushes.Transparent
-                };
-
-                ImageSource iconSrc = Utility.GetShellIcon(match.Path, match.IsFolder);
-                if (iconSrc == null) iconSrc = new BitmapImage(new Uri("pack://application:,,,/Resources/file-WhiteX.png"));
-
-                Image img = new Image { Source = iconSrc, Width = 32, Height = 32, Margin = new Thickness(0, 5, 0, 2) };
-
-                TextBlock txt = new TextBlock
-                {
-                    Text = match.Name,
-                    TextAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.Wrap,
-                    FontSize = 11,
-                    Foreground = Brushes.Black,
-                    MaxHeight = 32,
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-
-                sp.Children.Add(img);
-                sp.Children.Add(txt);
-                sp.ToolTip = Strings.Get("SearchResultTooltip", match.frameTitle, match.Path);
-
-                sp.MouseLeftButtonDown += (s, ev) => { if (ev.ClickCount == 1) LaunchResult(match); };
-                _resultsPanel.Children.Add(sp);
-            }
-
-            // 4. STATE: Matches Found -> Show Results, Expand Window
-            AnimateTransition(showResults: true, matchCount: matches.Count);
+            _visibleResults.Clear();
+            _visibleResults.AddRange(matches);
+            RenderResults();
         }
 
-        private void AnimateTransition(bool showResults, int matchCount = 0)
+        private void RenderResults()
         {
-            // Calculate Target Height
-            double targetHeight;
-            if (showResults)
+            _resultsList.Items.Clear();
+            foreach (SearchResult result in _visibleResults)
             {
-                int rows = (int)Math.Ceiling((double)matchCount / ITEMS_PER_ROW);
-                // Header + (Rows * ItemHeight) + Padding
-                targetHeight = HEADER_HEIGHT + (rows * ITEM_HEIGHT) + 20;
-                if (targetHeight > MAX_WINDOW_HEIGHT) targetHeight = MAX_WINDOW_HEIGHT;
+                var item = new ListBoxItem { Tag = result };
+                item.SetResourceReference(FrameworkElement.StyleProperty, "DesktopHubSearchResultItemStyle");
+                item.Content = CreateResultRow(result);
+                item.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    LaunchResult(result);
+                };
+                _resultsList.Items.Add(item);
+            }
+
+            bool hasQuery = !string.IsNullOrWhiteSpace(_searchBox.Text);
+            bool hasResults = _visibleResults.Count > 0;
+            _resultsList.Visibility = hasResults ? Visibility.Visible : Visibility.Collapsed;
+            _emptyState.Text = hasQuery ? Strings.SearchNoResults : Strings.SearchScopeHint;
+            _emptyState.Visibility = hasResults ? Visibility.Collapsed : Visibility.Visible;
+
+            if (hasResults) _resultsList.SelectedIndex = 0;
+            Height = hasResults
+                ? Math.Min(MaximumWindowHeight, 95 + (_visibleResults.Count * ResultRowHeight))
+                : CompactHeight;
+        }
+
+        private FrameworkElement CreateResultRow(SearchResult result)
+        {
+            var row = new Grid { Height = 44 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            ImageSource? icon = _iconProvider.GetIcon(result);
+            if (icon != null)
+            {
+                var image = new Image
+                {
+                    Source = icon,
+                    Width = 30,
+                    Height = 30,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                Grid.SetColumn(image, 0);
+                row.Children.Add(image);
             }
             else
             {
-                targetHeight = HEADER_HEIGHT + TITLE_HEIGHT;
+                var fallback = new TextBlock
+                {
+                    Text = result.IsFolder ? "\uE8B7" : "\uE8A5",
+                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    FontSize = 22,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                fallback.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
+                Grid.SetColumn(fallback, 0);
+                row.Children.Add(fallback);
             }
 
-            // 1. Animate Height
-            DoubleAnimation heightAnim = new DoubleAnimation(targetHeight, TimeSpan.FromMilliseconds(250))
+            var text = new StackPanel { Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+            var name = new TextBlock
             {
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                Text = result.DisplayName,
+                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
+                FontSize = 13.5,
+                FontWeight = FontWeights.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap
             };
-            this.BeginAnimation(Window.HeightProperty, heightAnim);
-
-            // 2. Cross-Fade Content
-            if (showResults)
+            name.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchTextBrush");
+            var subtitle = new TextBlock
             {
-                // Fade OUT Title
-                _appTitle.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(150)));
+                Text = result.Subtitle,
+                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
+                FontSize = 11,
+                Opacity = 0.72,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap
+            };
+            subtitle.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
+            text.Children.Add(name);
+            text.Children.Add(subtitle);
+            Grid.SetColumn(text, 1);
+            row.Children.Add(text);
 
-                // Fade IN Results
-                _scrollViewer.Visibility = Visibility.Visible;
-                _scrollViewer.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(200)));
-            }
-            else
+            var category = new TextBlock
             {
-                // Fade IN Title
-                _appTitle.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(200)));
+                Text = Strings.Get(result.CategoryKey),
+                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
+                FontSize = 11,
+                Margin = new Thickness(8, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Opacity = 0.75
+            };
+            category.SetResourceReference(TextBlock.ForegroundProperty, "DesktopHubSearchMutedTextBrush");
+            Grid.SetColumn(category, 2);
+            row.Children.Add(category);
 
-                // Fade OUT Results
-                var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(150));
-                fadeOut.Completed += (s, e) => _scrollViewer.Visibility = Visibility.Collapsed;
-                _scrollViewer.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-            }
+            return row;
         }
 
         private void OnSearchKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Escape) this.SafeClose();
-
-            if (e.Key == Key.Enter && _resultsPanel.Children.Count > 0)
+            if (e.Key == Key.Escape)
             {
-                var firstMatch = _allShortcuts.FirstOrDefault(x => x.Name.ToLower().Contains(_searchBox.Text.Trim().ToLower()));
-                if (firstMatch != null) LaunchResult(firstMatch);
+                e.Handled = true;
+                SafeClose();
+                return;
+            }
+
+            if (_visibleResults.Count == 0) return;
+
+            if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+                _resultsList.SelectedIndex = Math.Min(_visibleResults.Count - 1, _resultsList.SelectedIndex + 1);
+                _resultsList.ScrollIntoView(_resultsList.SelectedItem);
+            }
+            else if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+                _resultsList.SelectedIndex = Math.Max(0, _resultsList.SelectedIndex - 1);
+                _resultsList.ScrollIntoView(_resultsList.SelectedItem);
+            }
+            else if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                int index = Math.Max(0, _resultsList.SelectedIndex);
+                LaunchResult(_visibleResults[index]);
             }
         }
+
         private void LaunchResult(SearchResult result)
         {
-            if (result == null) return;
-
             try
             {
-                // 1. PATH RESOLUTION (The "Profile Aware" Fix)
-                // We ignore the path stored in the result if it doesn't exist.
-                // We force a look-up in the current Active Profile's shortcuts.
-                string finalPath = result.Path;
+                string finalPath = ResolveLaunchPath(result);
+                bool exists = File.Exists(finalPath) || Directory.Exists(finalPath);
+                bool directUri = Uri.TryCreate(finalPath, UriKind.Absolute, out Uri? uri) && !uri.IsFile;
 
-                if (!System.IO.File.Exists(finalPath) && !System.IO.Directory.Exists(finalPath))
+                if (!exists && !directUri)
                 {
-                    string fileName = System.IO.Path.GetFileName(finalPath);
-                    string profileShortcuts = ProfileManager.GetProfileFilePath("Shortcuts");
-
-                    // A. Check Root
-                    string candidate = System.IO.Path.Combine(profileShortcuts, fileName);
-                    if (System.IO.File.Exists(candidate))
-                    {
-                        finalPath = candidate;
-                    }
-                    // B. Deep Search (Subfolders/Tabs)
-                    else if (System.IO.Directory.Exists(profileShortcuts))
-                    {
-                        try
-                        {
-                            var found = System.IO.Directory.GetFiles(profileShortcuts, fileName, System.IO.SearchOption.AllDirectories).FirstOrDefault();
-                            if (!string.IsNullOrEmpty(found))
-                            {
-                                finalPath = found;
-                            }
-                        }
-                        catch { }
-                    }
+                    _visibleResults.Remove(result);
+                    RenderResults();
+                    MessageBoxesManager.ShowOKOnlyMessageBoxForm(Strings.SearchItemMissing, Strings.DlgLaunchError);
+                    return;
                 }
 
-                // 2. IDENTIFY TYPE (Mimicking Framemanager Logic)
-                bool isStoreApp = false;
-                if (finalPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
-                {
-                    isStoreApp = Utility.IsStoreAppShortcut(finalPath);
-                }
+                var startInfo = new ProcessStartInfo { UseShellExecute = true };
+                bool isFolder = Directory.Exists(finalPath) || result.IsFolder;
+                bool isStoreApp = finalPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+                    && Utility.IsStoreAppShortcut(finalPath);
 
-                // 3. LAUNCH CONFIGURATION
-                System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo();
-                psi.UseShellExecute = true;
-
-                if (isStoreApp)
+                if (isFolder || isStoreApp)
                 {
-                    // Logic for Store Apps (Netflix, Calculator, etc.)
-                    psi.FileName = "explorer.exe";
-                    psi.Arguments = $"\"{finalPath}\"";
-                    psi.WorkingDirectory = "";
-                }
-                else if (result.IsFolder)
-                {
-                    // Logic for Folders
-                    psi.FileName = "explorer.exe";
-                    psi.Arguments = $"\"{finalPath}\"";
+                    startInfo.FileName = "explorer.exe";
+                    startInfo.Arguments = $"\"{finalPath}\"";
                 }
                 else
                 {
-                    // Logic for Standard Files & .URL files
-                    if (!System.IO.File.Exists(finalPath) && !finalPath.StartsWith("http"))
+                    startInfo.FileName = finalPath;
+                    string extension = Path.GetExtension(finalPath);
+                    if (!extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase) &&
+                        !extension.Equals(".url", StringComparison.OrdinalIgnoreCase) &&
+                        !directUri)
                     {
-                        MessageBoxesManager.ShowOKOnlyMessageBoxForm(Strings.Get("MsgFileNotFoundInProfile", finalPath), Strings.DlgLaunchError);
-                        return;
-                    }
-
-                    psi.FileName = finalPath;
-
-                    // Only set WorkingDirectory for executables/regular files, NOT for .lnk or .url
-                    string ext = System.IO.Path.GetExtension(finalPath).ToLower();
-                    if (ext != ".lnk" && ext != ".url")
-                    {
-                        try
-                        {
-                            string dir = System.IO.Path.GetDirectoryName(finalPath);
-                            if (!string.IsNullOrEmpty(dir)) psi.WorkingDirectory = dir;
-                        }
-                        catch { }
+                        string? directory = Path.GetDirectoryName(finalPath);
+                        if (!string.IsNullOrWhiteSpace(directory)) startInfo.WorkingDirectory = directory;
                     }
                 }
 
-                // 4. EXECUTE
-                System.Diagnostics.Process.Start(psi);
-                this.SafeClose();
+                Process.Start(startInfo);
+                SafeClose();
             }
             catch (Exception ex)
             {
                 MessageBoxesManager.ShowOKOnlyMessageBoxForm(Strings.Get("MsgLaunchFailed", ex.Message), Strings.DlgError);
             }
         }
-       
+
+        private static string ResolveLaunchPath(SearchResult result)
+        {
+            string path = result.LaunchTarget;
+            if (File.Exists(path) || Directory.Exists(path)) return path;
+            if (!string.IsNullOrWhiteSpace(result.Uri)) return result.Uri;
+            if (result.ResultType != SearchResultType.FrameItem) return path;
+
+            string fileName = Path.GetFileName(path);
+            string profileShortcuts = ProfileManager.GetProfileFilePath("Shortcuts");
+            string candidate = Path.Combine(profileShortcuts, fileName);
+            if (File.Exists(candidate) || Directory.Exists(candidate)) return candidate;
+
+            try
+            {
+                return Directory.Exists(profileShortcuts)
+                    ? Directory.GetFiles(profileShortcuts, fileName, SearchOption.AllDirectories).FirstOrDefault() ?? path
+                    : path;
+            }
+            catch { return path; }
+        }
+
+        private void SafeClose()
+        {
+            if (_isClosing) return;
+            _isClosing = true;
+            Close();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _iconProvider.Clear();
+            _isClosing = true;
+            if (_instance == this) _instance = null;
+            base.OnClosed(e);
+        }
     }
 }
