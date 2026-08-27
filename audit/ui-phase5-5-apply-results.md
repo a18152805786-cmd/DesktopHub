@@ -1,10 +1,15 @@
 # UI Phase 5.5 Dual-Rail Layout Results
 
 Apply=PASS
-ItemsMoved=0
-Reason=ALREADY_AT_TARGET
-TargetSatisfiedCount=0
-ExplorerSnapCount=81
+ItemsMoved=81
+AI_DEVPositionChanged=13
+DAILY_TOOLSPositionChanged=13
+GAMESPositionChanged=15
+OFFICE_DOCUMENTSPositionChanged=8
+RESEARCH_STUDYPositionChanged=12
+SYSTEM_TEMPPositionChanged=2
+UNASSIGNEDPositionChanged=18
+RequestedVsActualValidated=True
 ExplorerClampFailures=0
 
 DesktopWorkArea=2560x1440

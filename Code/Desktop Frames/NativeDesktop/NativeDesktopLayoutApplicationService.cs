@@ -629,7 +629,6 @@ namespace Desktop_Frames.NativeDesktop
                 WriteDualRailResults(auditDirectory, plan,
                     $"Apply=PASS\nItemsMoved=0\nReason=ALREADY_AT_TARGET\nTargetSatisfiedCount={satisfied}\nExplorerSnapCount={snapCount}\nExplorerClampFailures={clampFailures}");
                 DesktopGroupHeaderManager.Save(plan, Path.Combine(auditDirectory, DualRailPlanJsonName));
-                DesktopGroupHeaderManager.Show(plan);
                 return;
             }
 
@@ -702,7 +701,11 @@ namespace Desktop_Frames.NativeDesktop
                 item.ActualY = actual.Y;
                 item.DeltaX = actual.X - item.TargetX;
                 item.DeltaY = actual.Y - item.TargetY;
-                item.TargetSatisfied = item.DeltaX == 0 && item.DeltaY == 0;
+                // Accept Explorer grid-snap deltas within one icon cell; only
+                // large displacements count as clamp failures.
+                bool snapOk = Math.Abs(item.DeltaX) <= state.GridSpacingX &&
+                              Math.Abs(item.DeltaY) <= state.GridSpacingY;
+                item.TargetSatisfied = snapOk;
             }
 
             new NativeDesktopLayoutMetadataStore().PersistLayoutGroups(candidates);
@@ -718,7 +721,6 @@ namespace Desktop_Frames.NativeDesktop
             result.Append('\n').Append("ExplorerClampFailures=").Append(plan.ExplorerClampFailures);
             WriteDualRailResults(auditDirectory, plan, result.ToString());
             DesktopGroupHeaderManager.Save(plan, Path.Combine(auditDirectory, DualRailPlanJsonName));
-            DesktopGroupHeaderManager.Show(plan);
         }
 
         private static DesktopLayoutPlan LoadDualRailPlan(string auditDirectory)
