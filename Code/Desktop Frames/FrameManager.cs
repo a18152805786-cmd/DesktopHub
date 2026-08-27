@@ -3415,8 +3415,16 @@ namespace Desktop_Frames
                 jsonLoadSuccessful = LoadFrameDataFromJson();
             }
 
-            // If JSON loading failed or file doesn't exist, initialize with defaults
-            if (!jsonLoadSuccessful || FrameDataManager.FrameData == null || FrameDataManager.FrameData.Count == 0)
+            // A valid empty profile is intentional after the user dismisses
+            // onboarding and removes the obsolete default frame. Preserve it
+            // instead of recreating the same empty visual block on every start.
+            bool intentionalEmptyProfile = jsonLoadSuccessful && FrameDataManager.FrameData != null &&
+                FrameDataManager.FrameData.Count == 0 && ProfileManager.StartupTipsDismissed;
+
+            // Failed/missing data and not-yet-dismissed empty profiles still
+            // receive the normal default frame/onboarding setup.
+            if (!intentionalEmptyProfile &&
+                (!jsonLoadSuccessful || FrameDataManager.FrameData == null || FrameDataManager.FrameData.Count == 0))
             {
                 InitializeDefaultFrame();
             }
