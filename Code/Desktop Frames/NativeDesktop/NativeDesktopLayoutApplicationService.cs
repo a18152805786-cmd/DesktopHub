@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -546,7 +546,7 @@ namespace Desktop_Frames.NativeDesktop
             var metadata = new NativeDesktopLayoutMetadataStore();
             ManualLayoutResolution manual = metadata.LoadManualResolution();
             var planner = new NativeDesktopLayoutPlanner(layout, manual.Groups, manual.UnmappedManualPaths,
-                DesktopGroupAnchorStore.Load());
+                DesktopGroupZoneStore.Load());
             DesktopLayoutPlan plan = planner.PlanDualRailLayout();
             File.WriteAllText(Path.Combine(auditDirectory, DualRailPlanJsonName),
                 JsonConvert.SerializeObject(plan, Formatting.Indented), new UTF8Encoding(false));
@@ -614,7 +614,7 @@ namespace Desktop_Frames.NativeDesktop
                 var safeGridForCheck = readBackLayout.GetSafeDesktopGrid();
                 GridSlotVerification verification = VerifyLogicalGridSlots(plan, managedItems,
                     item => readBackIcons.FirstOrDefault(icon =>
-                        icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
+                        !string.IsNullOrEmpty(icon.OriginalPath) &&
                         string.Equals(NormalizePath(icon.OriginalPath), NormalizePath(item.OriginalPath),
                             StringComparison.OrdinalIgnoreCase)) is { } match
                         ? (match.X, match.Y)
@@ -683,7 +683,13 @@ namespace Desktop_Frames.NativeDesktop
             }
 
             NativeDesktopLayoutSnapshot after = layout.CaptureSnapshot();
-            bool otherIconsChanged = FullOtherIconsChanged(before, after, candidates, plan, state);
+            // Explorer can relocate a neighbour a moment after it processes a
+            // position message, so one read-back is not proof that nothing else
+            // moved. A second, immediate pass catches a displacement that landed
+            // between the two reads; it costs one enumeration and no waiting.
+            NativeDesktopLayoutSnapshot settled = layout.CaptureSnapshot();
+            bool otherIconsChanged = FullOtherIconsChanged(before, after, candidates, plan, state) ||
+                                     FullOtherIconsChanged(before, settled, candidates, plan, state);
             bool filesystemUnchanged = filesystemBefore.Equals(DesktopFilesystemFingerprint.Capture());
             List<string> mismatches = FullTargetMismatches(after, candidates, plan, state);
             bool targetsVerified = mismatches.Count == 0;
@@ -699,7 +705,7 @@ namespace Desktop_Frames.NativeDesktop
             NativeDesktopSafeGrid safeGridAfter = layout.GetSafeDesktopGrid();
             GridSlotVerification applyVerification = VerifyLogicalGridSlots(plan, candidates,
                 item => after.Icons.FirstOrDefault(icon =>
-                    icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
+                    !string.IsNullOrEmpty(icon.OriginalPath) &&
                     string.Equals(NormalizePath(icon.OriginalPath), NormalizePath(item.OriginalPath),
                         StringComparison.OrdinalIgnoreCase)) is { } match
                     ? (match.X, match.Y)
@@ -1079,7 +1085,7 @@ namespace Desktop_Frames.NativeDesktop
             Drawing.Rectangle work = new(plan.WorkAreaLeft, plan.WorkAreaTop, plan.WorkAreaWidth, plan.WorkAreaHeight);
             int gridX = Math.Max(1, state.GridSpacingX);
             int gridY = Math.Max(1, state.GridSpacingY);
-            var current = after.Icons.Where(item => item.IdentityStatus == NativeIconIdentityStatus.StablePath)
+            var current = after.Icons.Where(item => !string.IsNullOrEmpty(item.OriginalPath))
                 .ToDictionary(item => NormalizePath(item.OriginalPath), StringComparer.OrdinalIgnoreCase);
             var failures = new List<string>();
             foreach (DesktopLayoutItem candidate in candidates)
@@ -1102,7 +1108,7 @@ namespace Desktop_Frames.NativeDesktop
             DesktopLayoutPlan plan, NativeDesktopListViewState state)
         {
             Drawing.Rectangle work = new(plan.WorkAreaLeft, plan.WorkAreaTop, plan.WorkAreaWidth, plan.WorkAreaHeight);
-            var current = after.Icons.Where(item => item.IdentityStatus == NativeIconIdentityStatus.StablePath)
+            var current = after.Icons.Where(item => !string.IsNullOrEmpty(item.OriginalPath))
                 .ToDictionary(item => NormalizePath(item.OriginalPath), StringComparer.OrdinalIgnoreCase);
             foreach (DesktopLayoutItem candidate in candidates)
             {
@@ -1128,7 +1134,7 @@ namespace Desktop_Frames.NativeDesktop
 
             List<(NativeIconIdentityStatus Status, string Path, string Name, int X, int Y)> SnapshotOthers(NativeDesktopLayoutSnapshot snapshot) =>
                 snapshot.Icons
-                    .Where(item => !(item.IdentityStatus == NativeIconIdentityStatus.StablePath &&
+                    .Where(item => !(!string.IsNullOrEmpty(item.OriginalPath) &&
                                      selected.Contains(NormalizePath(item.OriginalPath))))
                     .Select(item => (item.IdentityStatus, NormalizePath(item.OriginalPath), item.DisplayName,
                                      item.X, item.Y))
@@ -1151,7 +1157,7 @@ namespace Desktop_Frames.NativeDesktop
                 .ToDictionary(entry => SnapshotKey(entry.item, entry.index), entry => entry.item, StringComparer.OrdinalIgnoreCase);
             foreach (var entry in before.Icons.Select((item, index) => new { item, index }))
             {
-                if (entry.item.IdentityStatus == NativeIconIdentityStatus.StablePath && selected.Contains(NormalizePath(entry.item.OriginalPath))) continue;
+                if (!string.IsNullOrEmpty(entry.item.OriginalPath) && selected.Contains(NormalizePath(entry.item.OriginalPath))) continue;
                 if (!afterByKey.TryGetValue(SnapshotKey(entry.item, entry.index), out NativeDesktopIconSnapshotItem? now)) return true;
                 string oldSlot = NativeDesktopLayoutPlanner.SlotKey(entry.item.X, entry.item.Y, work, Math.Max(1, state.GridSpacingX), Math.Max(1, state.GridSpacingY));
                 string newSlot = NativeDesktopLayoutPlanner.SlotKey(now.X, now.Y, work, Math.Max(1, state.GridSpacingX), Math.Max(1, state.GridSpacingY));
@@ -1332,10 +1338,10 @@ namespace Desktop_Frames.NativeDesktop
             IReadOnlyList<NativeDesktopIconSnapshotItem> before, IReadOnlyList<NativeDesktopIconSnapshotItem> after,
             string auditPrefix = "ui-phase5-3")
         {
-            var afterByPath = after.Where(item => item.IdentityStatus == NativeIconIdentityStatus.StablePath)
+            var afterByPath = after.Where(item => !string.IsNullOrEmpty(item.OriginalPath))
                 .GroupBy(item => NormalizePath(item.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-            var beforeByPath = before.Where(item => item.IdentityStatus == NativeIconIdentityStatus.StablePath)
+            var beforeByPath = before.Where(item => !string.IsNullOrEmpty(item.OriginalPath))
                 .GroupBy(item => NormalizePath(item.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
             var csv = new StringBuilder("Name,BeforeX,BeforeY,AfterX,AfterY\r\n");

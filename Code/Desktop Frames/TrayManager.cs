@@ -29,6 +29,8 @@ namespace Desktop_Frames
         public static bool IsStartWithWindows { get; private set; }
 
         private const string RUN_KEY_PATH = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+        // Null until the tray menu is built.
+        private ToolStripMenuItem? _editLayoutMenuItem;
         private const string APP_NAME = "Desktop Frames +"; // --- FIX: Ensures new registry entries use the correct name ---
 
         private static readonly List<HiddenFrame> HiddenFrames = new List<HiddenFrame>();
@@ -93,6 +95,16 @@ namespace Desktop_Frames
             RemoteInfoManager.Initialize();
 
             Instance = this; // Set singleton instance
+        }
+
+        /// <summary>Keeps the tray entry in step with the live edit-mode state.</summary>
+        private void UpdateDesktopLayoutMenu()
+        {
+            if (_editLayoutMenuItem == null) return;
+            _editLayoutMenuItem.Text = Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.EditMode
+                ? Strings.TrayExitEditDesktopLayout
+                : Strings.TrayEditDesktopLayout;
+            _editLayoutMenuItem.Checked = Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.EditMode;
         }
 
         private void OnTrayIconDoubleClick(object sender, EventArgs e)
@@ -243,6 +255,21 @@ namespace Desktop_Frames
             var trayMenu = new ContextMenuStrip();
             trayMenu.Items.Add(Strings.MenuAbout, null, (s, e) => AboutFormManager.ShowAboutForm());
             trayMenu.Items.Add(Strings.MenuOptions, null, (s, e) => OptionsFormManager.ShowOptionsForm());
+            trayMenu.Items.Add(new ToolStripSeparator());
+
+            // Desktop group zones. Edit mode is where the boundaries become
+            // visible and resizable; refresh picks up new desktop items while
+            // keeping every manual grouping, position and size.
+            _editLayoutMenuItem = new ToolStripMenuItem(Strings.TrayEditDesktopLayout);
+            _editLayoutMenuItem.Click += (s, e) =>
+            {
+                Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.ToggleEditMode();
+                UpdateDesktopLayoutMenu();
+            };
+            trayMenu.Items.Add(_editLayoutMenuItem);
+            trayMenu.Items.Add(Strings.TrayRefreshDesktopLayout, null, (s, e) =>
+                Desktop_Frames.NativeDesktop.DesktopLayoutRefreshCommand.Run(
+                    Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.AuditDirectory));
             trayMenu.Items.Add(new ToolStripSeparator());
 
             // Profiles Submenu

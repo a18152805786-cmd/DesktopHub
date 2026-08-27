@@ -2075,4 +2075,53 @@
   <data name="AboutSectionProject" xml:space="preserve">
     <value>项目</value>
   </data>
+  <data name="BtnConfirm" xml:space="preserve">
+    <value>确定</value>
+  </data>
+  <data name="GroupHeaderEditLayout" xml:space="preserve">
+    <value>编辑桌面布局</value>
+  </data>
+  <data name="GroupHeaderExitEditLayout" xml:space="preserve">
+    <value>完成布局编辑</value>
+  </data>
+  <data name="GroupHeaderResetSize" xml:space="preserve">
+    <value>恢复自动大小</value>
+  </data>
+  <data name="GroupHeaderLockGroup" xml:space="preserve">
+    <value>锁定分组</value>
+  </data>
+  <data name="GroupHeaderUnlockGroup" xml:space="preserve">
+    <value>解锁分组</value>
+  </data>
+  <data name="GroupHeaderRefreshLayout" xml:space="preserve">
+    <value>刷新桌面布局</value>
+  </data>
+  <data name="GroupHeaderZoneTooltip" xml:space="preserve">
+    <value>{0}
+{1} 个项目 · {2} 列 × {3} 行</value>
+  </data>
+  <data name="GroupResizeTooSmall" xml:space="preserve">
+    <value>当前分组至少需要 {0} 个位置。</value>
+  </data>
+  <data name="GroupResizeFailed" xml:space="preserve">
+    <value>分组大小未能调整，桌面未发生任何更改。</value>
+  </data>
+  <data name="ZoneDropTitle" xml:space="preserve">
+    <value>确认归类</value>
+  </data>
+  <data name="ZoneDropSingleHint" xml:space="preserve">
+    <value>将“{0}”归类到“{1}”？</value>
+  </data>
+  <data name="ZoneDropMultipleHint" xml:space="preserve">
+    <value>有 {0} 个图标位于与其分类不符的分组区域内。请勾选需要重新归类的项目。</value>
+  </data>
+  <data name="TrayEditDesktopLayout" xml:space="preserve">
+    <value>编辑桌面布局</value>
+  </data>
+  <data name="TrayExitEditDesktopLayout" xml:space="preserve">
+    <value>完成布局编辑</value>
+  </data>
+  <data name="TrayRefreshDesktopLayout" xml:space="preserve">
+    <value>刷新桌面布局</value>
+  </data>
 </root>

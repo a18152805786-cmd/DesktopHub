@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -49,6 +49,18 @@ namespace Desktop_Frames.NativeDesktop
 
         public bool HasManualAnchor { get; set; }
 
+        public bool HasManualSize { get; set; }
+
+        /// <summary>Raised on hover so the group's whole zone can reveal itself.</summary>
+        public event Action<NativeDesktopLayoutGroupId, bool>? HoverChanged;
+
+        /// <summary>Set by the manager so the tooltip can state the zone's real capacity.</summary>
+        public void SetZoneSummary(int itemCount, int columns, int rows)
+        {
+            ToolTip = Desktop_Frames.Localization.Strings.Get(
+                "GroupHeaderZoneTooltip", Title, itemCount, columns, rows);
+        }
+
         public DesktopGroupHeaderWindow(NativeDesktopLayoutGroupId groupId, string title,
             int left, int top, int width, int height)
         {
@@ -75,8 +87,16 @@ namespace Desktop_Frames.NativeDesktop
             ContextMenu = BuildContextMenu();
             Cursor = Cursors.SizeAll;
 
-            MouseEnter += (_, _) => { if (!_dragging) _chip.Background = ChipHover; };
-            MouseLeave += (_, _) => { if (!_dragging) _chip.Background = ChipRest; };
+            MouseEnter += (_, _) =>
+            {
+                if (!_dragging) _chip.Background = ChipHover;
+                HoverChanged?.Invoke(_groupId, true);
+            };
+            MouseLeave += (_, _) =>
+            {
+                if (!_dragging) _chip.Background = ChipRest;
+                HoverChanged?.Invoke(_groupId, false);
+            };
             MouseLeftButtonDown += OnMouseLeftButtonDown;
             MouseMove += OnMouseMove;
             MouseLeftButtonUp += OnMouseLeftButtonUp;
@@ -147,13 +167,20 @@ namespace Desktop_Frames.NativeDesktop
         {
             var menu = new ContextMenu();
             menu.Opened += (_, _) => RefreshContextMenu(menu);
+            menu.Items.Add(NewMenuItem(Desktop_Frames.Localization.Strings.GroupHeaderEditLayout,
+                DesktopGroupHeaderCommand.ToggleEditMode));
+            menu.Items.Add(new Separator());
             menu.Items.Add(NewMenuItem(Desktop_Frames.Localization.Strings.GroupHeaderResetPosition,
                 DesktopGroupHeaderCommand.ResetAutoPosition));
+            menu.Items.Add(NewMenuItem(Desktop_Frames.Localization.Strings.GroupHeaderResetSize,
+                DesktopGroupHeaderCommand.ResetAutoSize));
             menu.Items.Add(NewMenuItem(Desktop_Frames.Localization.Strings.GroupHeaderLockPosition,
                 DesktopGroupHeaderCommand.ToggleLock));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(NewMenuItem(Desktop_Frames.Localization.Strings.GroupHeaderRefreshLayout,
+                DesktopGroupHeaderCommand.RefreshLayout));
             if (_groupId == NativeDesktopLayoutGroupId.UNASSIGNED)
             {
-                menu.Items.Add(new Separator());
                 menu.Items.Add(NewMenuItem(Desktop_Frames.Localization.Strings.GroupHeaderTriageUnassigned,
                     DesktopGroupHeaderCommand.TriageUnassigned));
             }
@@ -177,11 +204,21 @@ namespace Desktop_Frames.NativeDesktop
                     case DesktopGroupHeaderCommand.ResetAutoPosition:
                         item.IsEnabled = HasManualAnchor;
                         break;
+                    case DesktopGroupHeaderCommand.ResetAutoSize:
+                        item.IsEnabled = HasManualSize;
+                        break;
+                    case DesktopGroupHeaderCommand.ToggleEditMode:
+                        item.Header = DesktopGroupHeaderManager.EditMode
+                            ? Desktop_Frames.Localization.Strings.GroupHeaderExitEditLayout
+                            : Desktop_Frames.Localization.Strings.GroupHeaderEditLayout;
+                        break;
                     case DesktopGroupHeaderCommand.ToggleLock:
                         item.Header = Locked
-                            ? Desktop_Frames.Localization.Strings.GroupHeaderUnlockPosition
-                            : Desktop_Frames.Localization.Strings.GroupHeaderLockPosition;
-                        item.IsEnabled = HasManualAnchor;
+                            ? Desktop_Frames.Localization.Strings.GroupHeaderUnlockGroup
+                            : Desktop_Frames.Localization.Strings.GroupHeaderLockGroup;
+                        // A group can be locked whether or not it was ever moved:
+                        // locking is about guarding it from now on.
+                        item.IsEnabled = true;
                         break;
                 }
             }
@@ -313,7 +350,10 @@ namespace Desktop_Frames.NativeDesktop
     internal enum DesktopGroupHeaderCommand
     {
         ResetAutoPosition,
+        ResetAutoSize,
         ToggleLock,
+        ToggleEditMode,
+        RefreshLayout,
         TriageUnassigned
     }
 }

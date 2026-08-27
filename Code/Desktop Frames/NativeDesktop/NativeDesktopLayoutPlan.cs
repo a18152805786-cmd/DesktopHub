@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Desktop_Frames.NativeDesktop
@@ -123,6 +123,9 @@ namespace Desktop_Frames.NativeDesktop
         public bool ShowHeader { get; set; } = true;
         /// <summary>True when the user dragged this group and the position is pinned.</summary>
         public bool HasManualAnchor { get; set; }
+
+        /// <summary>True when the user resized this group and the shape is pinned.</summary>
+        public bool HasManualSize { get; set; }
         /// <summary>True when the user locked the group so its header refuses to drag.</summary>
         public bool Locked { get; set; }
     }

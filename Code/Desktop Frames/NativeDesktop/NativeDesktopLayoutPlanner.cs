@@ -1,4 +1,4 @@
-using Desktop_Frames.ReferenceGrouping;
+﻿using Desktop_Frames.ReferenceGrouping;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -19,7 +19,7 @@ namespace Desktop_Frames.NativeDesktop
         private readonly NativeDesktopIconLayoutService _layout;
         private readonly IReadOnlyDictionary<string, NativeDesktopLayoutGroupId> _manualLayoutGroups;
         private readonly ISet<string> _manualButUnmappedPaths;
-        private readonly IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupAnchor> _groupAnchors;
+        private readonly IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> _groupZones;
 
         /// <summary>Smallest gap, in grid columns, kept between the two rails.</summary>
         private const int MinimumCentralColumns = 4;
@@ -31,12 +31,12 @@ namespace Desktop_Frames.NativeDesktop
             NativeDesktopIconLayoutService layout,
             IReadOnlyDictionary<string, NativeDesktopLayoutGroupId>? manualLayoutGroups = null,
             IEnumerable<string>? manualButUnmappedPaths = null,
-            IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupAnchor>? groupAnchors = null)
+            IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>? groupZones = null)
         {
             _layout = layout ?? throw new ArgumentNullException(nameof(layout));
             _manualLayoutGroups = manualLayoutGroups ?? new Dictionary<string, NativeDesktopLayoutGroupId>(StringComparer.OrdinalIgnoreCase);
             _manualButUnmappedPaths = new HashSet<string>(manualButUnmappedPaths ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-            _groupAnchors = groupAnchors ?? new Dictionary<NativeDesktopLayoutGroupId, DesktopGroupAnchor>();
+            _groupZones = groupZones ?? new Dictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>();
         }
 
         public DesktopLayoutPlan CreatePlan()
@@ -283,9 +283,15 @@ namespace Desktop_Frames.NativeDesktop
             foreach (NativeDesktopIconState icon in nativeIcons)
                 plan.Items.Add(ToLayoutItem(icon));
 
-            var obstacles = nativeIcons
-                .Where(icon => icon.IdentityStatus != NativeIconIdentityStatus.StablePath)
-                .Select(icon => SlotKey(icon.X, icon.Y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY))
+            // An obstacle is an icon this plan will not place - the shell items and
+            // anything whose identity stayed unresolved. It is deliberately NOT
+            // "anything without a stable path": an icon whose label is shared but
+            // whose group is settled does get placed, so treating it as an
+            // obstacle would make a group block its own members.
+            var obstacles = plan.Items
+                .Where(item => !IsFullMovableCandidate(item))
+                .Select(item => SlotKey(item.CurrentX, item.CurrentY, workArea,
+                    safeGrid.IconSpacingX, safeGrid.IconSpacingY))
                 .ToHashSet(StringComparer.Ordinal);
 
             // A group the user dragged is pinned first, and its slots become
@@ -376,7 +382,7 @@ namespace Desktop_Frames.NativeDesktop
         };
 
         /// <summary>Widest group in the rail, in grid columns. This is the rail's band width.</summary>
-        private static int RailWidth(DesktopLayoutPlan plan, DesktopRail rail, int extraColumns)
+        private int RailWidth(DesktopLayoutPlan plan, DesktopRail rail, int extraColumns)
         {
             int width = 0;
             foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail && !group.HasManualAnchor))
@@ -384,13 +390,13 @@ namespace Desktop_Frames.NativeDesktop
                 int movableCount = MovableCount(plan, group.GroupId);
                 if (movableCount == 0)
                     continue;
-                (int columns, _) = DualRailShape(group.GroupId, movableCount, extraColumns);
+                (int columns, _) = ResolveShape(group.GroupId, movableCount, extraColumns);
                 width = Math.Max(width, columns);
             }
             return width;
         }
 
-        private static int RailRequiredRows(DesktopLayoutPlan plan, DesktopRail rail, int extraColumns)
+        private int RailRequiredRows(DesktopLayoutPlan plan, DesktopRail rail, int extraColumns)
         {
             int rows = 0;
             foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail && !group.HasManualAnchor))
@@ -398,7 +404,7 @@ namespace Desktop_Frames.NativeDesktop
                 int movableCount = MovableCount(plan, group.GroupId);
                 if (movableCount == 0)
                     continue;
-                (_, int groupRows) = DualRailShape(group.GroupId, movableCount, extraColumns);
+                (_, int groupRows) = ResolveShape(group.GroupId, movableCount, extraColumns);
                 // Every group reserves the same leading row whether or not it
                 // draws a header, so the vertical rhythm is identical.
                 rows += groupRows + DesktopLayoutSpacing.GroupLeadingRows;
@@ -475,32 +481,38 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>
-        /// Places every group the user dragged at its stored grid anchor and
-        /// reserves those slots. A manual position always wins over the planner.
+        /// Places every group the user positioned by hand at its stored grid
+        /// anchor and reserves those slots, and records lock and manual-size
+        /// state on every group that has any. A manual position always wins over
+        /// the planner; a manual size alone still lets the group flow normally,
+        /// it just flows at the shape the user chose.
         /// </summary>
         private void PlaceAnchoredGroups(DesktopLayoutPlan plan, ISet<string> obstacles,
             Rectangle workArea, NativeDesktopSafeGrid safeGrid)
         {
             foreach (DesktopLayoutGroup group in plan.Groups)
             {
-                if (!_groupAnchors.TryGetValue(group.GroupId, out DesktopGroupAnchor? anchor) || anchor == null)
+                if (!_groupZones.TryGetValue(group.GroupId, out DesktopGroupZone? zone) || zone == null)
+                    continue;
+                group.Locked = zone.Locked;
+                group.HasManualSize = zone.IsManualSize;
+                if (!zone.IsManualPosition)
                     continue;
                 List<DesktopLayoutItem> movableItems = OrderedGroupItems(plan, group).Where(IsFullMovableCandidate).ToList();
                 group.PlannedItemCount = plan.Items.Count(item => ParseGroup(item.LayoutGroupId) == group.GroupId);
-                group.Locked = anchor.Locked;
                 if (movableItems.Count == 0)
                     continue;
 
-                (int columns, int rows) = DualRailShape(group.GroupId, movableItems.Count, anchor.ExtraColumns);
-                int column = Math.Clamp(anchor.Column, 0, Math.Max(0, safeGrid.SafeColumns - columns));
-                int iconRow = Math.Clamp(anchor.Row, DesktopLayoutSpacing.GroupLeadingRows,
+                (int columns, int rows) = ResolveShape(group.GroupId, movableItems.Count, zone.ExtraColumns);
+                int column = Math.Clamp(zone.Column, 0, Math.Max(0, safeGrid.SafeColumns - columns));
+                int iconRow = Math.Clamp(zone.Row, DesktopLayoutSpacing.GroupLeadingRows,
                     Math.Max(DesktopLayoutSpacing.GroupLeadingRows, safeGrid.SafeRows - rows));
                 if (!RailBandIsClear(column, columns, iconRow, rows, obstacles, workArea, safeGrid))
                     continue; // A stale anchor never overlaps an icon we cannot move.
 
                 group.HasManualAnchor = true;
                 ApplyGroupGeometry(plan, group, movableItems, column, iconRow, columns, rows, workArea, safeGrid,
-                    anchor.ExtraColumns);
+                    zone.ExtraColumns);
                 for (int row = iconRow - DesktopLayoutSpacing.GroupLeadingRows; row < iconRow + rows; row++)
                     for (int col = column; col < column + columns; col++)
                         obstacles.Add(SlotKey(workArea.Left + (col * safeGrid.IconSpacingX),
@@ -564,7 +576,7 @@ namespace Desktop_Frames.NativeDesktop
             }
         }
 
-        private static void PlanRail(
+        private void PlanRail(
             DesktopLayoutPlan plan,
             DesktopRail rail,
             int railColumn,
@@ -585,7 +597,7 @@ namespace Desktop_Frames.NativeDesktop
                 if (movableItems.Count == 0)
                     continue;
 
-                (int columns, int rows) = DualRailShape(group.GroupId, movableItems.Count, extraColumns);
+                (int columns, int rows) = ResolveShape(group.GroupId, movableItems.Count, extraColumns);
                 int block = rows + DesktopLayoutSpacing.GroupLeadingRows;
                 // Only the row is searched. The column is the rail baseline, so
                 // groups can never drift out of alignment with one another.
@@ -645,6 +657,27 @@ namespace Desktop_Frames.NativeDesktop
         /// lets a rail absorb new icons by growing sideways instead of running
         /// off the bottom of the screen.
         /// </summary>
+        /// <summary>
+        /// Shape of a group, with the user's choice taking precedence.
+        ///
+        /// A manual size is a decision, not a hint: it is kept even as the group
+        /// gains members. The one thing that cannot be honoured is a size that
+        /// no longer holds the icons, so the manual COLUMN count is preserved -
+        /// that is the part the user actually sees - and rows grow only as far
+        /// as capacity demands.
+        /// </summary>
+        private (int Columns, int Rows) ResolveShape(NativeDesktopLayoutGroupId group, int itemCount, int extraColumns)
+        {
+            if (_groupZones.TryGetValue(group, out DesktopGroupZone? zone) && zone is { IsManualSize: true } &&
+                zone.ManualColumns > 0 && zone.ManualRows > 0)
+            {
+                int columns = Math.Max(1, zone.ManualColumns);
+                int rows = Math.Max(zone.ManualRows, (int)Math.Ceiling(Math.Max(1, itemCount) / (double)columns));
+                return (columns, rows);
+            }
+            return DualRailShape(group, itemCount, extraColumns);
+        }
+
         private static (int Columns, int Rows) DualRailShape(NativeDesktopLayoutGroupId group, int itemCount,
             int extraColumns = 0)
         {
@@ -670,7 +703,7 @@ namespace Desktop_Frames.NativeDesktop
         /// off the bottom edge, and it keeps every group in the rail on the
         /// same X baseline.
         /// </summary>
-        private static int FitRailColumns(DesktopLayoutPlan plan, DesktopRail rail, NativeDesktopSafeGrid safeGrid)
+        private int FitRailColumns(DesktopLayoutPlan plan, DesktopRail rail, NativeDesktopSafeGrid safeGrid)
         {
             for (int extra = 0; extra <= MaximumRailWidening; extra++)
             {
@@ -695,6 +728,9 @@ namespace Desktop_Frames.NativeDesktop
 
         private DesktopLayoutItem ToLayoutItem(NativeDesktopIconState icon)
         {
+            if (icon.IdentityStatus == NativeIconIdentityStatus.AmbiguousDisplayName)
+                return FromAmbiguousLabel(icon);
+
             if (icon.IdentityStatus != NativeIconIdentityStatus.StablePath)
             {
                 return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", icon.IdentityStatus.ToString(),
@@ -726,8 +762,56 @@ namespace Desktop_Frames.NativeDesktop
                 decision.IsManualOverride, decision.Reason, reference.ReferenceType.ToString());
         }
 
+        /// <summary>
+        /// Decides whether icons sharing one visible label can still be grouped.
+        ///
+        /// Failing closed is right when the answer depends on WHICH file an icon
+        /// is. It is needlessly strict when every candidate behind the label
+        /// belongs in the same place: a game shortcut and the folder of the same
+        /// name sitting next to it are, to the user, one thing. So the
+        /// candidates are all classified, and if exactly one confident group
+        /// comes out of them, all of them take it. Anything less certain stays
+        /// an untouchable obstacle exactly as before.
+        /// </summary>
+        private DesktopLayoutItem FromAmbiguousLabel(NativeDesktopIconState icon)
+        {
+            const string unmanaged = "Ambiguous display name with no agreed group is an obstacle and is never moved.";
+            if (icon.CandidatePaths.Count == 0 || string.IsNullOrEmpty(icon.OriginalPath))
+                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理",
+                    icon.IdentityStatus.ToString(), isManual: false, unmanaged);
+
+            string path = NormalizePath(icon.OriginalPath);
+            if (_manualLayoutGroups.TryGetValue(path, out NativeDesktopLayoutGroupId manualGroup))
+            {
+                return NewItem(icon, manualGroup, DisplayName(manualGroup), "HIGH", true,
+                    "ManualLayoutGroupId is authoritative even for a shared display name.", stableIdentity: true);
+            }
+
+            var confident = new HashSet<NativeDesktopLayoutGroupId>();
+            foreach (string candidate in icon.CandidatePaths)
+            {
+                if (!ReferenceFrameItem.IsSupportedPath(candidate)) continue;
+                ReferenceGroupingDecision decision;
+                try { decision = ReferenceGroupingClassifier.Classify(ReferenceFrameItem.Create(candidate)); }
+                catch { continue; }
+                NativeDesktopLayoutGroupId mapped = Map(decision.Group);
+                if (decision.Confidence == GroupingConfidence.High && mapped != NativeDesktopLayoutGroupId.UNASSIGNED)
+                    confident.Add(mapped);
+            }
+
+            if (confident.Count != 1)
+                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理",
+                    icon.IdentityStatus.ToString(), isManual: false, unmanaged);
+
+            NativeDesktopLayoutGroupId group = confident.Single();
+            return NewItem(icon, group, DisplayName(group), "HIGH", false,
+                $"Every entry sharing the display name resolves to {group}, so the shared label does not change the grouping.",
+                stableIdentity: true);
+        }
+
         private static DesktopLayoutItem NewItem(NativeDesktopIconState icon, NativeDesktopLayoutGroupId group,
-            string displayGroup, string confidence, bool isManual, string reason, string? type = null) => new()
+            string displayGroup, string confidence, bool isManual, string reason, string? type = null,
+            bool? stableIdentity = null) => new()
             {
                 LayoutGroupId = group.ToString(),
                 GroupDisplayName = displayGroup,
@@ -740,7 +824,7 @@ namespace Desktop_Frames.NativeDesktop
                 TargetY = icon.Y,
                 ClassificationConfidence = confidence,
                 ClassificationReason = reason,
-                IsStableIdentity = icon.IdentityStatus == NativeIconIdentityStatus.StablePath,
+                IsStableIdentity = stableIdentity ?? icon.IdentityStatus == NativeIconIdentityStatus.StablePath,
                 IsShellNamespace = icon.IdentityStatus == NativeIconIdentityStatus.UnmanagedShellItem,
                 IsManualOverride = isManual,
                 ApplyReason = "NOT_PLANNED"

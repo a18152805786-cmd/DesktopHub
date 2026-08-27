@@ -2003,4 +2003,53 @@ Path: {1}</value>
   <data name="AboutSectionProject" xml:space="preserve">
     <value>Project</value>
   </data>
+  <data name="BtnConfirm" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="GroupHeaderEditLayout" xml:space="preserve">
+    <value>Edit desktop layout</value>
+  </data>
+  <data name="GroupHeaderExitEditLayout" xml:space="preserve">
+    <value>Finish editing layout</value>
+  </data>
+  <data name="GroupHeaderResetSize" xml:space="preserve">
+    <value>Restore automatic size</value>
+  </data>
+  <data name="GroupHeaderLockGroup" xml:space="preserve">
+    <value>Lock this group</value>
+  </data>
+  <data name="GroupHeaderUnlockGroup" xml:space="preserve">
+    <value>Unlock this group</value>
+  </data>
+  <data name="GroupHeaderRefreshLayout" xml:space="preserve">
+    <value>Refresh desktop layout</value>
+  </data>
+  <data name="GroupHeaderZoneTooltip" xml:space="preserve">
+    <value>{0}
+{1} item(s) · {2} columns × {3} rows</value>
+  </data>
+  <data name="GroupResizeTooSmall" xml:space="preserve">
+    <value>This group needs room for at least {0} item(s).</value>
+  </data>
+  <data name="GroupResizeFailed" xml:space="preserve">
+    <value>The group could not be resized and nothing was changed.</value>
+  </data>
+  <data name="ZoneDropTitle" xml:space="preserve">
+    <value>Confirm grouping</value>
+  </data>
+  <data name="ZoneDropSingleHint" xml:space="preserve">
+    <value>Assign “{0}” to “{1}”?</value>
+  </data>
+  <data name="ZoneDropMultipleHint" xml:space="preserve">
+    <value>{0} icon(s) are sitting in a group they are not classified under. Tick the ones that should be regrouped.</value>
+  </data>
+  <data name="TrayEditDesktopLayout" xml:space="preserve">
+    <value>Edit desktop layout</value>
+  </data>
+  <data name="TrayExitEditDesktopLayout" xml:space="preserve">
+    <value>Finish editing layout</value>
+  </data>
+  <data name="TrayRefreshDesktopLayout" xml:space="preserve">
+    <value>Refresh desktop layout</value>
+  </data>
 </root>

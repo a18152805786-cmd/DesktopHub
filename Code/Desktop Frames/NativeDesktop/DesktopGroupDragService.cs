@@ -84,7 +84,8 @@ namespace Desktop_Frames.NativeDesktop
 
             List<DesktopLayoutItem> members = plan.Items
                 .Where(item => ParseGroup(item.LayoutGroupId) == groupId &&
-                    item.IsStableIdentity && !item.IsShellNamespace)
+                    item.IsStableIdentity && !item.IsShellNamespace &&
+                    !string.IsNullOrEmpty(item.OriginalPath))
                 .ToList();
             if (members.Count == 0)
             {
@@ -101,7 +102,7 @@ namespace Desktop_Frames.NativeDesktop
             // 2. Nothing outside the group may already occupy a destination slot,
             //    whether that is a shell icon, another group, or a loose icon.
             var occupied = icons
-                .Where(icon => !(icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
+                .Where(icon => !(!string.IsNullOrEmpty(icon.OriginalPath) &&
                     memberPaths.Contains(NormalizePath(icon.OriginalPath))))
                 .Select(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, workArea,
                     safeGrid.IconSpacingX, safeGrid.IconSpacingY))
@@ -116,7 +117,16 @@ namespace Desktop_Frames.NativeDesktop
                         workArea.Top + (row * safeGrid.IconSpacingY),
                         workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
                     if (!occupied.Contains(slot)) continue;
-                    result.Reason = row < newRow ? "HEADER_ROW_COLLISION" : "GROUP_COLLISION";
+                    // Naming the blocker turns "it just refused" into something
+                    // the user, and the log, can actually act on.
+                    string blocker = icons
+                        .Where(icon => !(memberPaths.Contains(NormalizePath(icon.OriginalPath))))
+                        .Where(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, workArea,
+                            safeGrid.IconSpacingX, safeGrid.IconSpacingY) == slot)
+                        .Select(icon => icon.DisplayName)
+                        .FirstOrDefault() ?? "unknown icon";
+                    result.Reason = (row < newRow ? "HEADER_ROW_COLLISION" : "GROUP_COLLISION") +
+                        $" at slot ({column},{row}) held by '{blocker}'";
                     return result;
                 }
             }
@@ -196,7 +206,7 @@ namespace Desktop_Frames.NativeDesktop
                 - DesktopLayoutSpacing.HeaderToFirstIcon - DesktopLayoutSpacing.HeaderHeight);
             group.HasManualAnchor = true;
 
-            DesktopGroupAnchorStore.Save(groupId, newColumn, newRow, group.Locked, group.ExtraColumns);
+            DesktopGroupZoneStore.SavePosition(groupId, newColumn, newRow, group.ExtraColumns);
             result.InternalLayoutPreserved = true;
             result.Moved = true;
             result.Reason = "MOVED";
@@ -236,7 +246,7 @@ namespace Desktop_Frames.NativeDesktop
             NativeDesktopSafeGrid safeGrid)
         {
             var actual = after.Icons
-                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath)
+                .Where(icon => !string.IsNullOrEmpty(icon.OriginalPath))
                 .GroupBy(icon => NormalizePath(icon.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
@@ -266,17 +276,17 @@ namespace Desktop_Frames.NativeDesktop
             ISet<string> memberPaths)
         {
             bool IsOutsider(NativeDesktopIconSnapshotItem icon) =>
-                !(icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
+                !(!string.IsNullOrEmpty(icon.OriginalPath) &&
                   memberPaths.Contains(NormalizePath(icon.OriginalPath)));
 
             Dictionary<string, (int X, int Y)> beforeStable = before.Icons
-                .Where(icon => IsOutsider(icon) && icon.IdentityStatus == NativeIconIdentityStatus.StablePath)
+                .Where(icon => IsOutsider(icon) && !string.IsNullOrEmpty(icon.OriginalPath))
                 .GroupBy(icon => NormalizePath(icon.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => (group.First().X, group.First().Y),
                     StringComparer.OrdinalIgnoreCase);
 
             foreach (NativeDesktopIconSnapshotItem icon in after.Icons
-                         .Where(icon => IsOutsider(icon) && icon.IdentityStatus == NativeIconIdentityStatus.StablePath))
+                         .Where(icon => IsOutsider(icon) && !string.IsNullOrEmpty(icon.OriginalPath)))
             {
                 if (!beforeStable.TryGetValue(NormalizePath(icon.OriginalPath), out (int X, int Y) origin))
                     return icon.DisplayName;
@@ -285,7 +295,7 @@ namespace Desktop_Frames.NativeDesktop
             }
 
             List<string> Unresolvable(NativeDesktopLayoutSnapshot snapshot) => snapshot.Icons
-                .Where(icon => IsOutsider(icon) && icon.IdentityStatus != NativeIconIdentityStatus.StablePath)
+                .Where(icon => IsOutsider(icon) && string.IsNullOrEmpty(icon.OriginalPath))
                 .Select(icon => $"{icon.DisplayName}|{icon.X},{icon.Y}")
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToList();
