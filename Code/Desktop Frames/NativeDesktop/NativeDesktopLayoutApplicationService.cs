@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -545,7 +545,8 @@ namespace Desktop_Frames.NativeDesktop
 
             var metadata = new NativeDesktopLayoutMetadataStore();
             ManualLayoutResolution manual = metadata.LoadManualResolution();
-            var planner = new NativeDesktopLayoutPlanner(layout, manual.Groups, manual.UnmappedManualPaths);
+            var planner = new NativeDesktopLayoutPlanner(layout, manual.Groups, manual.UnmappedManualPaths,
+                DesktopGroupAnchorStore.Load());
             DesktopLayoutPlan plan = planner.PlanDualRailLayout();
             File.WriteAllText(Path.Combine(auditDirectory, DualRailPlanJsonName),
                 JsonConvert.SerializeObject(plan, Formatting.Indented), new UTF8Encoding(false));
@@ -553,6 +554,21 @@ namespace Desktop_Frames.NativeDesktop
             WriteFullPreview(Path.Combine(auditDirectory, "ui-phase5-5-layout-preview.md"), plan);
             WriteFullLayoutMap(Path.Combine(auditDirectory, "ui-phase5-5-layout-map.svg"), plan);
             return plan;
+        }
+
+        /// <summary>
+        /// Replans and reapplies the Dual-Rail layout, then rebuilds the group
+        /// headers. This is what "restore automatic position" and a manual
+        /// regrouping call; it is a user gesture, never a background task.
+        /// </summary>
+        public static void RefreshDualRailLayoutForHeaders(string auditDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(auditDirectory))
+                auditDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "audit");
+            CreateAndWriteDualRailPreview(auditDirectory);
+            ApplyDualRailLayout(auditDirectory);
+            DesktopLayoutPlan plan = LoadDualRailPlan(auditDirectory);
+            DesktopGroupHeaderManager.Show(plan, Path.Combine(auditDirectory, DualRailPlanJsonName));
         }
 
         public static void RestoreDualRailLayout(string auditDirectory)

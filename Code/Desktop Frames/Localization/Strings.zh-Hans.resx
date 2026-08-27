@@ -2021,4 +2021,55 @@
   <data name="Reference_Missing" xml:space="preserve"><value>项目已移动或不存在。</value></data>
   <data name="Grouping_Preview" xml:space="preserve"><value>视觉分组预览</value></data>
   <data name="NativeModeRollUpUnavailable" xml:space="preserve"><value>原生桌面图标分组暂不支持折叠</value></data>
+  <data name="AppName" xml:space="preserve">
+    <value>DesktopHub</value>
+  </data>
+  <data name="GroupHeaderResetPosition" xml:space="preserve">
+    <value>恢复自动位置</value>
+  </data>
+  <data name="GroupHeaderLockPosition" xml:space="preserve">
+    <value>锁定分组位置</value>
+  </data>
+  <data name="GroupHeaderUnlockPosition" xml:space="preserve">
+    <value>解锁分组位置</value>
+  </data>
+  <data name="GroupHeaderTriageUnassigned" xml:space="preserve">
+    <value>整理待分类项目...</value>
+  </data>
+  <data name="GroupDragBlocked" xml:space="preserve">
+    <value>目标位置已有其他图标，分组保持原位。</value>
+  </data>
+  <data name="GroupDragLocked" xml:space="preserve">
+    <value>该分组已锁定。请在标题右键菜单中解锁后再移动。</value>
+  </data>
+  <data name="GroupDragOutsideGrid" xml:space="preserve">
+    <value>该位置超出了桌面可用范围。</value>
+  </data>
+  <data name="GroupDragAutoArrange" xml:space="preserve">
+    <value>请先在桌面右键菜单中关闭“自动排列图标”。</value>
+  </data>
+  <data name="GroupDragFailed" xml:space="preserve">
+    <value>分组未能移动，桌面未发生任何更改。</value>
+  </data>
+  <data name="ManualGroupingTitle" xml:space="preserve">
+    <value>整理待分类项目</value>
+  </data>
+  <data name="ManualGroupingHint" xml:space="preserve">
+    <value>为每个项目选择所属分组。该选择会被记住，并优先于自动分类。</value>
+  </data>
+  <data name="ManualGroupingColumnItem" xml:space="preserve">
+    <value>项目</value>
+  </data>
+  <data name="ManualGroupingColumnGroup" xml:space="preserve">
+    <value>归类到</value>
+  </data>
+  <data name="ManualGroupingKeepUnmanaged" xml:space="preserve">
+    <value>不管理</value>
+  </data>
+  <data name="ManualGroupingNothingToSort" xml:space="preserve">
+    <value>当前没有需要整理的项目。</value>
+  </data>
+  <data name="ManualGroupingApplied" xml:space="preserve">
+    <value>已重新归类 {0} 个项目。刷新布局后即可生效。</value>
+  </data>
 </root>

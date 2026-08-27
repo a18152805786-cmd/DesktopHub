@@ -23,6 +23,11 @@ namespace Desktop_Frames
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            // DesktopHub lives in the tray and is closed explicitly from the tray
+            // menu. Without this, momentarily closing the last window - which is
+            // exactly what rebuilding the desktop group headers does when no
+            // Frame is open - would terminate the application.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
             if (e.Args.Any(arg => arg.StartsWith("--native-final-", StringComparison.OrdinalIgnoreCase)))
                 NonActivatingWindow.CertificationInteractionMode = true;
             // --- 1. INITIALIZE PROFILES & SETTINGS FIRST ---

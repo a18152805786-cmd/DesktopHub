@@ -789,6 +789,25 @@ namespace Desktop_Frames.Localization
         public static string GroupGames => Get("Group_Games");
         public static string GroupDaily => Get("Group_Daily");
         public static string GroupingUnassigned => Get("Grouping_Unassigned");
+
+        // ── Desktop group headers and manual grouping ───────────────────────
+        public static string AppName => Get("AppName");
+        public static string GroupHeaderResetPosition => Get("GroupHeaderResetPosition");
+        public static string GroupHeaderLockPosition => Get("GroupHeaderLockPosition");
+        public static string GroupHeaderUnlockPosition => Get("GroupHeaderUnlockPosition");
+        public static string GroupHeaderTriageUnassigned => Get("GroupHeaderTriageUnassigned");
+        public static string GroupDragBlocked => Get("GroupDragBlocked");
+        public static string GroupDragLocked => Get("GroupDragLocked");
+        public static string GroupDragOutsideGrid => Get("GroupDragOutsideGrid");
+        public static string GroupDragAutoArrange => Get("GroupDragAutoArrange");
+        public static string GroupDragFailed => Get("GroupDragFailed");
+        public static string ManualGroupingTitle => Get("ManualGroupingTitle");
+        public static string ManualGroupingHint => Get("ManualGroupingHint");
+        public static string ManualGroupingColumnItem => Get("ManualGroupingColumnItem");
+        public static string ManualGroupingColumnGroup => Get("ManualGroupingColumnGroup");
+        public static string ManualGroupingKeepUnmanaged => Get("ManualGroupingKeepUnmanaged");
+        public static string ManualGroupingNothingToSort => Get("ManualGroupingNothingToSort");
+        public static string ManualGroupingApplied => Get("ManualGroupingApplied");
         public static string ReferenceRemoveFromGroup => Get("Reference_RemoveFromGroup");
         public static string ReferenceOpenLocation => Get("Reference_OpenLocation");
         public static string ReferenceMissing => Get("Reference_Missing");

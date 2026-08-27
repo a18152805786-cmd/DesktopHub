@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -1949,4 +1949,55 @@ Path: {1}</value>
   <data name="Reference_Missing" xml:space="preserve"><value>This item has been moved or no longer exists.</value></data>
   <data name="Grouping_Preview" xml:space="preserve"><value>Visual grouping preview</value></data>
   <data name="NativeModeRollUpUnavailable" xml:space="preserve"><value>Native desktop icon grouping does not support roll-up yet</value></data>
+  <data name="AppName" xml:space="preserve">
+    <value>DesktopHub</value>
+  </data>
+  <data name="GroupHeaderResetPosition" xml:space="preserve">
+    <value>Restore automatic position</value>
+  </data>
+  <data name="GroupHeaderLockPosition" xml:space="preserve">
+    <value>Lock group position</value>
+  </data>
+  <data name="GroupHeaderUnlockPosition" xml:space="preserve">
+    <value>Unlock group position</value>
+  </data>
+  <data name="GroupHeaderTriageUnassigned" xml:space="preserve">
+    <value>Sort unassigned items...</value>
+  </data>
+  <data name="GroupDragBlocked" xml:space="preserve">
+    <value>Another icon is already in the way, so the group stayed where it was.</value>
+  </data>
+  <data name="GroupDragLocked" xml:space="preserve">
+    <value>This group is locked. Unlock it from the header menu to move it.</value>
+  </data>
+  <data name="GroupDragOutsideGrid" xml:space="preserve">
+    <value>That position is off the usable part of the desktop.</value>
+  </data>
+  <data name="GroupDragAutoArrange" xml:space="preserve">
+    <value>Turn off “Auto arrange icons” in the desktop right-click menu first.</value>
+  </data>
+  <data name="GroupDragFailed" xml:space="preserve">
+    <value>The group could not be moved and nothing was changed.</value>
+  </data>
+  <data name="ManualGroupingTitle" xml:space="preserve">
+    <value>Sort unassigned items</value>
+  </data>
+  <data name="ManualGroupingHint" xml:space="preserve">
+    <value>Choose a group for each item. The choice is remembered and outranks automatic classification.</value>
+  </data>
+  <data name="ManualGroupingColumnItem" xml:space="preserve">
+    <value>Item</value>
+  </data>
+  <data name="ManualGroupingColumnGroup" xml:space="preserve">
+    <value>Assign to</value>
+  </data>
+  <data name="ManualGroupingKeepUnmanaged" xml:space="preserve">
+    <value>Leave unassigned</value>
+  </data>
+  <data name="ManualGroupingNothingToSort" xml:space="preserve">
+    <value>There is nothing waiting to be sorted.</value>
+  </data>
+  <data name="ManualGroupingApplied" xml:space="preserve">
+    <value>{0} item(s) were regrouped. Refresh the layout to move them.</value>
+  </data>
 </root>
