@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Desktop_Frames.Localization;
+using Desktop_Frames.NativeDesktop;
+using System.IO;
 
 namespace Desktop_Frames
 {
@@ -21,6 +23,8 @@ namespace Desktop_Frames
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            if (e.Args.Any(arg => arg.StartsWith("--native-final-", StringComparison.OrdinalIgnoreCase)))
+                NonActivatingWindow.CertificationInteractionMode = true;
             // --- 1. INITIALIZE PROFILES & SETTINGS FIRST ---
             // This ensures we know the user's true DisableSingleInstance preference immediately
             try
@@ -122,6 +126,10 @@ namespace Desktop_Frames
                     // Load frames (Now loads from Profile/frames.json)
                     Framemanager.LoadAndCreateFrames(_targetChecker);
 
+                    // Explicit certification-only commands. They are inert in
+                    // normal startup and never enable a background watcher.
+                    RunNativeFinalCertificationCommand(e.Args);
+
                     // Explicit production rollout hook: reuse the existing guarded
                     // organizer for one initial sweep without changing normal startup.
                     bool isInitialOrganizeStartup = e.Args.Any(arg => arg.Equals("--initial-organize", StringComparison.OrdinalIgnoreCase))
@@ -192,6 +200,68 @@ namespace Desktop_Frames
             {
                 MessageBox.Show($"Critical Startup Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
+            }
+        }
+
+        private static void RunNativeFinalCertificationCommand(string[] startupArgs)
+        {
+            string[] args = startupArgs.Concat(Environment.GetCommandLineArgs()).ToArray();
+            string? auditArgument = args.FirstOrDefault(arg => arg.StartsWith("--native-final-audit=", StringComparison.OrdinalIgnoreCase));
+            string auditDirectory = auditArgument == null
+                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "audit")
+                : auditArgument.Substring("--native-final-audit=".Length).Trim('"');
+
+            try
+            {
+                string? testArgument = args.FirstOrDefault(arg => arg.StartsWith("--native-final-test=", StringComparison.OrdinalIgnoreCase));
+                if (testArgument != null)
+                {
+                    string testPath = testArgument.Substring("--native-final-test=".Length).Trim('"');
+                    NativeDesktopFinalCertificationService.PrepareTestFrame(testPath, auditDirectory);
+                    LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                        "Native final certification TEST frame prepared.");
+                    return;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-final-cleanup-test", StringComparison.OrdinalIgnoreCase)))
+                {
+                    NativeDesktopFinalCertificationService.CleanupTestFrame(auditDirectory);
+                    LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                        "Native final certification TEST frame cleaned up and layout restored.");
+                    return;
+                }
+
+                string? previewArgument = args.FirstOrDefault(arg => arg.StartsWith("--native-final-production-preview=", StringComparison.OrdinalIgnoreCase));
+                if (previewArgument != null)
+                {
+                    string previewPath = previewArgument.Substring("--native-final-production-preview=".Length).Trim('"');
+                    int highConfidence = NativeDesktopFinalCertificationService.WriteProductionPreview(previewPath);
+                    LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                        $"Native final production preview written: highConfidence={highConfidence}; path={previewPath}");
+                    return;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-final-apply-batch1", StringComparison.OrdinalIgnoreCase)))
+                {
+                    NativeProductionBatchResult result = NativeDesktopFinalCertificationService.ApplyProductionBatchOne(auditDirectory);
+                    LogManager.Log(result.Applied ? LogManager.LogLevel.Info : LogManager.LogLevel.Warn,
+                        LogManager.LogCategory.General,
+                        $"Native final Batch 1: {result.Reason}; count={result.Items.Count}; frame={result.FrameTitle}");
+                    return;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-final-restore-batch1", StringComparison.OrdinalIgnoreCase)))
+                {
+                    NativeDesktopRestoreResult result = NativeDesktopFinalCertificationService.RestoreProductionLayout(auditDirectory);
+                    LogManager.Log(result.Failed == 0 ? LogManager.LogLevel.Info : LogManager.LogLevel.Error,
+                        LogManager.LogCategory.General,
+                        $"Native final Batch 1 restore: restored={result.Restored}; failed={result.Failed}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
+                    $"Native final certification command failed: {ex.Message}");
             }
         }
 

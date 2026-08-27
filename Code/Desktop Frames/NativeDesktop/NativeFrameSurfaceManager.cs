@@ -18,11 +18,13 @@ namespace Desktop_Frames.NativeDesktop
         private const double DefaultResizeBorderDip = 8.0;
         private readonly NonActivatingWindow _window;
         private readonly DispatcherTimer _deferredUpdate;
+        private readonly DispatcherTimer _layoutDebounce;
         private bool _attached;
         private bool _disposed;
 
         public NativeFrameRegionGeometry? LastGeometry { get; private set; }
         public bool RegionApplied { get; private set; }
+        public event EventHandler? LayoutRefreshRequested;
 
         public NativeFrameSurfaceManager(NonActivatingWindow window)
         {
@@ -32,6 +34,11 @@ namespace Desktop_Frames.NativeDesktop
                 Interval = TimeSpan.FromMilliseconds(200)
             };
             _deferredUpdate.Tick += DeferredUpdateOnTick;
+            _layoutDebounce = new DispatcherTimer(DispatcherPriority.Background, window.Dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            _layoutDebounce.Tick += LayoutDebounceOnTick;
         }
 
         public void Attach()
@@ -41,6 +48,7 @@ namespace Desktop_Frames.NativeDesktop
 
             _attached = true;
             _window.SizeChanged += WindowOnSizeChanged;
+            _window.LocationChanged += WindowOnLocationChanged;
             _window.DpiChanged += WindowOnDpiChanged;
             _window.Closed += WindowOnClosed;
             _window.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(ApplyNow));
@@ -48,7 +56,10 @@ namespace Desktop_Frames.NativeDesktop
 
         public void ApplyNow()
         {
-            ThrowIfDisposed();
+            // A Loaded-priority callback can remain queued when a test or
+            // profile reload closes the window. Treat that stale callback as
+            // a no-op instead of surfacing an unhandled Dispatcher exception.
+            if (_disposed) return;
             IntPtr hwnd = new WindowInteropHelper(_window).Handle;
             if (hwnd == IntPtr.Zero) throw new InvalidOperationException("Frame HWND is not initialized.");
             if (!GetWindowRect(hwnd, out NativeRect windowRect))
@@ -81,6 +92,7 @@ namespace Desktop_Frames.NativeDesktop
         {
             ThrowIfDisposed();
             _deferredUpdate.Stop();
+            _layoutDebounce.Stop();
             _deferredUpdate.Start();
         }
 
@@ -100,17 +112,26 @@ namespace Desktop_Frames.NativeDesktop
             if (_disposed) return;
             _disposed = true;
             _deferredUpdate.Stop();
+            _layoutDebounce.Stop();
             _deferredUpdate.Tick -= DeferredUpdateOnTick;
+            _layoutDebounce.Tick -= LayoutDebounceOnTick;
             if (_attached)
             {
                 _window.SizeChanged -= WindowOnSizeChanged;
+                _window.LocationChanged -= WindowOnLocationChanged;
                 _window.DpiChanged -= WindowOnDpiChanged;
                 _window.Closed -= WindowOnClosed;
                 _attached = false;
             }
         }
 
-        private void WindowOnSizeChanged(object sender, SizeChangedEventArgs args) => ScheduleUpdate();
+        private void WindowOnSizeChanged(object sender, SizeChangedEventArgs args)
+        {
+            ScheduleUpdate();
+            ScheduleLayoutRefresh();
+        }
+
+        private void WindowOnLocationChanged(object? sender, EventArgs args) => ScheduleLayoutRefresh();
 
         private void WindowOnDpiChanged(object sender, DpiChangedEventArgs args) => ScheduleUpdate();
 
@@ -120,6 +141,19 @@ namespace Desktop_Frames.NativeDesktop
         {
             _deferredUpdate.Stop();
             ApplyNow();
+        }
+
+        private void ScheduleLayoutRefresh()
+        {
+            if (_disposed) return;
+            _layoutDebounce.Stop();
+            _layoutDebounce.Start();
+        }
+
+        private void LayoutDebounceOnTick(object? sender, EventArgs args)
+        {
+            _layoutDebounce.Stop();
+            LayoutRefreshRequested?.Invoke(this, EventArgs.Empty);
         }
 
         private void ThrowIfDisposed()

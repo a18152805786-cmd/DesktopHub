@@ -108,7 +108,7 @@ namespace Desktop_Frames.ReferenceGrouping
             };
         }
 
-        public JObject ToJson(int displayOrder = 0)
+        public JObject ToJson(int displayOrder = 0, string visualOwnershipMode = VisualOwnershipModes.FrameRendered)
         {
             bool isFolder = ReferenceType == ReferenceType.Folder;
             return new JObject
@@ -126,6 +126,7 @@ namespace Desktop_Frames.ReferenceGrouping
                 ["FrameId"] = FrameId,
                 ["IconSource"] = IconSource,
                 ["ManualFrameId"] = ManualFrameId,
+                ["VisualOwnershipMode"] = VisualOwnershipModes.Normalize(visualOwnershipMode),
 
                 // Compatibility aliases consumed by the existing renderer.
                 ["Filename"] = OriginalPath,
@@ -143,6 +144,12 @@ namespace Desktop_Frames.ReferenceGrouping
 
         public static string GetOriginalPath(JToken? item) =>
             item?["OriginalPath"]?.ToString() ?? item?["Filename"]?.ToString() ?? string.Empty;
+
+        public static bool IsNativeDesktopIcon(JToken? item) =>
+            IsReference(item) && string.Equals(
+                item?["VisualOwnershipMode"]?.ToString(),
+                VisualOwnershipModes.NativeDesktopIcon,
+                StringComparison.OrdinalIgnoreCase);
 
         private static string GetDisplayName(string path, bool folder)
         {

@@ -1,6 +1,7 @@
 ﻿using Desktop_Frames.Localization;
 using IWshRuntimeLibrary;
 using Desktop_Frames.ReferenceGrouping;
+using Desktop_Frames.NativeDesktop;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -47,6 +48,18 @@ namespace Desktop_Frames
 
         // Temporary override flag for the "Screen Bound" button
         public static bool IsManualRepositioning = false;
+
+        /// <summary>
+        /// Explicit kill switch for the native visual grouping owner. It is
+        /// intentionally separate from the persisted per-item ownership mode;
+        /// disabling it stops active repositioning while Restore remains
+        /// available through the certification/rollback service.
+        /// </summary>
+        public static bool NativeVisualGroupingEnabled
+        {
+            get => NativeDesktopVisualGroupingService.NativeVisualGroupingEnabled;
+            set => NativeDesktopVisualGroupingService.NativeVisualGroupingEnabled = value;
+        }
 
 
 
@@ -4017,6 +4030,10 @@ namespace Desktop_Frames
                 // We'll add the TextBox reference after the window is created
                 // For now, just mark that this will need Note menu items
             }
+            bool nativeDesktopIconFrame = NativeDesktopVisualGroupingService.IsNativeFrame(frame);
+            // Native Frames keep their chrome expanded in V1; RollUp would
+            // remove the visual context needed by Explorer-owned icons.
+            miAutoRoll.IsEnabled = !nativeDesktopIconFrame;
             NonActivatingWindow win = new NonActivatingWindow
             {
                 ContextMenu = CnMnFramemanager,
@@ -4024,7 +4041,7 @@ namespace Desktop_Frames
                 AllowsTransparency = true,
                 Background = System.Windows.Media.Brushes.Transparent,
                 Title = frame.Title?.ToString() ?? Strings.MenuNewFrame, // Handle null title
-                ShowInTaskbar = false,
+                ShowInTaskbar = NonActivatingWindow.CertificationInteractionMode,
                 WindowStyle = WindowStyle.None,
                 Content = cborder,
                 ResizeMode = frame.IsLocked?.ToString().ToLower() == "true" ? ResizeMode.NoResize : ResizeMode.CanResizeWithGrip,
@@ -4034,9 +4051,34 @@ namespace Desktop_Frames
                 Height = (double)frame.Height,
                 Top = (double)frame.Y,
                 Left = (double)frame.X,
-                Tag = frame.Id?.ToString() ?? Guid.NewGuid().ToString() // Ensure ID exists
+                Tag = frame.Id?.ToString() ?? Guid.NewGuid().ToString(), // Ensure ID exists
+                NativeSurfacePrototypeEnabled = nativeDesktopIconFrame
             };
             FrameVisualStyleHelper.ApplyWindowPresentation(win);
+            if (nativeDesktopIconFrame)
+            {
+                void LayoutNativeReferences()
+                {
+                    try
+                    {
+                        string frameId = win.Tag?.ToString() ?? string.Empty;
+                        dynamic liveFrame = FrameDataManager.FrameData.FirstOrDefault(f => f.Id?.ToString() == frameId) ?? frame;
+                        NativeDesktopVisualLayoutResult result = NativeDesktopVisualGroupingService.LayoutReferencesInsideFrame(win, liveFrame);
+                        LogManager.Log(result.Applied ? LogManager.LogLevel.Info : LogManager.LogLevel.Warn,
+                            LogManager.LogCategory.FrameUpdate,
+                            $"Native desktop icon layout for '{liveFrame.Title}': {result.Reason}; positioned={result.Positioned}; capacity={result.RequiredCapacity}/{result.AvailableSlots}");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.FrameUpdate,
+                            $"Native desktop icon layout failed for '{frame.Title}': {ex.Message}");
+                    }
+                }
+
+                win.NativeLayoutRefreshRequested += (sender, args) => LayoutNativeReferences();
+                win.Loaded += (sender, args) => win.Dispatcher.BeginInvoke(
+                    DispatcherPriority.ApplicationIdle, new Action(LayoutNativeReferences));
+            }
             // Add Note frame specific context menu items after window creation
             if (frame.ItemsType?.ToString() == "Note")
             {
@@ -4567,6 +4609,7 @@ namespace Desktop_Frames
 
                     var currentFrame = FrameDataManager.FrameData.FirstOrDefault(f => f.Id?.ToString() == frameIdForTimer);
                     if (currentFrame == null) return;
+                    if (NativeDesktopVisualGroupingService.IsNativeFrame(currentFrame)) return;
                     bool isManuallyRolled = currentFrame.IsRolled?.ToString().ToLower() == "true";
 
                     // Don't auto-roll if it's already rolled manually, or caught in transition
@@ -4616,8 +4659,9 @@ namespace Desktop_Frames
                 {
                     bool isAutoRollEnabled = currentFrameSetup.AutoRoll?.ToString().ToLower() == "true";
                     bool isManuallyRolled = currentFrameSetup.IsRolled?.ToString().ToLower() == "true";
+                    bool isNativeFrame = NativeDesktopVisualGroupingService.IsNativeFrame(currentFrameSetup);
 
-                    if (isAutoRollEnabled && !isManuallyRolled)
+                    if (isAutoRollEnabled && !isManuallyRolled && !isNativeFrame)
                     {
                         autoRollTimer.Start();
                     }
@@ -4834,6 +4878,8 @@ namespace Desktop_Frames
             };
             FrameVisualStyleHelper.ApplyHeader(titleGrid);
             FrameVisualStyleHelper.ApplyTitle(titlelabel, titletb, frame.Title?.ToString(), isBoldTitle);
+            if (nativeDesktopIconFrame)
+                titlelabel.ToolTip = Strings.Get("NativeModeRollUpUnavailable");
             titlelabel.FontSize = titleFontSize;
             if (titleTextBrush != null) titlelabel.Foreground = titleTextBrush;
             FrameVisualStyleHelper.ApplyHeaderControl(heart);
@@ -5529,6 +5575,11 @@ namespace Desktop_Frames
                     if (currentFrame == null)
                     {
                         // DebugLog("ERROR", frameId, "Frame not found in FrameDataManager.FrameData for Ctrl+Click");
+                        return;
+                    }
+                    if (NativeDesktopVisualGroupingService.IsNativeFrame(currentFrame))
+                    {
+                        e.Handled = true;
                         return;
                     }
                     bool isRolled = currentFrame.IsRolled?.ToString().ToLower() == "true";
@@ -6745,6 +6796,15 @@ namespace Desktop_Frames
             IDictionary<string, object> iconDict = icon is IDictionary<string, object> dict
                 ? dict
                 : ((JObject)icon).ToObject<IDictionary<string, object>>();
+
+            if (icon is JObject referenceItem && ReferenceFrameItem.IsNativeDesktopIcon(referenceItem))
+            {
+                // Explorer is the only renderer and input owner for this item.
+                // Keep a collapsed marker only so legacy refresh callers that
+                // attach handlers to the just-added child remain harmless.
+                wpcont.Children.Add(new StackPanel { Visibility = Visibility.Collapsed });
+                return;
+            }
 
             string filePath = iconDict.ContainsKey("Filename") ? (string)iconDict["Filename"] : "Unknown";
             bool isFolder = iconDict.ContainsKey("IsFolder") && (bool)iconDict["IsFolder"];

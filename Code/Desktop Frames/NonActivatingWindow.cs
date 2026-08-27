@@ -24,8 +24,13 @@ public class NonActivatingWindow : Window
     private bool _focusPreventionEnabled = true;
     private NativeFrameSurfaceManager? _nativeSurfacePrototype;
 
+    /// <summary>Test-only escape hatch so the certified frame is discoverable
+    /// by Windows UI capture while preserving the normal no-activate policy.</summary>
+    public static bool CertificationInteractionMode { get; set; }
+
     public bool NativeSurfacePrototypeEnabled { get; set; }
     public NativeFrameRegionGeometry? NativeSurfacePrototypeGeometry => _nativeSurfacePrototype?.LastGeometry;
+    public event EventHandler? NativeLayoutRefreshRequested;
 
     // --- Idle Fade-Out Fields ---
     private System.Windows.Threading.DispatcherTimer _idleTimer;
@@ -37,11 +42,13 @@ public class NonActivatingWindow : Window
         base.OnSourceInitialized(e);
         var hwndSource = (HwndSource)PresentationSource.FromVisual(this);
         hwndSource.AddHook(WndProc);
-        SetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE, GetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
+        if (!CertificationInteractionMode)
+            SetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE, GetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
         SetupIdleTimer();
         if (NativeSurfacePrototypeEnabled)
         {
             _nativeSurfacePrototype = new NativeFrameSurfaceManager(this);
+            _nativeSurfacePrototype.LayoutRefreshRequested += NativeSurfaceOnLayoutRefreshRequested;
             _nativeSurfacePrototype.Attach();
         }
     }
@@ -55,10 +62,15 @@ public class NonActivatingWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        if (_nativeSurfacePrototype != null)
+            _nativeSurfacePrototype.LayoutRefreshRequested -= NativeSurfaceOnLayoutRefreshRequested;
         _nativeSurfacePrototype?.Dispose();
         _nativeSurfacePrototype = null;
         base.OnClosed(e);
     }
+
+    private void NativeSurfaceOnLayoutRefreshRequested(object? sender, EventArgs args) =>
+        NativeLayoutRefreshRequested?.Invoke(this, EventArgs.Empty);
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -132,7 +144,7 @@ public class NonActivatingWindow : Window
     public void EnableFocusPrevention(bool enable)
     {
         _focusPreventionEnabled = enable;
-        if (enable)
+        if (enable && !CertificationInteractionMode)
         {
             SetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE, GetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
         }

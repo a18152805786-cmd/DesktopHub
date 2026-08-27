@@ -1948,4 +1948,5 @@ Path: {1}</value>
   <data name="Reference_OpenLocation" xml:space="preserve"><value>Open file location</value></data>
   <data name="Reference_Missing" xml:space="preserve"><value>This item has been moved or no longer exists.</value></data>
   <data name="Grouping_Preview" xml:space="preserve"><value>Visual grouping preview</value></data>
+  <data name="NativeModeRollUpUnavailable" xml:space="preserve"><value>Native desktop icon grouping does not support roll-up yet</value></data>
 </root>

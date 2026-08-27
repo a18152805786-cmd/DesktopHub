@@ -2020,4 +2020,5 @@
   <data name="Reference_OpenLocation" xml:space="preserve"><value>打开文件位置</value></data>
   <data name="Reference_Missing" xml:space="preserve"><value>项目已移动或不存在。</value></data>
   <data name="Grouping_Preview" xml:space="preserve"><value>视觉分组预览</value></data>
+  <data name="NativeModeRollUpUnavailable" xml:space="preserve"><value>原生桌面图标分组暂不支持折叠</value></data>
 </root>
