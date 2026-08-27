@@ -1,17 +1,11 @@
 # UI Phase 5.5 Dual-Rail Layout Results
 
 Apply=PASS
-ItemsMoved=81
-AI_DEVPositionChanged=12
-DAILY_TOOLSPositionChanged=17
-GAMESPositionChanged=18
-OFFICE_DOCUMENTSPositionChanged=8
-RESEARCH_STUDYPositionChanged=12
-SYSTEM_TEMPPositionChanged=2
-UNASSIGNEDPositionChanged=12
+ItemsMoved=20
+GAMESPositionChanged=20
 RequestedVsActualValidated=True
 ExactMatches=0
-SameGridSlotMatches=81
+SameGridSlotMatches=83
 ExplorerClampFailures=0
 
 DesktopWorkArea=2560x1440
@@ -22,12 +16,12 @@ SafeColumns=33
 SafeRows=14
 RightSafetyMargin=19
 BottomSafetyMargin=25
-StableIconCount=81
-AmbiguousCount=2
+StableIconCount=83
+AmbiguousCount=0
 ShellNamespaceCount=2
 RequestedVsActualValidated=True
 ExactMatches=0
-SameGridSlotMatches=81
+SameGridSlotMatches=83
 ExplorerClampFailures=0
 LeftRailX=75 (column 1)
 RightRailX=1950 (column 26)
@@ -37,7 +31,7 @@ GroupSpacingConsistent=True
 HeaderToFirstIconGap=14
 GroupSeparationGap=60
 LeftRailSpareRows=1
-RightRailSpareRows=1
+RightRailSpareRows=0
 SystemTempHeaderShown=False
 ManualGroupAnchors=0
 ManagedIconsOutsideAssignedBounds=0
