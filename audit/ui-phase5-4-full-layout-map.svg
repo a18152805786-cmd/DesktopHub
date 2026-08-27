@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+<rect width="100%" height="100%" fill="#f4f6f8"/>
+<rect x="896" y="288" width="819" height="892" fill="#ffffff" opacity="0.55" stroke="#7c8792" stroke-dasharray="14 10" stroke-width="4"/>
+<text x="916" y="324" font-family="Segoe UI" font-size="22" fill="#59616a">Central clear zone</text>
+<rect x="288" y="288" width="324" height="324" rx="12" fill="#1f8a70" opacity="0.08" stroke="#1f8a70" stroke-width="2"/>
+<text x="300" y="278" font-family="Segoe UI" font-size="18" fill="#30363c">科研 · 学习</text>
+<rect x="2163" y="88" width="324" height="424" rx="12" fill="#2563a6" opacity="0.08" stroke="#2563a6" stroke-width="2"/>
+<text x="2175" y="78" font-family="Segoe UI" font-size="18" fill="#30363c">AI · 开发</text>
+<rect x="288" y="688" width="324" height="224" rx="12" fill="#c07a24" opacity="0.08" stroke="#c07a24" stroke-width="2"/>
+<text x="300" y="678" font-family="Segoe UI" font-size="18" fill="#30363c">办公 · 文档</text>
+<rect x="2163" y="588" width="324" height="424" rx="12" fill="#7c5cd6" opacity="0.08" stroke="#7c5cd6" stroke-width="2"/>
+<text x="2175" y="578" font-family="Segoe UI" font-size="18" fill="#30363c">日常工具</text>
+<rect x="2013" y="1088" width="399" height="324" rx="12" fill="#b3405c" opacity="0.08" stroke="#b3405c" stroke-width="2"/>
+<text x="2025" y="1078" font-family="Segoe UI" font-size="18" fill="#30363c">游戏</text>
+<rect x="2463" y="1388" width="174" height="124" rx="12" fill="#6b7280" opacity="0.08" stroke="#6b7280" stroke-width="2"/>
+<text x="2475" y="1378" font-family="Segoe UI" font-size="18" fill="#30363c">系统 · 临时</text>
+<rect x="-12" y="988" width="324" height="524" rx="12" fill="#8a929a" opacity="0.08" stroke="#8a929a" stroke-width="2"/>
+<text x="0" y="978" font-family="Segoe UI" font-size="18" fill="#30363c">待整理</text>
+<rect x="18" y="107" width="65" height="90" rx="4" fill="#9aa1a8" opacity="0.34"><title>此电脑 [UNASSIGNED]</title></rect>
+<rect x="18" y="207" width="65" height="90" rx="4" fill="#9aa1a8" opacity="0.34"><title>回收站 [UNASSIGNED]</title></rect>
+<rect x="80" y="1005" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>16_90页正式版V1全量质检 [UNASSIGNED]</title></rect>
+<rect x="155" y="1005" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>17_老师旧PPT_vs_90页V1信息密度对比 [UNASSIGNED]</title></rect>
+<rect x="230" y="1005" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>687c8c5c-06d5-4a44-88c5-36fd278e8c96 [UNASSIGNED]</title></rect>
+<rect x="5" y="1005" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>0731bdd8-dc69-458b-b01b-da03e90d9617 [UNASSIGNED]</title></rect>
+<rect x="530" y="505" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>AI工具学习 [RESEARCH_STUDY]</title></rect>
+<rect x="5" y="1205" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>DesktopHub [UNASSIGNED]</title></rect>
+<rect x="380" y="305" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>HUNNU-Research-Harness [RESEARCH_STUDY]</title></rect>
+<rect x="455" y="305" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>HUNNU-Research-Harness-Output [RESEARCH_STUDY]</title></rect>
+<rect x="2405" y="305" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Kimi_K3_9页视觉小样素材包_V1 [AI_DEV]</title></rect>
+<rect x="305" y="505" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>Kimi_K3_PPT研究资料交接包_V1 [RESEARCH_STUDY]</title></rect>
+<rect x="80" y="1205" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>NINE SOLS ARTBOOK_Digital [UNASSIGNED]</title></rect>
+<rect x="93" y="7" width="65" height="90" rx="4" fill="#9aa1a8" opacity="0.34"><title>The Seance of Blake Manor [UNASSIGNED]</title></rect>
+<rect x="5" y="1105" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>健身环大冒险 [版本1.2(1).0] [UNASSIGNED]</title></rect>
+<rect x="455" y="505" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>科研相关Skills-KimiWork-20260821 [RESEARCH_STUDY]</title></rect>
+<rect x="2030" y="1105" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>炉石MOD [GAMES]</title></rect>
+<rect x="530" y="405" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>论文下载 [RESEARCH_STUDY]</title></rect>
+<rect x="80" y="1105" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>日常 [UNASSIGNED]</title></rect>
+<rect x="155" y="1105" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>数据-AI漂洗 [UNASSIGNED]</title></rect>
+<rect x="230" y="1105" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>太吾公式 [UNASSIGNED]</title></rect>
+<rect x="2255" y="1305" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>Hades II [GAMES]</title></rect>
+<rect x="93" y="907" width="65" height="90" rx="4" fill="#9aa1a8" opacity="0.34"><title>The Seance of Blake Manor [UNASSIGNED]</title></rect>
+<rect x="2330" y="1105" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>九日 [GAMES]</title></rect>
+<rect x="2105" y="1205" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>双点博物馆 [GAMES]</title></rect>
+<rect x="2180" y="1205" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>死亡空间 [GAMES]</title></rect>
+<rect x="2255" y="1205" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>太吾绘卷：天幕心帷 [GAMES]</title></rect>
+<rect x="2330" y="1205" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>勇气默示录 FLYING FAIRY HD Remaster [GAMES]</title></rect>
+<rect x="455" y="405" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>论文 - 快捷方式 [RESEARCH_STUDY]</title></rect>
+<rect x="2405" y="605" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>西部世界VPN [DAILY_TOOLS]</title></rect>
+<rect x="2255" y="605" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>夸克网盘 [DAILY_TOOLS]</title></rect>
+<rect x="2105" y="1105" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>Battle.net [GAMES]</title></rect>
+<rect x="2330" y="305" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Clash Verge [AI_DEV]</title></rect>
+<rect x="230" y="1305" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>Creative App [UNASSIGNED]</title></rect>
+<rect x="5" y="1405" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>Free Download Manager [UNASSIGNED]</title></rect>
+<rect x="2180" y="705" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>Google Chrome [DAILY_TOOLS]</title></rect>
+<rect x="530" y="805" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>LibreOffice 26.2 [OFFICE_DOCUMENTS]</title></rect>
+<rect x="2330" y="705" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>Logitech G HUB [DAILY_TOOLS]</title></rect>
+<rect x="2405" y="705" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>Microsoft Edge [DAILY_TOOLS]</title></rect>
+<rect x="2255" y="805" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>NVIDIA App [DAILY_TOOLS]</title></rect>
+<rect x="380" y="405" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>Obsidian [RESEARCH_STUDY]</title></rect>
+<rect x="2330" y="805" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>Pixel Repair [DAILY_TOOLS]</title></rect>
+<rect x="2405" y="805" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>Revo Uninstaller Pro [DAILY_TOOLS]</title></rect>
+<rect x="2180" y="1105" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>Steam [GAMES]</title></rect>
+<rect x="2405" y="205" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>WorkBuddy [AI_DEV]</title></rect>
+<rect x="305" y="405" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>Zotero [RESEARCH_STUDY]</title></rect>
+<rect x="230" y="1205" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>不心动才有鬼 [UNASSIGNED]</title></rect>
+<rect x="5" y="1305" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>飞智空间站 4.0 [UNASSIGNED]</title></rect>
+<rect x="2030" y="1205" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>爐石戰記 [GAMES]</title></rect>
+<rect x="2330" y="605" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>微信 [DAILY_TOOLS]</title></rect>
+<rect x="80" y="1305" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>迅游加速器 [UNASSIGNED]</title></rect>
+<rect x="155" y="1205" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>.ssh - 快捷方式 [UNASSIGNED]</title></rect>
+<rect x="2030" y="1305" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>BepInEx - 快捷方式 [GAMES]</title></rect>
+<rect x="155" y="1305" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>Cheat Engine [UNASSIGNED]</title></rect>
+<rect x="2255" y="105" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Codex++ 管理工具 [AI_DEV]</title></rect>
+<rect x="2180" y="105" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Codex++ [AI_DEV]</title></rect>
+<rect x="2105" y="1305" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>Firestone [GAMES]</title></rect>
+<rect x="2180" y="1305" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>Firestone2Green 启动 Firestone [GAMES]</title></rect>
+<rect x="305" y="305" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>Graduate_Research - 快捷方式 [RESEARCH_STUDY]</title></rect>
+<rect x="2330" y="1305" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>Hearthstone Deck Tracker [GAMES]</title></rect>
+<rect x="2255" y="705" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>Language Reactor [DAILY_TOOLS]</title></rect>
+<rect x="2555" y="1405" width="65" height="90" rx="4" fill="#6b7280" opacity="0.88"><title>Logs - 快捷方式 [SYSTEM_TEMP]</title></rect>
+<rect x="2180" y="805" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>MSI Afterburner [DAILY_TOOLS]</title></rect>
+<rect x="2180" y="405" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Run-ClashVerge-TunRescue.cmd - 快捷方式 [AI_DEV]</title></rect>
+<rect x="530" y="305" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>StataMP 18 (64-bit) [RESEARCH_STUDY]</title></rect>
+<rect x="2255" y="1105" width="65" height="90" rx="4" fill="#b3405c" opacity="0.88"><title>SteamTools [GAMES]</title></rect>
+<rect x="80" y="1405" width="65" height="90" rx="4" fill="#8a929a" opacity="0.88"><title>THE MERMAID MASK [UNASSIGNED]</title></rect>
+<rect x="2255" y="205" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Visual Studio Code [AI_DEV]</title></rect>
+<rect x="2330" y="205" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>ZCode [AI_DEV]</title></rect>
+<rect x="2180" y="905" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>zhong - Chrome [DAILY_TOOLS]</title></rect>
+<rect x="2180" y="605" width="65" height="90" rx="4" fill="#7c5cd6" opacity="0.88"><title>百度网盘 [DAILY_TOOLS]</title></rect>
+<rect x="2180" y="305" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>查看WSL状态 [AI_DEV]</title></rect>
+<rect x="2255" y="305" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>电池模式-关闭wsl [AI_DEV]</title></rect>
+<rect x="380" y="505" width="65" height="90" rx="4" fill="#1f8a70" opacity="0.88"><title>科研模式-启动wsl [RESEARCH_STUDY]</title></rect>
+<rect x="380" y="705" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>ppt [OFFICE_DOCUMENTS]</title></rect>
+<rect x="2480" y="1405" width="65" height="90" rx="4" fill="#6b7280" opacity="0.88"><title>Temp [SYSTEM_TEMP]</title></rect>
+<rect x="2405" y="105" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Claude Profile Switcher [AI_DEV]</title></rect>
+<rect x="2330" y="105" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Claude - Pro2 [AI_DEV]</title></rect>
+<rect x="2180" y="205" width="65" height="90" rx="4" fill="#2563a6" opacity="0.88"><title>Claude-Code-Desktop-Switcher-GUI [AI_DEV]</title></rect>
+<rect x="305" y="705" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>文档 [OFFICE_DOCUMENTS]</title></rect>
+<rect x="455" y="705" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>PDF [OFFICE_DOCUMENTS]</title></rect>
+<rect x="530" y="705" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>数据表格 [OFFICE_DOCUMENTS]</title></rect>
+<rect x="305" y="805" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>图片 [OFFICE_DOCUMENTS]</title></rect>
+<rect x="380" y="805" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>压缩包 [OFFICE_DOCUMENTS]</title></rect>
+<rect x="455" y="805" width="65" height="90" rx="4" fill="#c07a24" opacity="0.88"><title>安装包 [OFFICE_DOCUMENTS]</title></rect>
+</svg>

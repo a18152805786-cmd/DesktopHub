@@ -17,3 +17,8 @@ project.assets.json
 # Local phase verification outputs
 audit/phase*-build/
 audit/ui-phase*-build*.log
+
+# Scratch scripts used while iterating on a phase. Nothing here is a build input.
+tmp_*
+audit/tmp_*
+audit/*.exe
