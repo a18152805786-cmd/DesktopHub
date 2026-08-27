@@ -664,6 +664,7 @@ namespace Desktop_Frames.Localization
         public static string AboutPleaseDonate => Get("AboutPleaseDonate");
         public static string AboutSectionAbout => Get("AboutSectionAbout");
         public static string AboutSectionCredits => Get("AboutSectionCredits");
+        public static string AboutSectionProject => Get("AboutSectionProject");
         public static string AboutSoundCredits => Get("AboutSoundCredits");
         public static string AboutSupportDevelopment => Get("AboutSupportDevelopment");
         public static string AboutTagline => Get("AboutTagline");

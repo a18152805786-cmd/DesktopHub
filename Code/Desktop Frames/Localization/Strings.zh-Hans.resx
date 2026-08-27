@@ -121,12 +121,12 @@
     <value> 和 </value>
   </data>
   <data name="AboutBody" xml:space="preserve">
-    <value>Desktop Frames + 可在桌面上创建虚拟面板，方便你分组整理图标，让桌面更整洁、更顺手。</value>
+    <value>DesktopHub 会自动把桌面图标分组归类，保持布局整洁，并让你快速找到需要的文件和应用。</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>Desktop Frames + 是一款适用于 Windows 的开源工具，最初由 HakanKokcu 以 BirdyFences 之名开发。
+    <value>DesktopHub 基于 Desktop Frames +（DesktopFramesPlus）修改而来。原项目最初由 HakanKokcu 以 BirdyFences 之名开发，并由 Nikos Georgousis 维护。
 
-目前由 Nikos Georgousis 维护，并持续改进其功能、稳定性与使用体验。</value>
+原项目及相关组件依其 MIT License 使用，相关版权与许可声明予以保留。</value>
   </data>
   <data name="AboutDonateBig" xml:space="preserve">
     <value>捐赠 999,00 €</value>
@@ -147,7 +147,7 @@
     <value>关于</value>
   </data>
   <data name="AboutSectionCredits" xml:space="preserve">
-    <value>致谢</value>
+    <value>开源许可</value>
   </data>
   <data name="AboutSoundCredits" xml:space="preserve">
     <value>免费音效来自 </value>
@@ -156,19 +156,19 @@
     <value>支持项目开发</value>
   </data>
   <data name="AboutTagline" xml:space="preserve">
-    <value>像变魔术一样整理你的桌面。</value>
+    <value>让桌面自动归类、保持整洁，并快速找到文件和应用。</value>
   </data>
   <data name="AboutThinkAgain" xml:space="preserve">
     <value>确定吗？再想想！</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
-    <value>关于 Desktop Frames +</value>
+    <value>关于 DesktopHub</value>
   </data>
   <data name="AboutVersion" xml:space="preserve">
     <value>版本 {0}</value>
   </data>
   <data name="AboutVisitGitHub" xml:space="preserve">
-    <value>⚡ 访问 GitHub 仓库</value>
+    <value>查看 DesktopHub 源代码</value>
   </data>
   <data name="AboutWhat" xml:space="preserve">
     <value>什么！？</value>
@@ -1185,7 +1185,7 @@
   <data name="MsgHotkeysSavedRestartNeeded" xml:space="preserve">
     <value>全局快捷键已保存并应用到所有工作区。
 
-请重启 Desktop Frames + 以启用这些快捷键。</value>
+请重启 DesktopHub 以启用这些快捷键。</value>
   </data>
   <data name="MsgImportFailed" xml:space="preserve">
     <value>导入失败：{0}</value>
@@ -1388,7 +1388,7 @@
     <value>不再显示此消息</value>
   </data>
   <data name="NotificationTitle" xml:space="preserve">
-    <value>Desktop Frames + - 通知</value>
+    <value>DesktopHub - 通知</value>
   </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>自动隐藏面板</value>
@@ -1436,7 +1436,7 @@
     <value>设置</value>
   </data>
   <data name="OptionsTitle" xml:space="preserve">
-    <value>Desktop Frames + - 设置</value>
+    <value>DesktopHub - 设置</value>
   </data>
   <data name="OptNewFrameContextMenu" xml:space="preserve">
     <value>在桌面右键菜单中显示“新建分组”</value>
@@ -1598,7 +1598,7 @@
     <value>输入以搜索…</value>
   </data>
   <data name="SearchTitle" xml:space="preserve">
-    <value>Desktop Frames + 搜索</value>
+    <value>DesktopHub 搜索</value>
   </data>
   <data name="SecAppearance" xml:space="preserve">
     <value>外观</value>
@@ -1790,13 +1790,13 @@
     <value>注册表值已导出到程序文件夹。</value>
   </data>
   <data name="TrayExportDoneTitle" xml:space="preserve">
-    <value>Desktop Frames +</value>
+    <value>DesktopHub</value>
   </data>
   <data name="TrayExportFailedText" xml:space="preserve">
     <value>导出注册表值失败，请查看日志。</value>
   </data>
   <data name="TrayExportFailedTitle" xml:space="preserve">
-    <value>Desktop Frames + - 错误</value>
+    <value>DesktopHub - 错误</value>
   </data>
   <data name="TrayFocusFrame" xml:space="preserve">
     <value>定位分组…（{0}）</value>
@@ -1919,7 +1919,7 @@
     <value>上次成功运行：{0}</value>
   </data>
   <data name="AppDisplayName" xml:space="preserve">
-    <value>Desktop Frames +</value>
+    <value>DesktopHub</value>
   </data>
   <data name="FrameNewTitle" xml:space="preserve">
     <value>新建分组 - 将快捷方式拖到这里</value>
@@ -1946,10 +1946,10 @@
     <value>正在刷新分组，请稍候…</value>
   </data>
   <data name="StartupTipsTitle" xml:space="preserve">
-    <value>Desktop Frames + 使用提示</value>
+    <value>DesktopHub 使用提示</value>
   </data>
   <data name="StartupTipsContent" xml:space="preserve">
-    <value>欢迎使用 Desktop Frames +
+    <value>欢迎使用 DesktopHub
 ---------------------------
 • 展开/收起：双击分组标题栏。
 • 重命名：按住 Ctrl 点击标题栏（按 Enter 保存）。
@@ -1969,7 +1969,7 @@
     <value>新建配置方案</value>
   </data>
   <data name="TrayIconTitle" xml:space="preserve">
-    <value>Desktop Frames +（{0}）</value>
+    <value>DesktopHub（{0}）</value>
   </data>
   <data name="AutoOrgNewRuleName" xml:space="preserve">
     <value>新规则</value>
@@ -1995,7 +1995,7 @@
   </data>
   <data name="Search_Placeholder" xml:space="preserve"><value>搜索桌面、文件、应用…</value></data>
   <data name="Search_NoResults" xml:space="preserve"><value>未找到结果</value></data>
-  <data name="Search_ScopeHint" xml:space="preserve"><value>搜索 Desktop Hub 管理的桌面内容</value></data>
+  <data name="Search_ScopeHint" xml:space="preserve"><value>搜索 DesktopHub 管理的桌面内容</value></data>
   <data name="Search_KeyboardHint" xml:space="preserve"><value>↑↓ 选择   Enter 打开   Esc 关闭</value></data>
   <data name="Search_ItemMissing" xml:space="preserve"><value>项目不存在或已被移动。</value></data>
   <data name="Search_CategoryDesktop" xml:space="preserve"><value>桌面</value></data>
@@ -2071,5 +2071,8 @@
   </data>
   <data name="ManualGroupingApplied" xml:space="preserve">
     <value>已重新归类 {0} 个项目。刷新布局后即可生效。</value>
+  </data>
+  <data name="AboutSectionProject" xml:space="preserve">
+    <value>项目</value>
   </data>
 </root>

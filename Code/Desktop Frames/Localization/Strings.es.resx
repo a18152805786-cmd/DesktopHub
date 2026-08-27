@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- Seed translation produced with AI assistance and not yet reviewed by a native speaker. Any key that is ever removed falls back to English at runtime. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
@@ -63,10 +63,10 @@
     <value> y </value>
   </data>
   <data name="AboutBody" xml:space="preserve">
-    <value>Desktop Frames + crea marcos virtuales en el escritorio, donde agrupar y ordenar los iconos de forma limpia y cómoda.</value>
+    <value>DesktopHub crea marcos virtuales en el escritorio, donde agrupar y ordenar los iconos de forma limpia y cómoda.</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>Desktop Frames + es una utilidad de código abierto para Windows, nacida del trabajo de HakanKokcu con el nombre BirdyFences.
+    <value>DesktopHub es una utilidad de código abierto para Windows, nacida del trabajo de HakanKokcu con el nombre BirdyFences.
 
 Hoy la mantiene Nikos Georgousis, que la ha ampliado y la ha hecho más estable y agradable de usar.</value>
   </data>
@@ -104,7 +104,7 @@ Hoy la mantiene Nikos Georgousis, que la ha ampliado y la ha hecho más estable 
     <value>¿Seguro? Piénsalo otra vez</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
-    <value>Acerca de Desktop Frames +</value>
+    <value>Acerca de DesktopHub</value>
   </data>
   <data name="AboutVersion" xml:space="preserve">
     <value>Versión {0}</value>
@@ -1381,7 +1381,7 @@ Cada ventana lee sus textos mientras se construye, así que el cambio se ve al r
     <value>No volver a mostrar este mensaje</value>
   </data>
   <data name="NotificationTitle" xml:space="preserve">
-    <value>Desktop Frames + - Notificación</value>
+    <value>DesktopHub - Notificación</value>
   </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Ocultar los marcos automáticamente</value>
@@ -1429,7 +1429,7 @@ Cada ventana lee sus textos mientras se construye, así que el cambio se ve al r
     <value>Opciones</value>
   </data>
   <data name="OptionsTitle" xml:space="preserve">
-    <value>Desktop Frames + - Opciones</value>
+    <value>DesktopHub - Opciones</value>
   </data>
   <data name="OptNewFrameContextMenu" xml:space="preserve">
     <value>Mostrar «Nuevo marco» en el menú del escritorio</value>

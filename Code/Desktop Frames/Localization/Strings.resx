@@ -62,12 +62,12 @@
     <value> and </value>
   </data>
   <data name="AboutBody" xml:space="preserve">
-    <value>Desktop Frames + creates virtual frames on your desktop, allowing you to group and organize icons in a clean and convenient way.</value>
+    <value>DesktopHub groups your desktop icons automatically, keeps the layout tidy, and lets you find files and apps instantly.</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>Desktop Frames + is an open-source utility for Windows, originally created by HakanKokcu under the name BirdyFences.
+    <value>DesktopHub is a modified build of Desktop Frames + (DesktopFramesPlus), originally created by HakanKokcu as BirdyFences and maintained by Nikos Georgousis.
 
-Desktop Frames + is maintained by Nikos Georgousis, has been enhanced and optimized for stability and better user experience.</value>
+The upstream project and its components are used under their MIT License.</value>
   </data>
   <data name="AboutDonateBig" xml:space="preserve">
     <value>Donate 999,00 €</value>
@@ -88,7 +88,7 @@ Desktop Frames + is maintained by Nikos Georgousis, has been enhanced and optimi
     <value>About</value>
   </data>
   <data name="AboutSectionCredits" xml:space="preserve">
-    <value>Credits</value>
+    <value>Open Source Licenses</value>
   </data>
   <data name="AboutSoundCredits" xml:space="preserve">
     <value>Using free sound files from </value>
@@ -97,19 +97,19 @@ Desktop Frames + is maintained by Nikos Georgousis, has been enhanced and optimi
     <value>Support Development</value>
   </data>
   <data name="AboutTagline" xml:space="preserve">
-    <value>Organize your desktop like magic!</value>
+    <value>Sort your desktop, keep it tidy, find anything fast.</value>
   </data>
   <data name="AboutThinkAgain" xml:space="preserve">
     <value>Are you sure? Think again!</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
-    <value>About Desktop Frames +</value>
+    <value>About DesktopHub</value>
   </data>
   <data name="AboutVersion" xml:space="preserve">
     <value>Version {0}</value>
   </data>
   <data name="AboutVisitGitHub" xml:space="preserve">
-    <value>⚡ Visit GitHub repository</value>
+    <value>View DesktopHub source code</value>
   </data>
   <data name="AboutWhat" xml:space="preserve">
     <value>What!?</value>
@@ -1329,7 +1329,7 @@ Restart now?</value>
     <value>Don't show this again</value>
   </data>
   <data name="NotificationTitle" xml:space="preserve">
-    <value>Desktop Frames + Notification</value>
+    <value>DesktopHub Notification</value>
   </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Auto hide frames</value>
@@ -1377,7 +1377,7 @@ Restart now?</value>
     <value>Options</value>
   </data>
   <data name="OptionsTitle" xml:space="preserve">
-    <value>Desktop Frames + Options</value>
+    <value>DesktopHub Options</value>
   </data>
   <data name="OptNewFrameContextMenu" xml:space="preserve">
     <value>Show 'New Frame' in Desktop Context Menu</value>
@@ -1860,7 +1860,7 @@ Restart now?</value>
     <value>Last successful run: {0}</value>
   </data>
   <data name="AppDisplayName" xml:space="preserve">
-    <value>Desktop Frames +</value>
+    <value>DesktopHub</value>
   </data>
   <data name="FrameNewTitle" xml:space="preserve">
     <value>New Frame - Drop your shortcuts here</value>
@@ -1887,7 +1887,7 @@ Restart now?</value>
     <value>Refreshing frames, please wait...</value>
   </data>
   <data name="StartupTipsTitle" xml:space="preserve">
-    <value>Desktop Frames + Startup Tips</value>
+    <value>DesktopHub Startup Tips</value>
   </data>
   <data name="StartupTipsContent" xml:space="preserve">
     <value>WELCOME TO DESKTOP FRAMES +
@@ -1910,7 +1910,7 @@ Try customizing this frame! Right-click the title bar -&gt; Customize...</value>
     <value>New Profile</value>
   </data>
   <data name="TrayIconTitle" xml:space="preserve">
-    <value>Desktop Frames + ({0})</value>
+    <value>DesktopHub ({0})</value>
   </data>
   <data name="AutoOrgNewRuleName" xml:space="preserve">
     <value>New Rule</value>
@@ -1923,7 +1923,7 @@ Path: {1}</value>
     <value>Search desktop, files, and apps…</value>
   </data>
   <data name="Search_NoResults" xml:space="preserve"><value>No results</value></data>
-  <data name="Search_ScopeHint" xml:space="preserve"><value>Search content managed by Desktop Hub</value></data>
+  <data name="Search_ScopeHint" xml:space="preserve"><value>Search content managed by DesktopHub</value></data>
   <data name="Search_KeyboardHint" xml:space="preserve"><value>↑↓ Select   Enter Open   Esc Close</value></data>
   <data name="Search_ItemMissing" xml:space="preserve"><value>This item no longer exists or has been moved.</value></data>
   <data name="Search_CategoryDesktop" xml:space="preserve"><value>Desktop</value></data>
@@ -1999,5 +1999,8 @@ Path: {1}</value>
   </data>
   <data name="ManualGroupingApplied" xml:space="preserve">
     <value>{0} item(s) were regrouped. Refresh the layout to move them.</value>
+  </data>
+  <data name="AboutSectionProject" xml:space="preserve">
+    <value>Project</value>
   </data>
 </root>

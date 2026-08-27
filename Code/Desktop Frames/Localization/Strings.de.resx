@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- Seed translation produced with AI assistance and not yet reviewed by a native speaker. Any key that is ever removed falls back to English at runtime. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
@@ -63,10 +63,10 @@
     <value> und </value>
   </data>
   <data name="AboutBody" xml:space="preserve">
-    <value>Desktop Frames + legt virtuelle Rahmen auf dem Desktop an, in denen sich Symbole sauber und bequem gruppieren und ordnen lassen.</value>
+    <value>DesktopHub legt virtuelle Rahmen auf dem Desktop an, in denen sich Symbole sauber und bequem gruppieren und ordnen lassen.</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>Desktop Frames + ist ein quelloffenes Windows-Werkzeug, entstanden aus der Arbeit von HakanKokcu unter dem Namen BirdyFences.
+    <value>DesktopHub ist ein quelloffenes Windows-Werkzeug, entstanden aus der Arbeit von HakanKokcu unter dem Namen BirdyFences.
 
 Heute wird es von Nikos Georgousis gepflegt, der es erweitert und stabiler sowie angenehmer gemacht hat.</value>
   </data>
@@ -104,7 +104,7 @@ Heute wird es von Nikos Georgousis gepflegt, der es erweitert und stabiler sowie
     <value>Sicher? Denk noch mal nach!</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
-    <value>Über Desktop Frames +</value>
+    <value>Über DesktopHub</value>
   </data>
   <data name="AboutVersion" xml:space="preserve">
     <value>Version {0}</value>
@@ -1381,7 +1381,7 @@ Jetzt neu starten?</value>
     <value>Diese Meldung nicht mehr anzeigen</value>
   </data>
   <data name="NotificationTitle" xml:space="preserve">
-    <value>Desktop Frames + - Benachrichtigung</value>
+    <value>DesktopHub - Benachrichtigung</value>
   </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Rahmen automatisch ausblenden</value>
@@ -1429,7 +1429,7 @@ Jetzt neu starten?</value>
     <value>Optionen</value>
   </data>
   <data name="OptionsTitle" xml:space="preserve">
-    <value>Desktop Frames + - Optionen</value>
+    <value>DesktopHub - Optionen</value>
   </data>
   <data name="OptNewFrameContextMenu" xml:space="preserve">
     <value>„Neuer Rahmen“ im Desktop-Kontextmenü anzeigen</value>

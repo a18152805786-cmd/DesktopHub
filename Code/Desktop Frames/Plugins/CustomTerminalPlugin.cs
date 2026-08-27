@@ -205,7 +205,7 @@ namespace Desktop_Frames.Plugins
                 _terminalProcess.BeginOutputReadLine();
                 _terminalProcess.BeginErrorReadLine();
 
-                AppendOutput($"Desktop Frames + Terminal Emulator");
+                AppendOutput($"DesktopHub Terminal Emulator");
                 AppendOutput($"[{_shellType} initialized in {_terminalProcess.StartInfo.WorkingDirectory}]");
                 AppendOutput("--------------------------------------------------");
             }
