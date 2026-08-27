@@ -32,6 +32,7 @@ namespace Desktop_Frames.ReferenceGrouping
         public string FrameId { get; init; } = string.Empty;
         public string IconSource { get; init; } = string.Empty;
         public string ManualFrameId { get; init; } = string.Empty;
+        public string ManualLayoutGroupId { get; init; } = string.Empty;
 
         public static bool IsSupportedPath(string path)
         {
@@ -126,6 +127,7 @@ namespace Desktop_Frames.ReferenceGrouping
                 ["FrameId"] = FrameId,
                 ["IconSource"] = IconSource,
                 ["ManualFrameId"] = ManualFrameId,
+                ["ManualLayoutGroupId"] = ManualLayoutGroupId,
                 ["VisualOwnershipMode"] = VisualOwnershipModes.Normalize(visualOwnershipMode),
 
                 // Compatibility aliases consumed by the existing renderer.

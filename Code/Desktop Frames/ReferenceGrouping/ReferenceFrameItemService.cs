@@ -56,6 +56,13 @@ namespace Desktop_Frames.ReferenceGrouping
             item["FrameId"] = targetFrameId ?? string.Empty;
         }
 
+        /// <summary>Stores an explicit layout choice without changing the Desktop object.</summary>
+        public static void MarkManualLayoutGroup(JObject item, string layoutGroupId)
+        {
+            if (!ReferenceFrameItem.IsReference(item)) return;
+            item["ManualLayoutGroupId"] = layoutGroupId ?? string.Empty;
+        }
+
         private static JArray GetActiveItems(dynamic frame)
         {
             bool tabsEnabled = frame.TabsEnabled?.ToString().Equals("true", StringComparison.OrdinalIgnoreCase) == true;

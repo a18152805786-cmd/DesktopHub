@@ -13,3 +13,7 @@ Code snippet
 *.nuget.targets
 project.lock.json
 project.assets.json
+
+# Local phase verification outputs
+audit/phase*-build/
+audit/ui-phase*-build*.log

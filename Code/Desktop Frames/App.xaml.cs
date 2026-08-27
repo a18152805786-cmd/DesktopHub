@@ -35,6 +35,17 @@ namespace Desktop_Frames
                 // Before any window is built, or half the interface would be
                 // laid out in the language the setting is replacing.
                 Desktop_Frames.Localization.Strings.SetLanguage(SettingsManager.Language);
+
+                // Phase 5.3 is a self-contained, manual native-coordinate
+                // command. Run it before mutex/startup side effects so it can
+                // safely operate while the normal DesktopHub instance remains
+                // open, then exit without starting any watcher or Frame code.
+                if (NativeDesktopLayoutApplicationService.IsNativeLayoutCommand(e.Args))
+                {
+                    int exitCode = NativeDesktopLayoutApplicationService.Run(e.Args);
+                    Shutdown(exitCode);
+                    return;
+                }
             }
             catch (Exception ex)
             {

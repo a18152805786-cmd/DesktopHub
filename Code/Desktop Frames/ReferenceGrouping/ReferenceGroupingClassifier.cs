@@ -9,6 +9,10 @@ namespace Desktop_Frames.ReferenceGrouping
     {
         AiDev,
         ResearchStudy,
+        OfficeDocuments,
+        SystemTemp,
+        // Retained for existing serialized/reference-frame callers. New
+        // classifications use OfficeDocuments instead.
         WorkTools,
         Games,
         DailyTools,
@@ -38,19 +42,22 @@ namespace Desktop_Frames.ReferenceGrouping
             // Research terms precede general AI-tool terms so mixed names such as
             // "科研相关Skills-KimiWork" keep their more specific user meaning.
             new Rule(ReferenceGroup.ResearchStudy,
-                new[] { "zotero", "hunnu", "research", "论文", "科研", "文献", "数据项目", "科研相关skills" },
+                new[] { "zotero", "hunnu", "research", "stata", "obsidian", "论文", "科研", "文献", "数据项目", "科研相关skills", "论文下载", "ai工具学习", "graduate", "研究资料", "研究" },
                 new[] { "study", "学习", "资料", "项目" }),
             new Rule(ReferenceGroup.AiDev,
-                new[] { "codex", "kimi", "visual studio code", "vscode", "zcode", "claude", "github", "git bash", "git gui", "wsl", "powershell", "terminal", "ai工具" },
+                new[] { "codex", "kimi", "visual studio code", "vscode", "zcode", "claude", "workbuddy", "github", "git bash", "git gui", "wsl", "powershell", "terminal", "ai工具", "clash verge", "run-clash" },
                 new[] { "developer", "开发" }),
-            new Rule(ReferenceGroup.WorkTools,
-                new[] { "winword", "microsoft word", "powerpoint", "powerpnt", "excel", "stata", "chrome" },
+            new Rule(ReferenceGroup.OfficeDocuments,
+                new[] { "文档", "ppt", "pdf", "数据表格", "图片", "压缩包", "安装包", "libreoffice", "winword", "microsoft word", "powerpoint", "powerpnt", "excel" },
                 new[] { "office", "工作" }),
             new Rule(ReferenceGroup.Games,
                 new[] { "steam://", "steam.exe", "steam", "battle.net", "blizzard", "hearthstone", "firestone", "hades", "游戏" },
                 new[] { "game", "mod", "bepinex" }),
+            new Rule(ReferenceGroup.SystemTemp,
+                new[] { "temp", "logs" },
+                Array.Empty<string>()),
             new Rule(ReferenceGroup.DailyTools,
-                new[] { "微信", "wechat", "百度网盘", "夸克网盘", "vpn", "msi afterburner", "pixel repair" },
+                new[] { "google chrome", "chrome", "microsoft edge", "edge", "微信", "wechat", "百度网盘", "夸克网盘", "vpn", "nvidia app", "logitech g hub", "revo uninstaller", "msi afterburner", "pixel repair" },
                 new[] { "网盘", "utility", "工具" })
         };
 
@@ -71,22 +78,34 @@ namespace Desktop_Frames.ReferenceGrouping
                 : System.IO.Path.GetFileName(item.TargetPath.TrimEnd(
                     System.IO.Path.DirectorySeparatorChar,
                     System.IO.Path.AltDirectorySeparatorChar));
-            foreach (Rule rule in Rules)
+            // Folder names are intentionally evaluated last. A shortcut's
+            // visible name is stronger evidence than its target/arguments/URI;
+            // an ambiguous folder name is not enough to move an icon.
+            if (item.ReferenceType != ReferenceType.Folder)
             {
-                string? displayMatch = rule.StrongTerms.FirstOrDefault(term => display.Contains(Normalize(term)));
-                if (displayMatch != null)
+                foreach (Rule rule in Rules)
                 {
-                    return new ReferenceGroupingDecision(rule.Group, GroupingConfidence.High,
-                        $"DisplayName matched '{displayMatch}'.");
+                    string? displayMatch = rule.StrongTerms.FirstOrDefault(term => display.Contains(Normalize(term)));
+                    if (displayMatch != null)
+                    {
+                        return new ReferenceGroupingDecision(rule.Group, GroupingConfidence.High,
+                            $"DisplayName matched '{displayMatch}'.");
+                    }
                 }
             }
 
-            var metadataSources = new[]
-            {
-                (Label: "TargetPath", Value: Normalize(targetName)),
-                (Label: "Arguments", Value: Normalize(item.Arguments)),
-                (Label: "Uri", Value: Normalize(item.Uri))
-            };
+            var metadataSources = item.ReferenceType == ReferenceType.Folder
+                ? new[]
+                {
+                    (Label: "Arguments", Value: Normalize(item.Arguments)),
+                    (Label: "Uri", Value: Normalize(item.Uri))
+                }
+                : new[]
+                {
+                    (Label: "TargetPath", Value: Normalize(targetName)),
+                    (Label: "Arguments", Value: Normalize(item.Arguments)),
+                    (Label: "Uri", Value: Normalize(item.Uri))
+                };
             foreach (var source in metadataSources)
             {
                 foreach (Rule rule in Rules)
@@ -97,6 +116,22 @@ namespace Desktop_Frames.ReferenceGrouping
                     {
                         return new ReferenceGroupingDecision(rule.Group, GroupingConfidence.High,
                             $"{source.Label} matched '{metadataMatch}'.");
+                    }
+                }
+            }
+
+            if (item.ReferenceType == ReferenceType.Folder)
+            {
+                foreach (Rule rule in Rules)
+                {
+                    string? folderMatch = rule.StrongTerms.FirstOrDefault(term =>
+                        rule.Group == ReferenceGroup.OfficeDocuments
+                            ? string.Equals(display, Normalize(term), StringComparison.Ordinal)
+                            : display.Contains(Normalize(term)));
+                    if (folderMatch != null)
+                    {
+                        return new ReferenceGroupingDecision(rule.Group, GroupingConfidence.High,
+                            $"FolderName matched '{folderMatch}'.");
                     }
                 }
             }
@@ -121,6 +156,8 @@ namespace Desktop_Frames.ReferenceGrouping
         {
             ReferenceGroup.AiDev => Strings.GroupAiDev,
             ReferenceGroup.ResearchStudy => Strings.GroupResearch,
+            ReferenceGroup.OfficeDocuments => Strings.GroupWork,
+            ReferenceGroup.SystemTemp => "系统 · 临时",
             ReferenceGroup.WorkTools => Strings.GroupWork,
             ReferenceGroup.Games => Strings.GroupGames,
             ReferenceGroup.DailyTools => Strings.GroupDaily,

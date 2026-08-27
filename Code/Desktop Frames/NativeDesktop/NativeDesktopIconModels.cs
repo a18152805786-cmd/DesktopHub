@@ -52,6 +52,15 @@ namespace Desktop_Frames.NativeDesktop
         public List<string> Errors { get; } = new();
     }
 
+    public sealed class NativeDesktopSnapshotValidationResult
+    {
+        public int CanResolve { get; internal set; }
+        public int Missing { get; internal set; }
+        public int Ambiguous { get; internal set; }
+        public int SkippedUnmanaged { get; internal set; }
+        public bool AutoArrangeEnabled { get; internal set; }
+    }
+
     public sealed class NativeDesktopListViewState
     {
         public IntPtr Handle { get; init; }

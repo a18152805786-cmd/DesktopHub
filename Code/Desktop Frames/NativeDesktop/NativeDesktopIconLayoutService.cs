@@ -205,6 +205,34 @@ namespace Desktop_Frames.NativeDesktop
             return result;
         }
 
+        /// <summary>Read-only identity preflight used before a restore or a production layout apply.</summary>
+        public NativeDesktopSnapshotValidationResult ValidateSnapshot(NativeDesktopLayoutSnapshot snapshot)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            NativeDesktopListViewState state = GetListViewState();
+            var result = new NativeDesktopSnapshotValidationResult { AutoArrangeEnabled = state.AutoArrangeEnabled };
+            Dictionary<string, int> current = EnumerateDesktopIcons()
+                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath)
+                .GroupBy(icon => NormalizePath(icon.OriginalPath), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (NativeDesktopIconSnapshotItem item in snapshot.Icons)
+            {
+                if (item.IdentityStatus != NativeIconIdentityStatus.StablePath)
+                {
+                    result.SkippedUnmanaged++;
+                    continue;
+                }
+                if (!current.TryGetValue(NormalizePath(item.OriginalPath), out int count))
+                    result.Missing++;
+                else if (count != 1)
+                    result.Ambiguous++;
+                else
+                    result.CanResolve++;
+            }
+            return result;
+        }
+
         public static void SaveSnapshot(NativeDesktopLayoutSnapshot snapshot, string path)
         {
             ArgumentNullException.ThrowIfNull(snapshot);
