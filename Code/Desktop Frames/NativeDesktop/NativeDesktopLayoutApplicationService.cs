@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -595,39 +595,28 @@ namespace Desktop_Frames.NativeDesktop
                 // slots.  Only a real read-back may set this flag.
                 var readBackLayout = new NativeDesktopIconLayoutService();
                 IReadOnlyList<NativeDesktopIconState> readBackIcons = readBackLayout.EnumerateDesktopIcons();
-                int satisfied = 0;
-                int snapCount = 0;
-                int clampFailures = 0;
                 var safeGridForCheck = readBackLayout.GetSafeDesktopGrid();
-                foreach (DesktopLayoutItem item in managedItems)
-                {
-                    NativeDesktopIconState? actual = readBackIcons.FirstOrDefault(icon =>
+                GridSlotVerification verification = VerifyLogicalGridSlots(plan, managedItems,
+                    item => readBackIcons.FirstOrDefault(icon =>
                         icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
-                        string.Equals(NormalizePath(icon.OriginalPath), NormalizePath(item.OriginalPath), StringComparison.OrdinalIgnoreCase));
-                    if (actual == null) { clampFailures++; continue; }
-                    item.ActualX = actual.X;
-                    item.ActualY = actual.Y;
-                    item.DeltaX = actual.X - item.TargetX;
-                    item.DeltaY = actual.Y - item.TargetY;
-                    // Accept Explorer grid-snap deltas (within one icon cell).
-                    bool sameSlot = Math.Abs(item.DeltaX) <= safeGridForCheck.IconSpacingX &&
-                                    Math.Abs(item.DeltaY) <= safeGridForCheck.IconSpacingY;
-                    int relX = item.TargetX - plan.WorkAreaLeft;
-                    int relY = item.TargetY - plan.WorkAreaTop;
-                    bool insideSafe = relX >= 0 && relY >= 0 &&
-                        relX + safeGridForCheck.IconSpacingX + safeGridForCheck.RightSafetyMargin <= safeGridForCheck.ClientWidth &&
-                        relY + safeGridForCheck.IconSpacingY + safeGridForCheck.BottomSafetyMargin <= safeGridForCheck.ClientHeight;
-                    if (item.DeltaX == 0 && item.DeltaY == 0) { satisfied++; snapCount++; }
-                    else if (sameSlot && insideSafe) { snapCount++; }
-                    else clampFailures++;
-                    item.TargetSatisfied = sameSlot && insideSafe;
-                }
+                        string.Equals(NormalizePath(icon.OriginalPath), NormalizePath(item.OriginalPath),
+                            StringComparison.OrdinalIgnoreCase)) is { } match
+                        ? (match.X, match.Y)
+                        : null,
+                    safeGridForCheck);
                 plan.RequestedVsActualValidated = true;
-                plan.ExplorerClampFailures = clampFailures;
-                if (clampFailures != 0)
-                    throw new InvalidOperationException($"DUAL_RAIL_READ_BACK_FAILED ClampFailures={clampFailures}");
+                plan.ExactMatches = verification.ExactMatches;
+                plan.SameGridSlotMatches = verification.SameGridSlotMatches;
+                plan.ExplorerClampFailures = verification.ClampFailures;
+                if (verification.ClampFailures != 0)
+                    throw new InvalidOperationException(
+                        $"DUAL_RAIL_READ_BACK_FAILED ClampFailures={verification.ClampFailures}; " +
+                        $"First={string.Join(" | ", verification.Failures.Take(5))}");
                 WriteDualRailResults(auditDirectory, plan,
-                    $"Apply=PASS\nItemsMoved=0\nReason=ALREADY_AT_TARGET\nTargetSatisfiedCount={satisfied}\nExplorerSnapCount={snapCount}\nExplorerClampFailures={clampFailures}");
+                    $"Apply=PASS\nItemsMoved=0\nReason=ALREADY_AT_TARGET\n" +
+                    $"ExactMatches={verification.ExactMatches}\n" +
+                    $"SameGridSlotMatches={verification.SameGridSlotMatches}\n" +
+                    $"ExplorerClampFailures={verification.ClampFailures}");
                 DesktopGroupHeaderManager.Save(plan, Path.Combine(auditDirectory, DualRailPlanJsonName));
                 return;
             }
@@ -691,26 +680,28 @@ namespace Desktop_Frames.NativeDesktop
                     $"Mismatch={string.Join(" | ", mismatches.Take(10))}");
             }
 
-            foreach (DesktopLayoutItem item in candidates)
-            {
-                NativeDesktopIconSnapshotItem? actual = after.Icons.FirstOrDefault(icon =>
+            NativeDesktopSafeGrid safeGridAfter = layout.GetSafeDesktopGrid();
+            GridSlotVerification applyVerification = VerifyLogicalGridSlots(plan, candidates,
+                item => after.Icons.FirstOrDefault(icon =>
                     icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
-                    string.Equals(NormalizePath(icon.OriginalPath), NormalizePath(item.OriginalPath), StringComparison.OrdinalIgnoreCase));
-                if (actual == null) continue;
-                item.ActualX = actual.X;
-                item.ActualY = actual.Y;
-                item.DeltaX = actual.X - item.TargetX;
-                item.DeltaY = actual.Y - item.TargetY;
-                // Accept Explorer grid-snap deltas within one icon cell; only
-                // large displacements count as clamp failures.
-                bool snapOk = Math.Abs(item.DeltaX) <= state.GridSpacingX &&
-                              Math.Abs(item.DeltaY) <= state.GridSpacingY;
-                item.TargetSatisfied = snapOk;
-            }
+                    string.Equals(NormalizePath(icon.OriginalPath), NormalizePath(item.OriginalPath),
+                        StringComparison.OrdinalIgnoreCase)) is { } match
+                    ? (match.X, match.Y)
+                    : null,
+                safeGridAfter);
 
             new NativeDesktopLayoutMetadataStore().PersistLayoutGroups(candidates);
             plan.RequestedVsActualValidated = true;
-            plan.ExplorerClampFailures = candidates.Count(item => !item.TargetSatisfied);
+            plan.ExactMatches = applyVerification.ExactMatches;
+            plan.SameGridSlotMatches = applyVerification.SameGridSlotMatches;
+            plan.ExplorerClampFailures = applyVerification.ClampFailures;
+            if (applyVerification.ClampFailures != 0)
+            {
+                layout.Restore(before);
+                throw new InvalidOperationException(
+                    $"DUAL_RAIL_APPLY_CLAMPED ClampFailures={applyVerification.ClampFailures}; " +
+                    $"First={string.Join(" | ", applyVerification.Failures.Take(5))}");
+            }
             var movedByGroup = eligibleItems.GroupBy(item => item.LayoutGroupId)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
             var result = new StringBuilder("Apply=PASS");
@@ -718,9 +709,101 @@ namespace Desktop_Frames.NativeDesktop
             foreach (var pair in movedByGroup.OrderBy(pair => pair.Key, StringComparer.Ordinal))
                 result.Append('\n').Append(pair.Key).Append("PositionChanged=").Append(pair.Value);
             result.Append('\n').Append("RequestedVsActualValidated=True");
+            result.Append('\n').Append("ExactMatches=").Append(plan.ExactMatches);
+            result.Append('\n').Append("SameGridSlotMatches=").Append(plan.SameGridSlotMatches);
             result.Append('\n').Append("ExplorerClampFailures=").Append(plan.ExplorerClampFailures);
             WriteDualRailResults(auditDirectory, plan, result.ToString());
             DesktopGroupHeaderManager.Save(plan, Path.Combine(auditDirectory, DualRailPlanJsonName));
+        }
+
+        /// <summary>Outcome of comparing requested against actual Explorer positions.</summary>
+        internal sealed class GridSlotVerification
+        {
+            /// <summary>Actual pixels equalled the request exactly.</summary>
+            public int ExactMatches { get; set; }
+            /// <summary>Explorer snapped the icon, but into the SAME logical grid slot.</summary>
+            public int SameGridSlotMatches { get; set; }
+            /// <summary>Explorer put the icon in a different slot, or clamped it away.</summary>
+            public int ClampFailures { get; set; }
+            public List<string> Failures { get; } = new();
+        }
+
+        /// <summary>
+        /// Requested-versus-actual validation by LOGICAL GRID SLOT.
+        ///
+        /// A pixel tolerance of one whole cell used to be accepted, which meant
+        /// an icon that had actually landed in the neighbouring slot still
+        /// passed. The only question that matters is whether the requested and
+        /// the actual coordinate resolve to the same slot of the Explorer grid,
+        /// so that is what is compared. Anything else is a clamp failure.
+        /// </summary>
+        private static GridSlotVerification VerifyLogicalGridSlots(
+            DesktopLayoutPlan plan,
+            IEnumerable<DesktopLayoutItem> items,
+            Func<DesktopLayoutItem, (int X, int Y)?> actualLookup,
+            NativeDesktopSafeGrid safeGrid)
+        {
+            var verification = new GridSlotVerification();
+            int spacingX = Math.Max(1, safeGrid.IconSpacingX);
+            int spacingY = Math.Max(1, safeGrid.IconSpacingY);
+            foreach (DesktopLayoutItem item in items)
+            {
+                (int X, int Y)? actual = actualLookup(item);
+                if (actual == null)
+                {
+                    item.TargetSatisfied = false;
+                    item.ReadBackReason = "ICON_NOT_FOUND";
+                    verification.ClampFailures++;
+                    verification.Failures.Add($"{item.DisplayName}: not found");
+                    continue;
+                }
+
+                item.ActualX = actual.Value.X;
+                item.ActualY = actual.Value.Y;
+                item.DeltaX = actual.Value.X - item.TargetX;
+                item.DeltaY = actual.Value.Y - item.TargetY;
+
+                (int requestedColumn, int requestedRow) = ToSlot(item.TargetX, item.TargetY, plan, spacingX, spacingY);
+                (int actualColumn, int actualRow) = ToSlot(actual.Value.X, actual.Value.Y, plan, spacingX, spacingY);
+                bool sameSlot = requestedColumn == actualColumn && requestedRow == actualRow;
+                bool insideSafe = IsInsideSafeGrid(actual.Value.X, actual.Value.Y, plan, safeGrid);
+
+                item.TargetSatisfied = sameSlot && insideSafe;
+                if (item.DeltaX == 0 && item.DeltaY == 0)
+                {
+                    item.ReadBackReason = "EXACT";
+                    verification.ExactMatches++;
+                    verification.SameGridSlotMatches++;
+                }
+                else if (item.TargetSatisfied)
+                {
+                    item.ReadBackReason = "EXPLORER_SNAP_SAME_SLOT";
+                    verification.SameGridSlotMatches++;
+                }
+                else
+                {
+                    item.ReadBackReason = sameSlot ? "OUTSIDE_SAFE_GRID" : "DIFFERENT_GRID_SLOT";
+                    verification.ClampFailures++;
+                    verification.Failures.Add(
+                        $"{item.DisplayName}: requested slot ({requestedColumn},{requestedRow}) " +
+                        $"at ({item.TargetX},{item.TargetY}) but landed in slot ({actualColumn},{actualRow}) " +
+                        $"at ({actual.Value.X},{actual.Value.Y})");
+                }
+            }
+            return verification;
+        }
+
+        private static (int Column, int Row) ToSlot(int x, int y, DesktopLayoutPlan plan, int spacingX, int spacingY) =>
+            ((int)Math.Round((x - plan.WorkAreaLeft) / (double)spacingX),
+             (int)Math.Round((y - plan.WorkAreaTop) / (double)spacingY));
+
+        private static bool IsInsideSafeGrid(int x, int y, DesktopLayoutPlan plan, NativeDesktopSafeGrid safeGrid)
+        {
+            int relativeX = x - plan.WorkAreaLeft;
+            int relativeY = y - plan.WorkAreaTop;
+            return relativeX >= 0 && relativeY >= 0 &&
+                relativeX + safeGrid.IconSpacingX + safeGrid.RightSafetyMargin <= safeGrid.ClientWidth &&
+                relativeY + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin <= safeGrid.ClientHeight;
         }
 
         private static DesktopLayoutPlan LoadDualRailPlan(string auditDirectory)
@@ -749,7 +832,20 @@ namespace Desktop_Frames.NativeDesktop
             markdown.AppendLine($"AmbiguousCount={plan.Items.Count(item => !item.IsStableIdentity && !item.IsShellNamespace)}");
             markdown.AppendLine($"ShellNamespaceCount={plan.Items.Count(item => item.IsShellNamespace)}");
             markdown.AppendLine($"RequestedVsActualValidated={plan.RequestedVsActualValidated}");
+            markdown.AppendLine($"ExactMatches={plan.ExactMatches}");
+            markdown.AppendLine($"SameGridSlotMatches={plan.SameGridSlotMatches}");
             markdown.AppendLine($"ExplorerClampFailures={plan.ExplorerClampFailures}");
+            markdown.AppendLine($"LeftRailX={plan.LeftRailX} (column {plan.LeftRailColumn})");
+            markdown.AppendLine($"RightRailX={plan.RightRailX} (column {plan.RightRailColumn})");
+            markdown.AppendLine($"LeftRailAligned={plan.LeftRailAligned}");
+            markdown.AppendLine($"RightRailAligned={plan.RightRailAligned}");
+            markdown.AppendLine($"GroupSpacingConsistent={plan.GroupSpacingConsistent}");
+            markdown.AppendLine($"HeaderToFirstIconGap={plan.HeaderToFirstIconGap}");
+            markdown.AppendLine($"GroupSeparationGap={plan.GroupSeparationGap}");
+            markdown.AppendLine($"LeftRailSpareRows={plan.LeftRailColumnSlack}");
+            markdown.AppendLine($"RightRailSpareRows={plan.RightRailColumnSlack}");
+            markdown.AppendLine($"SystemTempHeaderShown={plan.Groups.Any(g => g.GroupId == NativeDesktopLayoutGroupId.SYSTEM_TEMP && g.ShowHeader)}");
+            markdown.AppendLine($"ManualGroupAnchors={plan.Groups.Count(g => g.HasManualAnchor)}");
             markdown.AppendLine($"ManagedIconsOutsideAssignedBounds={plan.ManagedIconsOutsideAssignedBounds}");
             markdown.AppendLine($"UnassignedIconsOutsideUnassignedBounds={plan.UnassignedIconsOutsideUnassignedBounds}");
             markdown.AppendLine($"CentralClearZone={plan.CentralClearZoneLeft},{plan.CentralClearZoneTop} {plan.CentralClearZoneWidth}x{plan.CentralClearZoneHeight}");
@@ -1401,6 +1497,22 @@ namespace Desktop_Frames.NativeDesktop
                 : Enumerable.Empty<string>();
             return new DesktopFilesystemFingerprint(entries);
         }
+        /// <summary>
+        /// Names and kinds of the visible Desktop entries, without their sizes
+        /// or timestamps. This is exactly the "nothing was moved, deleted,
+        /// renamed, or copied" property, and it does not trip over an unrelated
+        /// process writing inside a Desktop folder while a move is in flight.
+        /// </summary>
+        public static DesktopFilesystemFingerprint CaptureNames()
+        {
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            IEnumerable<string> entries = Directory.Exists(desktop)
+                ? Directory.EnumerateFileSystemEntries(desktop, "*", SearchOption.TopDirectoryOnly)
+                    .Select(path => $"{Path.GetFileName(path)}|{(Directory.Exists(path) ? "D" : "F")}")
+                : Enumerable.Empty<string>();
+            return new DesktopFilesystemFingerprint(entries);
+        }
+
         public bool Equals(DesktopFilesystemFingerprint? other) => other != null && _entries.SequenceEqual(other._entries, StringComparer.OrdinalIgnoreCase);
         public override bool Equals(object? obj) => Equals(obj as DesktopFilesystemFingerprint);
         public override int GetHashCode() => _entries.Count;
