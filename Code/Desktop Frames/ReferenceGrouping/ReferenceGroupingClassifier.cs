@@ -45,7 +45,7 @@ namespace Desktop_Frames.ReferenceGrouping
                 new[] { "zotero", "hunnu", "research", "stata", "obsidian", "论文", "科研", "文献", "数据项目", "科研相关skills", "论文下载", "ai工具学习", "graduate", "研究资料", "研究" },
                 new[] { "study", "学习", "资料", "项目" }),
             new Rule(ReferenceGroup.AiDev,
-                new[] { "codex", "kimi", "visual studio code", "vscode", "zcode", "claude", "workbuddy", "github", "git bash", "git gui", "wsl", "powershell", "terminal", "ai工具", "clash verge", "run-clash" },
+                new[] { "codex", "kimi", "visual studio code", "vscode", "zcode", "claude", "workbuddy", "github", "git bash", "git gui", "wsl", "powershell", "terminal", "ai工具", ".ssh" },
                 new[] { "developer", "开发" }),
             new Rule(ReferenceGroup.OfficeDocuments,
                 new[] { "文档", "ppt", "pdf", "数据表格", "图片", "压缩包", "安装包", "libreoffice", "winword", "microsoft word", "powerpoint", "powerpnt", "excel" },
@@ -57,7 +57,7 @@ namespace Desktop_Frames.ReferenceGrouping
                 new[] { "temp", "logs" },
                 Array.Empty<string>()),
             new Rule(ReferenceGroup.DailyTools,
-                new[] { "google chrome", "chrome", "microsoft edge", "edge", "微信", "wechat", "百度网盘", "夸克网盘", "vpn", "nvidia app", "logitech g hub", "revo uninstaller", "msi afterburner", "pixel repair" },
+                new[] { "google chrome", "chrome", "microsoft edge", "edge", "微信", "wechat", "百度网盘", "夸克网盘", "vpn", "clash verge", "clash", "run-clash", "nvidia app", "logitech g hub", "revo uninstaller", "msi afterburner", "pixel repair", "free download manager", "creative app" },
                 new[] { "网盘", "utility", "工具" })
         };
 
@@ -92,6 +92,13 @@ namespace Desktop_Frames.ReferenceGrouping
                             $"DisplayName matched '{displayMatch}'.");
                     }
                 }
+            }
+
+            string? gameLocation = GameLibraryEvidence(item);
+            if (gameLocation != null)
+            {
+                return new ReferenceGroupingDecision(ReferenceGroup.Games, GroupingConfidence.High,
+                    $"TargetPath is inside a game library directory '{gameLocation}'.");
             }
 
             var metadataSources = item.ReferenceType == ReferenceType.Folder
@@ -163,6 +170,43 @@ namespace Desktop_Frames.ReferenceGrouping
             ReferenceGroup.DailyTools => Strings.GroupDaily,
             _ => Strings.GroupingUnassigned
         };
+
+        /// <summary>
+        /// Returns the directory segment that proves a shortcut target lives in
+        /// a game library, or null. Matching whole path segments - not a bare
+        /// substring of the full path - keeps an unrelated folder from being
+        /// swept in by an accidental letter sequence.
+        /// </summary>
+        private static string? GameLibraryEvidence(ReferenceFrameItem item)
+        {
+            if (item.ReferenceType == ReferenceType.Folder) return null;
+            if (string.IsNullOrWhiteSpace(item.TargetPath)) return null;
+
+            string[] segments;
+            try
+            {
+                segments = item.TargetPath.Split(
+                    new[] { System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar },
+                    StringSplitOptions.RemoveEmptyEntries);
+            }
+            catch
+            {
+                return null;
+            }
+
+            // The last segment is the file itself; only its parent directories
+            // are evidence about where the target is installed.
+            for (int index = 0; index < segments.Length - 1; index++)
+            {
+                string segment = segments[index];
+                if (segment.EndsWith("games", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals("steamapps", StringComparison.OrdinalIgnoreCase))
+                {
+                    return segment;
+                }
+            }
+            return null;
+        }
 
         private static string Normalize(string? value) =>
             (value ?? string.Empty).Trim().ToLowerInvariant();
