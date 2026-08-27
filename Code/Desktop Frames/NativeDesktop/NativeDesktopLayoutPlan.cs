@@ -60,6 +60,24 @@ namespace Desktop_Frames.NativeDesktop
         public int CentralClearZoneWidth { get; set; }
         public int CentralClearZoneHeight { get; set; }
         public bool CentralClearZonePreserved { get; set; }
+        /// <summary>Single X baseline every left-rail group is aligned to.</summary>
+        public int LeftRailX { get; set; }
+        /// <summary>Single X baseline every right-rail group is aligned to.</summary>
+        public int RightRailX { get; set; }
+        public int LeftRailColumn { get; set; }
+        public int RightRailColumn { get; set; }
+        public bool LeftRailAligned { get; set; }
+        public bool RightRailAligned { get; set; }
+        public bool GroupSpacingConsistent { get; set; }
+        /// <summary>Spare grid rows left at the bottom of each rail.</summary>
+        public int LeftRailColumnSlack { get; set; }
+        public int RightRailColumnSlack { get; set; }
+        public int HeaderToFirstIconGap { get; set; } = DesktopLayoutSpacing.HeaderToFirstIcon;
+        public int GroupSeparationGap { get; set; }
+        /// <summary>Read-back items whose actual pixels equalled the request exactly.</summary>
+        public int ExactMatches { get; set; }
+        /// <summary>Read-back items Explorer snapped inside the SAME logical grid slot.</summary>
+        public int SameGridSlotMatches { get; set; }
         public int ManagedIconsOutsideAssignedBounds { get; set; }
         public int UnassignedIconsOutsideUnassignedBounds { get; set; }
         public int DuplicateTargetCoordinates { get; set; }
@@ -94,12 +112,39 @@ namespace Desktop_Frames.NativeDesktop
         public int IconBoundingTop { get; set; }
         public int IconBoundingRight { get; set; }
         public int IconBoundingBottom { get; set; }
+        /// <summary>Extra columns this group was widened by so its rail fit the screen.</summary>
+        public int ExtraColumns { get; set; }
+
+        /// <summary>Grid column the group's first icon column occupies.</summary>
+        public int RailColumn { get; set; }
+        /// <summary>Grid row the group's first icon row occupies.</summary>
+        public int RailRow { get; set; }
+        /// <summary>A visually weightless group (SYSTEM_TEMP) reserves its rhythm row but draws no header.</summary>
+        public bool ShowHeader { get; set; } = true;
+        /// <summary>True when the user dragged this group and the position is pinned.</summary>
+        public bool HasManualAnchor { get; set; }
+        /// <summary>True when the user locked the group so its header refuses to drag.</summary>
+        public bool Locked { get; set; }
+    }
+
+    /// <summary>
+    /// The single spacing system every Dual-Rail group is laid out with. No
+    /// group computes its own margins.
+    /// </summary>
+    public static class DesktopLayoutSpacing
+    {
+        /// <summary>Gap between a header baseline and the first icon row below it.</summary>
+        public const int HeaderToFirstIcon = 14;
+        /// <summary>Header chrome height in device-independent pixels.</summary>
+        public const int HeaderHeight = 26;
+        /// <summary>Rows reserved above every group, header drawn or not, so the rhythm never varies.</summary>
+        public const int GroupLeadingRows = 1;
     }
 
     public sealed class DesktopLayoutItem
     {
-        public string LayoutGroupId { get; init; } = string.Empty;
-        public string GroupDisplayName { get; init; } = string.Empty;
+        public string LayoutGroupId { get; set; } = string.Empty;
+        public string GroupDisplayName { get; set; } = string.Empty;
         public string OriginalPath { get; init; } = string.Empty;
         public string DisplayName { get; init; } = string.Empty;
         public string Type { get; init; } = string.Empty;
@@ -108,10 +153,10 @@ namespace Desktop_Frames.NativeDesktop
         public int TargetX { get; set; }
         public int TargetY { get; set; }
         public string ClassificationConfidence { get; init; } = string.Empty;
-        public string ClassificationReason { get; init; } = string.Empty;
+        public string ClassificationReason { get; set; } = string.Empty;
         public bool IsStableIdentity { get; init; }
         public bool IsShellNamespace { get; init; }
-        public bool IsManualOverride { get; init; }
+        public bool IsManualOverride { get; set; }
         public string LayoutArea { get; set; } = string.Empty;
         public bool IsEligibleForApply { get; set; }
         public string ApplyReason { get; set; } = string.Empty;
@@ -121,6 +166,18 @@ namespace Desktop_Frames.NativeDesktop
         public int DeltaY { get; set; }
         public bool TargetSatisfied { get; set; }
         public string ReadBackReason { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Records a grouping the user chose by hand. A manual group always
+        /// outranks ReferenceGroupingClassifier on every later plan.
+        /// </summary>
+        public void SetManualGroup(NativeDesktopLayoutGroupId group, string displayName)
+        {
+            LayoutGroupId = group.ToString();
+            GroupDisplayName = displayName;
+            IsManualOverride = true;
+            ClassificationReason = "ManualLayoutGroupId chosen by the user.";
+        }
     }
 
     public sealed class NativeDesktopLayoutBatchResult

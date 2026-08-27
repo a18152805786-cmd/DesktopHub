@@ -19,15 +19,24 @@ namespace Desktop_Frames.NativeDesktop
         private readonly NativeDesktopIconLayoutService _layout;
         private readonly IReadOnlyDictionary<string, NativeDesktopLayoutGroupId> _manualLayoutGroups;
         private readonly ISet<string> _manualButUnmappedPaths;
+        private readonly IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupAnchor> _groupAnchors;
+
+        /// <summary>Smallest gap, in grid columns, kept between the two rails.</summary>
+        private const int MinimumCentralColumns = 4;
+
+        /// <summary>Most extra columns a rail may take on to fit the screen height.</summary>
+        private const int MaximumRailWidening = 6;
 
         public NativeDesktopLayoutPlanner(
             NativeDesktopIconLayoutService layout,
             IReadOnlyDictionary<string, NativeDesktopLayoutGroupId>? manualLayoutGroups = null,
-            IEnumerable<string>? manualButUnmappedPaths = null)
+            IEnumerable<string>? manualButUnmappedPaths = null,
+            IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupAnchor>? groupAnchors = null)
         {
             _layout = layout ?? throw new ArgumentNullException(nameof(layout));
             _manualLayoutGroups = manualLayoutGroups ?? new Dictionary<string, NativeDesktopLayoutGroupId>(StringComparer.OrdinalIgnoreCase);
             _manualButUnmappedPaths = new HashSet<string>(manualButUnmappedPaths ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            _groupAnchors = groupAnchors ?? new Dictionary<NativeDesktopLayoutGroupId, DesktopGroupAnchor>();
         }
 
         public DesktopLayoutPlan CreatePlan()
@@ -279,24 +288,50 @@ namespace Desktop_Frames.NativeDesktop
                 .Select(icon => SlotKey(icon.X, icon.Y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY))
                 .ToHashSet(StringComparer.Ordinal);
 
-            int leftRequiredRows = RailRequiredRows(plan, DesktopRail.Left);
-            int rightRequiredRows = RailRequiredRows(plan, DesktopRail.Right);
-            if (leftRequiredRows > safeGrid.SafeRows || rightRequiredRows > safeGrid.SafeRows)
-                throw new InvalidOperationException($"DUAL_RAIL_TOO_TALL SafeRows={safeGrid.SafeRows}; LeftRequired={leftRequiredRows}; RightRequired={rightRequiredRows}");
-            if (safeGrid.SafeColumns < 9)
-                throw new InvalidOperationException($"DUAL_RAIL_TOO_NARROW SafeColumns={safeGrid.SafeColumns}");
+            // A group the user dragged is pinned first, and its slots become
+            // obstacles so the automatic rail flows around it instead of
+            // silently reclaiming the position.
+            PlaceAnchoredGroups(plan, obstacles, workArea, safeGrid);
 
-            int rightStartColumn = safeGrid.SafeColumns - 9;
+            // Each rail grows sideways just enough to fit the screen height.
+            int leftExtraColumns = FitRailColumns(plan, DesktopRail.Left, safeGrid);
+            int rightExtraColumns = FitRailColumns(plan, DesktopRail.Right, safeGrid);
+            int leftRequiredRows = RailRequiredRows(plan, DesktopRail.Left, leftExtraColumns);
+            int rightRequiredRows = RailRequiredRows(plan, DesktopRail.Right, rightExtraColumns);
+
+            int leftWidth = RailWidth(plan, DesktopRail.Left, leftExtraColumns);
+            int rightWidth = RailWidth(plan, DesktopRail.Right, rightExtraColumns);
+            if (leftWidth + rightWidth + MinimumCentralColumns > safeGrid.SafeColumns)
+                throw new InvalidOperationException(
+                    $"DUAL_RAIL_TOO_NARROW SafeColumns={safeGrid.SafeColumns}; LeftWidth={leftWidth}; RightWidth={rightWidth}");
+
             int railStartRow = Math.Max(0, (safeGrid.SafeRows - Math.Max(leftRequiredRows, rightRequiredRows)) / 2);
-            PlanRail(plan, DesktopRail.Left, 0, railStartRow, obstacles, workArea, safeGrid);
-            PlanRail(plan, DesktopRail.Right, rightStartColumn, railStartRow, obstacles, workArea, safeGrid);
 
-            int centralLeft = 9 * safeGrid.IconSpacingX;
-            int centralRight = rightStartColumn * safeGrid.IconSpacingX;
+            // Every group in a rail shares one X baseline. The baseline is the
+            // outermost column whose whole rail band is free of icons we are
+            // not allowed to move, so alignment never degrades into per-group
+            // column drift.
+            int leftColumn = ResolveLeftRailColumn(leftWidth, leftRequiredRows, railStartRow, obstacles, workArea, safeGrid);
+            int rightColumn = ResolveRightRailColumn(leftColumn, leftWidth, rightWidth, rightRequiredRows,
+                railStartRow, obstacles, workArea, safeGrid);
+
+            plan.LeftRailColumn = leftColumn;
+            plan.RightRailColumn = rightColumn;
+            plan.LeftRailX = workArea.Left + (leftColumn * safeGrid.IconSpacingX);
+            plan.RightRailX = workArea.Left + (rightColumn * safeGrid.IconSpacingX);
+
+            PlanRail(plan, DesktopRail.Left, leftColumn, railStartRow, obstacles, workArea, safeGrid, leftExtraColumns);
+            PlanRail(plan, DesktopRail.Right, rightColumn, railStartRow, obstacles, workArea, safeGrid, rightExtraColumns);
+            plan.LeftRailColumnSlack = safeGrid.SafeRows - railStartRow - leftRequiredRows;
+            plan.RightRailColumnSlack = safeGrid.SafeRows - railStartRow - rightRequiredRows;
+
+            int centralLeft = (leftColumn + leftWidth) * safeGrid.IconSpacingX;
+            int centralRight = rightColumn * safeGrid.IconSpacingX;
             plan.CentralClearZoneLeft = workArea.Left + centralLeft;
             plan.CentralClearZoneTop = workArea.Top;
             plan.CentralClearZoneWidth = Math.Max(0, centralRight - centralLeft);
             plan.CentralClearZoneHeight = safeGrid.SafeRows * safeGrid.IconSpacingY;
+            ValidateRailAlignment(plan, safeGrid);
             plan.DuplicateTargetCoordinates = plan.Items.GroupBy(item => $"{item.TargetX},{item.TargetY}")
                 .Count(group => group.Count() > 1);
             plan.TargetOutsideDesktopWorkArea = plan.Items.Count(item => !Contains(workArea, item.TargetX, item.TargetY));
@@ -340,115 +375,95 @@ namespace Desktop_Frames.NativeDesktop
             HomeRegionBottom = safeGrid.ClientHeight
         };
 
-        private static int RailRequiredRows(DesktopLayoutPlan plan, DesktopRail rail)
+        /// <summary>Widest group in the rail, in grid columns. This is the rail's band width.</summary>
+        private static int RailWidth(DesktopLayoutPlan plan, DesktopRail rail, int extraColumns)
         {
-            int rows = 0;
-            int groupCount = 0;
-            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail))
+            int width = 0;
+            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail && !group.HasManualAnchor))
             {
-                int movableCount = plan.Items.Count(item => ParseGroup(item.LayoutGroupId) == group.GroupId &&
-                    IsFullMovableCandidate(item));
+                int movableCount = MovableCount(plan, group.GroupId);
                 if (movableCount == 0)
                     continue;
-                (int columns, int groupRows) = DualRailShape(group.GroupId, movableCount);
-                rows += groupRows;
-                groupCount++;
+                (int columns, _) = DualRailShape(group.GroupId, movableCount, extraColumns);
+                width = Math.Max(width, columns);
             }
-            return rows + Math.Max(0, groupCount);
+            return width;
         }
 
-        private static void PlanRail(
-            DesktopLayoutPlan plan,
-            DesktopRail rail,
-            int startColumn,
-            int startRow,
-            ISet<string> obstacles,
-            Rectangle workArea,
-            NativeDesktopSafeGrid safeGrid)
+        private static int RailRequiredRows(DesktopLayoutPlan plan, DesktopRail rail, int extraColumns)
         {
-            int cursor = startRow;
-            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail))
+            int rows = 0;
+            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail && !group.HasManualAnchor))
             {
-                List<DesktopLayoutItem> groupItems = plan.Items
-                    .Where(item => ParseGroup(item.LayoutGroupId) == group.GroupId)
-                    .OrderBy(item => SortBucket(group.GroupId, item))
-                    .ThenBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase)
-                    .ThenBy(item => item.OriginalPath, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                group.PlannedItemCount = groupItems.Count;
-                List<DesktopLayoutItem> movableItems = groupItems.Where(IsFullMovableCandidate).ToList();
-                if (movableItems.Count == 0)
+                int movableCount = MovableCount(plan, group.GroupId);
+                if (movableCount == 0)
                     continue;
+                (_, int groupRows) = DualRailShape(group.GroupId, movableCount, extraColumns);
+                // Every group reserves the same leading row whether or not it
+                // draws a header, so the vertical rhythm is identical.
+                rows += groupRows + DesktopLayoutSpacing.GroupLeadingRows;
+            }
+            return rows;
+        }
 
-                (int columns, int rows) = DualRailShape(group.GroupId, movableItems.Count);
-                int? placedHeaderRow = null;
-                int? placedColumn = null;
-                for (int headerRow = cursor; headerRow + 1 + rows <= safeGrid.SafeRows; headerRow++)
-                {
-                    for (int column = startColumn; column + columns <= safeGrid.SafeColumns; column++)
-                    {
-                        if (!RailBlockIsClear(headerRow, column, columns, rows, obstacles, workArea, safeGrid))
-                            continue;
-                        placedHeaderRow = headerRow;
-                        placedColumn = column;
-                        break;
-                    }
-                    if (placedHeaderRow.HasValue)
-                        break;
-                }
+        private static int MovableCount(DesktopLayoutPlan plan, NativeDesktopLayoutGroupId groupId) =>
+            plan.Items.Count(item => ParseGroup(item.LayoutGroupId) == groupId && IsFullMovableCandidate(item));
 
-                if (!placedHeaderRow.HasValue || !placedColumn.HasValue)
-                    throw new InvalidOperationException($"DUAL_RAIL_GROUP_NOT_PLACED {group.GroupId}");
+        /// <summary>The left rail hugs the left edge: the first column whose whole band is clear.</summary>
+        private static int ResolveLeftRailColumn(int width, int requiredRows, int startRow,
+            ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
+        {
+            if (width <= 0) return 0;
+            int rows = Math.Min(safeGrid.SafeRows - startRow, Math.Max(1, requiredRows));
+            for (int column = 0; column + width <= safeGrid.SafeColumns; column++)
+            {
+                if (RailBandIsClear(column, width, startRow, rows, obstacles, workArea, safeGrid))
+                    return column;
+            }
+            throw new InvalidOperationException($"DUAL_RAIL_NO_ALIGNED_COLUMN Rail=Left; Width={width}; Rows={rows}");
+        }
 
-                group.Columns = columns;
-                group.Rows = rows;
-                group.BoundingWidthGridSlots = columns;
-                group.BoundingHeightGridSlots = rows;
-                group.AspectRatio = Math.Round(columns / (double)rows, 3);
-                group.FragmentationCount = 1;
-                group.UsedFallbackRegion = false;
-                group.IconBoundingLeft = workArea.Left + (placedColumn.Value * safeGrid.IconSpacingX);
-                group.IconBoundingTop = workArea.Top + ((placedHeaderRow.Value + 1) * safeGrid.IconSpacingY);
-                group.IconBoundingRight = group.IconBoundingLeft + (columns * safeGrid.IconSpacingX);
-                group.IconBoundingBottom = group.IconBoundingTop + (rows * safeGrid.IconSpacingY);
-                group.HeaderLeft = group.IconBoundingLeft;
-                group.HeaderTop = Math.Max(0, group.IconBoundingTop - 36);
-                group.HeaderWidth = columns * safeGrid.IconSpacingX;
-                group.HeaderHeight = 26;
+        /// <summary>
+        /// The right rail is mirrored: its preferred inset from the right edge
+        /// equals the left rail's inset from the left edge, so both rails read
+        /// as one deliberate frame around the central clear zone.
+        /// </summary>
+        private static int ResolveRightRailColumn(int leftColumn, int leftWidth, int width, int requiredRows,
+            int startRow, ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
+        {
+            if (width <= 0) return Math.Max(0, safeGrid.SafeColumns - 1);
+            int rows = Math.Min(safeGrid.SafeRows - startRow, Math.Max(1, requiredRows));
+            int minimum = leftColumn + leftWidth + MinimumCentralColumns;
+            int maximum = safeGrid.SafeColumns - width;
+            if (maximum < minimum)
+                throw new InvalidOperationException($"DUAL_RAIL_TOO_NARROW Rail=Right; Width={width}");
 
-                for (int index = 0; index < movableItems.Count; index++)
-                {
-                    DesktopLayoutItem item = movableItems[index];
-                    int x = workArea.Left + ((placedColumn.Value + (index % columns)) * safeGrid.IconSpacingX);
-                    int y = workArea.Top + ((placedHeaderRow.Value + 1 + (index / columns)) * safeGrid.IconSpacingY);
-                    item.TargetX = x;
-                    item.TargetY = y;
-                    item.LayoutArea = rail.ToString();
-                    string currentSlot = SlotKey(item.CurrentX, item.CurrentY, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
-                    string targetSlot = SlotKey(x, y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
-                    item.IsEligibleForApply = !plan.AutoArrangeEnabled &&
-                        !string.Equals(currentSlot, targetSlot, StringComparison.Ordinal);
-                    item.ApplyReason = item.IsEligibleForApply ? "DUAL_RAIL_STABLE_IDENTITY" : "ALREADY_AT_TARGET";
-                    if (item.IsEligibleForApply)
-                        group.EligibleItemCount++;
-                }
+            int mirrored = Math.Clamp(safeGrid.SafeColumns - leftColumn - width, minimum, maximum);
+            foreach (int column in CandidateColumnsAround(mirrored, minimum, maximum))
+            {
+                if (RailBandIsClear(column, width, startRow, rows, obstacles, workArea, safeGrid))
+                    return column;
+            }
+            throw new InvalidOperationException($"DUAL_RAIL_NO_ALIGNED_COLUMN Rail=Right; Width={width}; Rows={rows}");
+        }
 
-                cursor = placedHeaderRow.Value + 1 + rows;
+        /// <summary>Preferred column first, then the nearest alternatives on either side.</summary>
+        private static IEnumerable<int> CandidateColumnsAround(int preferred, int minimum, int maximum)
+        {
+            yield return preferred;
+            for (int offset = 1; offset <= maximum - minimum; offset++)
+            {
+                if (preferred + offset <= maximum) yield return preferred + offset;
+                if (preferred - offset >= minimum) yield return preferred - offset;
             }
         }
 
-        private static bool RailBlockIsClear(
-            int headerRow,
-            int column,
-            int columns,
-            int rows,
-            ISet<string> obstacles,
-            Rectangle workArea,
-            NativeDesktopSafeGrid safeGrid)
+        private static bool RailBandIsClear(int column, int width, int startRow, int rows,
+            ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
         {
-            for (int row = headerRow; row < headerRow + 1 + rows; row++)
+            for (int row = startRow; row < startRow + rows; row++)
             {
-                for (int col = column; col < column + columns; col++)
+                for (int col = column; col < column + width; col++)
                 {
                     int x = workArea.Left + (col * safeGrid.IconSpacingX);
                     int y = workArea.Top + (row * safeGrid.IconSpacingY);
@@ -459,6 +474,162 @@ namespace Desktop_Frames.NativeDesktop
             return true;
         }
 
+        /// <summary>
+        /// Places every group the user dragged at its stored grid anchor and
+        /// reserves those slots. A manual position always wins over the planner.
+        /// </summary>
+        private void PlaceAnchoredGroups(DesktopLayoutPlan plan, ISet<string> obstacles,
+            Rectangle workArea, NativeDesktopSafeGrid safeGrid)
+        {
+            foreach (DesktopLayoutGroup group in plan.Groups)
+            {
+                if (!_groupAnchors.TryGetValue(group.GroupId, out DesktopGroupAnchor? anchor) || anchor == null)
+                    continue;
+                List<DesktopLayoutItem> movableItems = OrderedGroupItems(plan, group).Where(IsFullMovableCandidate).ToList();
+                group.PlannedItemCount = plan.Items.Count(item => ParseGroup(item.LayoutGroupId) == group.GroupId);
+                group.Locked = anchor.Locked;
+                if (movableItems.Count == 0)
+                    continue;
+
+                (int columns, int rows) = DualRailShape(group.GroupId, movableItems.Count, anchor.ExtraColumns);
+                int column = Math.Clamp(anchor.Column, 0, Math.Max(0, safeGrid.SafeColumns - columns));
+                int iconRow = Math.Clamp(anchor.Row, DesktopLayoutSpacing.GroupLeadingRows,
+                    Math.Max(DesktopLayoutSpacing.GroupLeadingRows, safeGrid.SafeRows - rows));
+                if (!RailBandIsClear(column, columns, iconRow, rows, obstacles, workArea, safeGrid))
+                    continue; // A stale anchor never overlaps an icon we cannot move.
+
+                group.HasManualAnchor = true;
+                ApplyGroupGeometry(plan, group, movableItems, column, iconRow, columns, rows, workArea, safeGrid,
+                    anchor.ExtraColumns);
+                for (int row = iconRow - DesktopLayoutSpacing.GroupLeadingRows; row < iconRow + rows; row++)
+                    for (int col = column; col < column + columns; col++)
+                        obstacles.Add(SlotKey(workArea.Left + (col * safeGrid.IconSpacingX),
+                            workArea.Top + (row * safeGrid.IconSpacingY), workArea,
+                            safeGrid.IconSpacingX, safeGrid.IconSpacingY));
+            }
+        }
+
+        private static List<DesktopLayoutItem> OrderedGroupItems(DesktopLayoutPlan plan, DesktopLayoutGroup group) =>
+            plan.Items
+                .Where(item => ParseGroup(item.LayoutGroupId) == group.GroupId)
+                .OrderBy(item => SortBucket(group.GroupId, item))
+                .ThenBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(item => item.OriginalPath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        /// <summary>Writes bounding rect, header geometry, and item targets for one placed group.</summary>
+        private static void ApplyGroupGeometry(DesktopLayoutPlan plan, DesktopLayoutGroup group,
+            List<DesktopLayoutItem> movableItems, int column, int iconRow, int columns, int rows,
+            Rectangle workArea, NativeDesktopSafeGrid safeGrid, int extraColumns)
+        {
+            group.ExtraColumns = extraColumns;
+            group.Columns = columns;
+            group.Rows = rows;
+            group.RailColumn = column;
+            group.RailRow = iconRow;
+            group.BoundingWidthGridSlots = columns;
+            group.BoundingHeightGridSlots = rows;
+            group.AspectRatio = Math.Round(columns / (double)rows, 3);
+            group.FragmentationCount = 1;
+            group.UsedFallbackRegion = false;
+            group.IconBoundingLeft = workArea.Left + (column * safeGrid.IconSpacingX);
+            group.IconBoundingTop = workArea.Top + (iconRow * safeGrid.IconSpacingY);
+            group.IconBoundingRight = group.IconBoundingLeft + (columns * safeGrid.IconSpacingX);
+            group.IconBoundingBottom = group.IconBoundingTop + (rows * safeGrid.IconSpacingY);
+
+            // SYSTEM_TEMP keeps its rhythm row but draws no chrome: a pair of
+            // shell shortcuts does not deserve a real group's visual weight.
+            group.ShowHeader = group.GroupId != NativeDesktopLayoutGroupId.SYSTEM_TEMP;
+            group.HeaderHeight = DesktopLayoutSpacing.HeaderHeight;
+            group.HeaderLeft = group.IconBoundingLeft;
+            group.HeaderTop = Math.Max(0, group.IconBoundingTop
+                - DesktopLayoutSpacing.HeaderToFirstIcon - DesktopLayoutSpacing.HeaderHeight);
+            group.HeaderWidth = group.ShowHeader ? columns * safeGrid.IconSpacingX : 0;
+
+            for (int index = 0; index < movableItems.Count; index++)
+            {
+                DesktopLayoutItem item = movableItems[index];
+                int x = workArea.Left + ((column + (index % columns)) * safeGrid.IconSpacingX);
+                int y = workArea.Top + ((iconRow + (index / columns)) * safeGrid.IconSpacingY);
+                item.TargetX = x;
+                item.TargetY = y;
+                item.LayoutArea = group.Rail.ToString();
+                string currentSlot = SlotKey(item.CurrentX, item.CurrentY, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
+                string targetSlot = SlotKey(x, y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
+                item.IsEligibleForApply = !plan.AutoArrangeEnabled &&
+                    !string.Equals(currentSlot, targetSlot, StringComparison.Ordinal);
+                item.ApplyReason = item.IsEligibleForApply ? "DUAL_RAIL_STABLE_IDENTITY" : "ALREADY_AT_TARGET";
+                if (item.IsEligibleForApply)
+                    group.EligibleItemCount++;
+            }
+        }
+
+        private static void PlanRail(
+            DesktopLayoutPlan plan,
+            DesktopRail rail,
+            int railColumn,
+            int startRow,
+            ISet<string> obstacles,
+            Rectangle workArea,
+            NativeDesktopSafeGrid safeGrid,
+            int extraColumns)
+        {
+            int cursor = startRow;
+            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail))
+            {
+                if (group.HasManualAnchor)
+                    continue;
+                List<DesktopLayoutItem> groupItems = OrderedGroupItems(plan, group);
+                group.PlannedItemCount = groupItems.Count;
+                List<DesktopLayoutItem> movableItems = groupItems.Where(IsFullMovableCandidate).ToList();
+                if (movableItems.Count == 0)
+                    continue;
+
+                (int columns, int rows) = DualRailShape(group.GroupId, movableItems.Count, extraColumns);
+                int block = rows + DesktopLayoutSpacing.GroupLeadingRows;
+                // Only the row is searched. The column is the rail baseline, so
+                // groups can never drift out of alignment with one another.
+                int? placedLeadingRow = null;
+                for (int leadingRow = cursor; leadingRow + block <= safeGrid.SafeRows; leadingRow++)
+                {
+                    if (!RailBandIsClear(railColumn, columns, leadingRow, block, obstacles, workArea, safeGrid))
+                        continue;
+                    placedLeadingRow = leadingRow;
+                    break;
+                }
+
+                if (!placedLeadingRow.HasValue)
+                    throw new InvalidOperationException($"DUAL_RAIL_GROUP_NOT_PLACED {group.GroupId}");
+
+                int iconRow = placedLeadingRow.Value + DesktopLayoutSpacing.GroupLeadingRows;
+                ApplyGroupGeometry(plan, group, movableItems, railColumn, iconRow, columns, rows, workArea, safeGrid,
+                    extraColumns);
+                cursor = iconRow + rows;
+            }
+        }
+
+        /// <summary>Records whether both rails really did resolve to one X baseline each.</summary>
+        private static void ValidateRailAlignment(DesktopLayoutPlan plan, NativeDesktopSafeGrid safeGrid)
+        {
+            plan.LeftRailAligned = RailIsAligned(plan, DesktopRail.Left, plan.LeftRailX);
+            plan.RightRailAligned = RailIsAligned(plan, DesktopRail.Right, plan.RightRailX);
+            plan.GroupSeparationGap = safeGrid.IconSpacingY - DesktopLayoutSpacing.HeaderToFirstIcon
+                - DesktopLayoutSpacing.HeaderHeight;
+            plan.HeaderToFirstIconGap = DesktopLayoutSpacing.HeaderToFirstIcon;
+            // Uniform by construction: every group derives its header offset and
+            // leading row from DesktopLayoutSpacing, never from local arithmetic.
+            plan.GroupSpacingConsistent = plan.Groups
+                .Where(group => group.ShowHeader && group.HeaderWidth > 0)
+                .All(group => group.IconBoundingTop - group.HeaderTop - group.HeaderHeight
+                    == DesktopLayoutSpacing.HeaderToFirstIcon);
+        }
+
+        private static bool RailIsAligned(DesktopLayoutPlan plan, DesktopRail rail, int railX) =>
+            plan.Groups
+                .Where(group => group.Rail == rail && group.Columns > 0 && !group.HasManualAnchor)
+                .All(group => group.IconBoundingLeft == railX &&
+                    (!group.ShowHeader || group.HeaderLeft == railX));
+
         private static bool IsSafeGridTarget(int x, int y, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
         {
             int relativeX = x - workArea.Left;
@@ -468,7 +639,14 @@ namespace Desktop_Frames.NativeDesktop
                 relativeY + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin <= safeGrid.ClientHeight;
         }
 
-        private static (int Columns, int Rows) DualRailShape(NativeDesktopLayoutGroupId group, int itemCount)
+        /// <summary>
+        /// Preferred shape of a group, widened by the rail's fitting term. The
+        /// preferred column counts are the proven ones; extraColumns is what
+        /// lets a rail absorb new icons by growing sideways instead of running
+        /// off the bottom of the screen.
+        /// </summary>
+        private static (int Columns, int Rows) DualRailShape(NativeDesktopLayoutGroupId group, int itemCount,
+            int extraColumns = 0)
         {
             int columns = group switch
             {
@@ -481,7 +659,29 @@ namespace Desktop_Frames.NativeDesktop
                 NativeDesktopLayoutGroupId.GAMES => 5,
                 _ => Math.Min(4, Math.Max(1, itemCount))
             };
+            // A group never grows wider than it has icons to fill.
+            columns = Math.Max(1, Math.Min(columns + Math.Max(0, extraColumns), Math.Max(1, itemCount)));
             return (columns, Math.Max(1, (int)Math.Ceiling(itemCount / (double)columns)));
+        }
+
+        /// <summary>
+        /// Smallest sideways growth that makes the whole rail fit the screen
+        /// height. Widening the rail is always preferable to dropping a group
+        /// off the bottom edge, and it keeps every group in the rail on the
+        /// same X baseline.
+        /// </summary>
+        private static int FitRailColumns(DesktopLayoutPlan plan, DesktopRail rail, NativeDesktopSafeGrid safeGrid)
+        {
+            for (int extra = 0; extra <= MaximumRailWidening; extra++)
+            {
+                if (RailWidth(plan, rail, extra) + MinimumCentralColumns > safeGrid.SafeColumns)
+                    break;
+                if (RailRequiredRows(plan, rail, extra) <= safeGrid.SafeRows)
+                    return extra;
+            }
+            throw new InvalidOperationException(
+                $"DUAL_RAIL_TOO_TALL Rail={rail}; SafeRows={safeGrid.SafeRows}; " +
+                $"Required={RailRequiredRows(plan, rail, MaximumRailWidening)}");
         }
 
         private static bool IsPrimaryReflowGroup(NativeDesktopLayoutGroupId group) =>
