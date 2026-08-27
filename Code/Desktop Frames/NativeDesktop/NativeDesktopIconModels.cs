@@ -61,6 +61,18 @@ namespace Desktop_Frames.NativeDesktop
         public bool AutoArrangeEnabled { get; internal set; }
     }
 
+    public sealed class NativeDesktopSafeGrid
+    {
+        public int ClientWidth { get; init; }
+        public int ClientHeight { get; init; }
+        public int IconSpacingX { get; init; }
+        public int IconSpacingY { get; init; }
+        public int SafeColumns { get; init; }
+        public int SafeRows { get; init; }
+        public int RightSafetyMargin { get; init; }
+        public int BottomSafetyMargin { get; init; }
+    }
+
     public sealed class NativeDesktopListViewState
     {
         public IntPtr Handle { get; init; }

@@ -1,4 +1,4 @@
-﻿using DesktopFrames;
+using DesktopFrames;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
@@ -136,6 +136,18 @@ namespace Desktop_Frames
 
                     // Load frames (Now loads from Profile/frames.json)
                     Framemanager.LoadAndCreateFrames(_targetChecker);
+
+                    // Phase 5.5 lightweight desktop headers are restored only when a Dual-Rail plan exists.
+                    try
+                    {
+                        DesktopGroupHeaderManager.RestoreOnStartup(Path.Combine(auditDirectoryFromArgs(), "ui-phase5-5-layout-plan.json"));
+                    }
+                    catch (Exception headerEx)
+                    {
+                        LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General,
+                            $"Desktop group headers were not restored: {headerEx.Message}");
+                    }
+
 
                     // Explicit certification-only commands. They are inert in
                     // normal startup and never enable a background watcher.
@@ -329,7 +341,16 @@ namespace Desktop_Frames
             catch { }
         }
 
-        private static void RestoreAllframeWindows()
+        private static string auditDirectoryFromArgs()
+    {
+        string? arg = Environment.GetCommandLineArgs()
+            .FirstOrDefault(value => value.StartsWith("--native-layout-audit=", StringComparison.OrdinalIgnoreCase));
+        return string.IsNullOrWhiteSpace(arg)
+            ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "audit")
+            : arg.Substring("--native-layout-audit=".Length).Trim('"');
+    }
+
+    private static void RestoreAllframeWindows()
         {
             try
             {

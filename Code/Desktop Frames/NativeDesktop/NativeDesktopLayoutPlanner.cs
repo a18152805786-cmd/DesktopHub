@@ -117,7 +117,7 @@ namespace Desktop_Frames.NativeDesktop
                     item.TargetY = y;
                     string currentSlot = SlotKey(item.CurrentX, item.CurrentY, workArea, gridX, gridY);
                     string targetSlot = SlotKey(x, y, workArea, gridX, gridY);
-                    item.IsEligibleForApply = !listState.AutoArrangeEnabled &&
+                    item.IsEligibleForApply = !plan.AutoArrangeEnabled &&
                         !string.Equals(currentSlot, targetSlot, StringComparison.Ordinal);
                     item.ApplyReason = item.IsEligibleForApply ? "HIGH_CONFIDENCE_STABLE_PATH" : "ALREADY_AT_TARGET";
                     if (item.IsEligibleForApply) group.EligibleItemCount++;
@@ -136,6 +136,354 @@ namespace Desktop_Frames.NativeDesktop
             return plan;
         }
 
+        public DesktopLayoutPlan PlanFullDesktopLayout()
+        {
+            NativeDesktopListViewState listState = _layout.GetListViewState();
+            Rectangle workArea = Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
+            int gridX = Math.Max(listState.GridSpacingX, 1);
+            int gridY = Math.Max(listState.GridSpacingY, 1);
+            int dpi = TryGetDpi(listState.Handle);
+            IReadOnlyList<NativeDesktopIconState> nativeIcons = _layout.EnumerateDesktopIcons();
+
+            var plan = new DesktopLayoutPlan
+            {
+                Version = 3,
+                LayoutMode = "FullDesktopConsolidation",
+                UnassignedLayoutMode = "COMPACT_VISUALLY",
+                WorkAreaLeft = workArea.Left,
+                WorkAreaTop = workArea.Top,
+                WorkAreaWidth = workArea.Width,
+                WorkAreaHeight = workArea.Height,
+                Dpi = dpi,
+                GridSpacingX = gridX,
+                GridSpacingY = gridY,
+                AutoArrangeEnabled = listState.AutoArrangeEnabled,
+                AlignToGridEnabled = listState.AlignToGridEnabled,
+                CentralClearZoneLeft = workArea.Left + (int)(workArea.Width * 0.35),
+                CentralClearZoneTop = workArea.Top + (int)(workArea.Height * 0.20),
+                CentralClearZoneWidth = (int)(workArea.Width * 0.32),
+                CentralClearZoneHeight = (int)(workArea.Height * 0.62),
+                Groups = CreateFullGroups(workArea, gridX, gridY)
+            };
+
+            foreach (NativeDesktopIconState icon in nativeIcons)
+                plan.Items.Add(ToLayoutItem(icon));
+
+            var occupied = new HashSet<string>(nativeIcons.Select(icon => SlotKey(icon.X, icon.Y, workArea, gridX, gridY)), StringComparer.Ordinal);
+            foreach (DesktopLayoutItem item in plan.Items.Where(IsFullMovableCandidate))
+                occupied.Remove(SlotKey(item.CurrentX, item.CurrentY, workArea, gridX, gridY));
+
+            Rectangle centralClearZone = new(plan.CentralClearZoneLeft, plan.CentralClearZoneTop, plan.CentralClearZoneWidth, plan.CentralClearZoneHeight);
+            var reservedBlocks = new List<CompactBlock>();
+
+            foreach (DesktopLayoutGroup group in plan.Groups)
+            {
+                NativeDesktopLayoutGroupId groupId = group.GroupId;
+                List<DesktopLayoutItem> groupItems = plan.Items
+                    .Where(item => ParseGroup(item.LayoutGroupId) == groupId)
+                    .OrderBy(item => SortBucket(groupId, item))
+                    .ThenBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(item => item.OriginalPath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                group.PlannedItemCount = groupItems.Count;
+
+                List<DesktopLayoutItem> movableItems = groupItems.Where(IsFullMovableCandidate).ToList();
+                if (movableItems.Count == 0)
+                    continue;
+
+                RectangleSlots region = FullRegionFor(groupId, workArea, gridX, gridY);
+                CompactBlock? block = FindFullCompactBlock(groupId, movableItems.Count, region, occupied, workArea, gridX, gridY, centralClearZone, reservedBlocks);
+                if (block == null)
+                {
+                    foreach (DesktopLayoutItem item in movableItems)
+                        item.ApplyReason = "SKIP_NO_CLEAN_FULL_DESKTOP_BLOCK";
+                    continue;
+                }
+
+                group.Columns = block.Value.Columns;
+                group.Rows = block.Value.Rows;
+                group.BoundingWidthGridSlots = block.Value.Columns;
+                group.BoundingHeightGridSlots = block.Value.Rows;
+                group.AspectRatio = Math.Round(block.Value.Columns / (double)block.Value.Rows, 3);
+                group.FragmentationCount = 1;
+                group.UsedFallbackRegion = block.Value.UsedFallback;
+
+                ReserveBlock(block.Value, occupied, workArea, gridX, gridY);
+                reservedBlocks.Add(block.Value);
+
+                string layoutArea = LayoutAreaForGroup(groupId);
+
+                for (int index = 0; index < movableItems.Count; index++)
+                {
+                    DesktopLayoutItem item = movableItems[index];
+                    int x = workArea.Left + ((block.Value.Left + (index % block.Value.Columns)) * gridX);
+                    int y = workArea.Top + ((block.Value.Top + (index / block.Value.Columns)) * gridY);
+
+                    item.TargetX = x;
+                    item.TargetY = y;
+                    item.LayoutArea = layoutArea;
+                    string currentSlot = SlotKey(item.CurrentX, item.CurrentY, workArea, gridX, gridY);
+                    string targetSlot = SlotKey(x, y, workArea, gridX, gridY);
+                    item.IsEligibleForApply = !plan.AutoArrangeEnabled && !string.Equals(currentSlot, targetSlot, StringComparison.Ordinal);
+                    item.ApplyReason = item.IsEligibleForApply ? "FULL_DESKTOP_STABLE_IDENTITY" : "ALREADY_AT_TARGET";
+                    if (item.IsEligibleForApply)
+                        group.EligibleItemCount++;
+                }
+
+                foreach (DesktopLayoutItem item in groupItems.Except(movableItems))
+                    item.ApplyReason = "PRESERVED_OBSTACLE";
+            }
+
+            plan.DuplicateTargetCoordinates = plan.Items.GroupBy(item => $"{item.TargetX},{item.TargetY}").Count(group => group.Count() > 1);
+            plan.TargetOutsideDesktopWorkArea = plan.Items.Count(item => !Contains(workArea, item.TargetX, item.TargetY));
+            plan.CentralClearZonePreserved = !plan.Items.Any(item => IsFullMovableCandidate(item) && Contains(centralClearZone, item.TargetX, item.TargetY));
+            return plan;
+        }
+
+        public DesktopLayoutPlan PlanDualRailLayout()
+        {
+            NativeDesktopListViewState listState = _layout.GetListViewState();
+            NativeDesktopSafeGrid safeGrid = _layout.GetSafeDesktopGrid();
+            Rectangle workArea = Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
+            IReadOnlyList<NativeDesktopIconState> nativeIcons = _layout.EnumerateDesktopIcons();
+
+            var plan = new DesktopLayoutPlan
+            {
+                Version = 4,
+                LayoutMode = NativeDesktopLayoutMode.DualRail.ToString(),
+                UnassignedLayoutMode = "COMPACT_VISUALLY",
+                WorkAreaLeft = workArea.Left,
+                WorkAreaTop = workArea.Top,
+                WorkAreaWidth = workArea.Width,
+                WorkAreaHeight = workArea.Height,
+                Dpi = TryGetDpi(listState.Handle),
+                GridSpacingX = safeGrid.IconSpacingX,
+                GridSpacingY = safeGrid.IconSpacingY,
+                ListViewClientWidth = safeGrid.ClientWidth,
+                ListViewClientHeight = safeGrid.ClientHeight,
+                SafeColumns = safeGrid.SafeColumns,
+                SafeRows = safeGrid.SafeRows,
+                SafeRightMargin = safeGrid.RightSafetyMargin,
+                SafeBottomMargin = safeGrid.BottomSafetyMargin,
+                AutoArrangeEnabled = listState.AutoArrangeEnabled,
+                AlignToGridEnabled = listState.AlignToGridEnabled,
+                PrimaryMonitorOnly = true,
+                Groups = CreateDualRailGroups(workArea, safeGrid)
+            };
+
+            foreach (NativeDesktopIconState icon in nativeIcons)
+                plan.Items.Add(ToLayoutItem(icon));
+
+            var obstacles = nativeIcons
+                .Where(icon => icon.IdentityStatus != NativeIconIdentityStatus.StablePath)
+                .Select(icon => SlotKey(icon.X, icon.Y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY))
+                .ToHashSet(StringComparer.Ordinal);
+
+            int leftRequiredRows = RailRequiredRows(plan, DesktopRail.Left);
+            int rightRequiredRows = RailRequiredRows(plan, DesktopRail.Right);
+            if (leftRequiredRows > safeGrid.SafeRows || rightRequiredRows > safeGrid.SafeRows)
+                throw new InvalidOperationException($"DUAL_RAIL_TOO_TALL SafeRows={safeGrid.SafeRows}; LeftRequired={leftRequiredRows}; RightRequired={rightRequiredRows}");
+            if (safeGrid.SafeColumns < 9)
+                throw new InvalidOperationException($"DUAL_RAIL_TOO_NARROW SafeColumns={safeGrid.SafeColumns}");
+
+            int rightStartColumn = safeGrid.SafeColumns - 9;
+            int railStartRow = Math.Max(0, (safeGrid.SafeRows - Math.Max(leftRequiredRows, rightRequiredRows)) / 2);
+            PlanRail(plan, DesktopRail.Left, 0, railStartRow, obstacles, workArea, safeGrid);
+            PlanRail(plan, DesktopRail.Right, rightStartColumn, railStartRow, obstacles, workArea, safeGrid);
+
+            int centralLeft = 9 * safeGrid.IconSpacingX;
+            int centralRight = rightStartColumn * safeGrid.IconSpacingX;
+            plan.CentralClearZoneLeft = workArea.Left + centralLeft;
+            plan.CentralClearZoneTop = workArea.Top;
+            plan.CentralClearZoneWidth = Math.Max(0, centralRight - centralLeft);
+            plan.CentralClearZoneHeight = safeGrid.SafeRows * safeGrid.IconSpacingY;
+            plan.DuplicateTargetCoordinates = plan.Items.GroupBy(item => $"{item.TargetX},{item.TargetY}")
+                .Count(group => group.Count() > 1);
+            plan.TargetOutsideDesktopWorkArea = plan.Items.Count(item => !Contains(workArea, item.TargetX, item.TargetY));
+            int outOfSafeGrid = plan.Items.Count(item => item.IsStableIdentity && !item.IsShellNamespace &&
+                (!IsSafeGridTarget(item.TargetX, item.TargetY, workArea, safeGrid)));
+            if (outOfSafeGrid != 0)
+                throw new InvalidOperationException($"DUAL_RAIL_OUT_OF_SAFE_GRID Count={outOfSafeGrid}");
+
+            Rectangle centralClearZone = new(plan.CentralClearZoneLeft, plan.CentralClearZoneTop,
+                plan.CentralClearZoneWidth, plan.CentralClearZoneHeight);
+            plan.CentralClearZonePreserved = !plan.Items.Any(item => IsFullMovableCandidate(item) &&
+                Contains(centralClearZone, item.TargetX, item.TargetY));
+            return plan;
+        }
+
+        private static List<DesktopLayoutGroup> CreateDualRailGroups(Rectangle workArea, NativeDesktopSafeGrid safeGrid) => new()
+        {
+            DualRailGroup(NativeDesktopLayoutGroupId.SYSTEM_TEMP, "系统 · 临时", DesktopRail.Left, safeGrid),
+            DualRailGroup(NativeDesktopLayoutGroupId.RESEARCH_STUDY, "科研 · 学习", DesktopRail.Left, safeGrid),
+            DualRailGroup(NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS, "办公 · 文档", DesktopRail.Left, safeGrid),
+            DualRailGroup(NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", DesktopRail.Left, safeGrid),
+            DualRailGroup(NativeDesktopLayoutGroupId.AI_DEV, "AI · 开发", DesktopRail.Right, safeGrid),
+            DualRailGroup(NativeDesktopLayoutGroupId.DAILY_TOOLS, "日常工具", DesktopRail.Right, safeGrid),
+            DualRailGroup(NativeDesktopLayoutGroupId.GAMES, "游戏", DesktopRail.Right, safeGrid)
+        };
+
+        private static DesktopLayoutGroup DualRailGroup(
+            NativeDesktopLayoutGroupId id,
+            string title,
+            DesktopRail rail,
+            NativeDesktopSafeGrid safeGrid) => new()
+        {
+            GroupId = id,
+            GroupDisplayName = title,
+            Region = rail == DesktopRail.Left ? "Left rail" : "Right rail",
+            Anchor = rail.ToString(),
+            Rail = rail,
+            HomeRegionLeft = 0,
+            HomeRegionTop = 0,
+            HomeRegionRight = safeGrid.ClientWidth,
+            HomeRegionBottom = safeGrid.ClientHeight
+        };
+
+        private static int RailRequiredRows(DesktopLayoutPlan plan, DesktopRail rail)
+        {
+            int rows = 0;
+            int groupCount = 0;
+            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail))
+            {
+                int movableCount = plan.Items.Count(item => ParseGroup(item.LayoutGroupId) == group.GroupId &&
+                    IsFullMovableCandidate(item));
+                if (movableCount == 0)
+                    continue;
+                (int columns, int groupRows) = DualRailShape(group.GroupId, movableCount);
+                rows += groupRows;
+                groupCount++;
+            }
+            return rows + Math.Max(0, groupCount);
+        }
+
+        private static void PlanRail(
+            DesktopLayoutPlan plan,
+            DesktopRail rail,
+            int startColumn,
+            int startRow,
+            ISet<string> obstacles,
+            Rectangle workArea,
+            NativeDesktopSafeGrid safeGrid)
+        {
+            int cursor = startRow;
+            foreach (DesktopLayoutGroup group in plan.Groups.Where(group => group.Rail == rail))
+            {
+                List<DesktopLayoutItem> groupItems = plan.Items
+                    .Where(item => ParseGroup(item.LayoutGroupId) == group.GroupId)
+                    .OrderBy(item => SortBucket(group.GroupId, item))
+                    .ThenBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(item => item.OriginalPath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                group.PlannedItemCount = groupItems.Count;
+                List<DesktopLayoutItem> movableItems = groupItems.Where(IsFullMovableCandidate).ToList();
+                if (movableItems.Count == 0)
+                    continue;
+
+                (int columns, int rows) = DualRailShape(group.GroupId, movableItems.Count);
+                int? placedHeaderRow = null;
+                int? placedColumn = null;
+                for (int headerRow = cursor; headerRow + 1 + rows <= safeGrid.SafeRows; headerRow++)
+                {
+                    for (int column = startColumn; column + columns <= safeGrid.SafeColumns; column++)
+                    {
+                        if (!RailBlockIsClear(headerRow, column, columns, rows, obstacles, workArea, safeGrid))
+                            continue;
+                        placedHeaderRow = headerRow;
+                        placedColumn = column;
+                        break;
+                    }
+                    if (placedHeaderRow.HasValue)
+                        break;
+                }
+
+                if (!placedHeaderRow.HasValue || !placedColumn.HasValue)
+                    throw new InvalidOperationException($"DUAL_RAIL_GROUP_NOT_PLACED {group.GroupId}");
+
+                group.Columns = columns;
+                group.Rows = rows;
+                group.BoundingWidthGridSlots = columns;
+                group.BoundingHeightGridSlots = rows;
+                group.AspectRatio = Math.Round(columns / (double)rows, 3);
+                group.FragmentationCount = 1;
+                group.UsedFallbackRegion = false;
+                group.IconBoundingLeft = workArea.Left + (placedColumn.Value * safeGrid.IconSpacingX);
+                group.IconBoundingTop = workArea.Top + ((placedHeaderRow.Value + 1) * safeGrid.IconSpacingY);
+                group.IconBoundingRight = group.IconBoundingLeft + (columns * safeGrid.IconSpacingX);
+                group.IconBoundingBottom = group.IconBoundingTop + (rows * safeGrid.IconSpacingY);
+                group.HeaderLeft = group.IconBoundingLeft;
+                group.HeaderTop = Math.Max(0, group.IconBoundingTop - 36);
+                group.HeaderWidth = columns * safeGrid.IconSpacingX;
+                group.HeaderHeight = 26;
+
+                for (int index = 0; index < movableItems.Count; index++)
+                {
+                    DesktopLayoutItem item = movableItems[index];
+                    int x = workArea.Left + ((placedColumn.Value + (index % columns)) * safeGrid.IconSpacingX);
+                    int y = workArea.Top + ((placedHeaderRow.Value + 1 + (index / columns)) * safeGrid.IconSpacingY);
+                    item.TargetX = x;
+                    item.TargetY = y;
+                    item.LayoutArea = rail.ToString();
+                    string currentSlot = SlotKey(item.CurrentX, item.CurrentY, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
+                    string targetSlot = SlotKey(x, y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
+                    item.IsEligibleForApply = !plan.AutoArrangeEnabled &&
+                        !string.Equals(currentSlot, targetSlot, StringComparison.Ordinal);
+                    item.ApplyReason = item.IsEligibleForApply ? "DUAL_RAIL_STABLE_IDENTITY" : "ALREADY_AT_TARGET";
+                    if (item.IsEligibleForApply)
+                        group.EligibleItemCount++;
+                }
+
+                cursor = placedHeaderRow.Value + 1 + rows;
+            }
+        }
+
+        private static bool RailBlockIsClear(
+            int headerRow,
+            int column,
+            int columns,
+            int rows,
+            ISet<string> obstacles,
+            Rectangle workArea,
+            NativeDesktopSafeGrid safeGrid)
+        {
+            for (int row = headerRow; row < headerRow + 1 + rows; row++)
+            {
+                for (int col = column; col < column + columns; col++)
+                {
+                    int x = workArea.Left + (col * safeGrid.IconSpacingX);
+                    int y = workArea.Top + (row * safeGrid.IconSpacingY);
+                    if (obstacles.Contains(SlotKey(x, y, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY)))
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool IsSafeGridTarget(int x, int y, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
+        {
+            int relativeX = x - workArea.Left;
+            int relativeY = y - workArea.Top;
+            return relativeX >= 0 && relativeY >= 0 &&
+                relativeX + safeGrid.IconSpacingX + safeGrid.RightSafetyMargin <= safeGrid.ClientWidth &&
+                relativeY + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin <= safeGrid.ClientHeight;
+        }
+
+        private static (int Columns, int Rows) DualRailShape(NativeDesktopLayoutGroupId group, int itemCount)
+        {
+            int columns = group switch
+            {
+                NativeDesktopLayoutGroupId.SYSTEM_TEMP => 2,
+                NativeDesktopLayoutGroupId.RESEARCH_STUDY => 4,
+                NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS => 4,
+                NativeDesktopLayoutGroupId.UNASSIGNED => 5,
+                NativeDesktopLayoutGroupId.AI_DEV => 4,
+                NativeDesktopLayoutGroupId.DAILY_TOOLS => 4,
+                NativeDesktopLayoutGroupId.GAMES => 5,
+                _ => Math.Min(4, Math.Max(1, itemCount))
+            };
+            return (columns, Math.Max(1, (int)Math.Ceiling(itemCount / (double)columns)));
+        }
+
         private static bool IsPrimaryReflowGroup(NativeDesktopLayoutGroupId group) =>
             group is NativeDesktopLayoutGroupId.RESEARCH_STUDY or NativeDesktopLayoutGroupId.AI_DEV or
                 NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS;
@@ -149,7 +497,7 @@ namespace Desktop_Frames.NativeDesktop
         {
             if (icon.IdentityStatus != NativeIconIdentityStatus.StablePath)
             {
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "未整理", icon.IdentityStatus.ToString(),
+                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", icon.IdentityStatus.ToString(),
                     isManual: false, "Non-stable identity is an occupied obstacle and is never moved.");
             }
 
@@ -161,13 +509,13 @@ namespace Desktop_Frames.NativeDesktop
             }
             if (_manualButUnmappedPaths.Contains(path))
             {
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "未整理", "HIGH", true,
+                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", "HIGH", true,
                     "ManualFrameId is authoritative but has no mapped LayoutGroupId; icon remains in place.");
             }
 
             if (!ReferenceFrameItem.IsSupportedPath(path))
             {
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "未整理", "UNASSIGNED", false,
+                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", "UNASSIGNED", false,
                     "Desktop item is not a supported shortcut, URL, or folder.");
             }
 
@@ -212,9 +560,189 @@ namespace Desktop_Frames.NativeDesktop
                 RegionFor(NativeDesktopLayoutGroupId.GAMES, workArea, gridX, gridY)),
             Group(NativeDesktopLayoutGroupId.SYSTEM_TEMP, "系统 · 临时", "Bottom-right utility zone", "BottomRight",
                 RegionFor(NativeDesktopLayoutGroupId.SYSTEM_TEMP, workArea, gridX, gridY)),
-            Group(NativeDesktopLayoutGroupId.UNASSIGNED, "未整理", "Original positions / occupied obstacles", "Preserve",
+            Group(NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", "Bottom-left reserved block", "COMPACT_VISUALLY",
                 RegionFor(NativeDesktopLayoutGroupId.UNASSIGNED, workArea, gridX, gridY))
         };
+
+        private static List<DesktopLayoutGroup> CreateFullGroups(Rectangle workArea, int gridX, int gridY) => new()
+        {
+            FullGroup(NativeDesktopLayoutGroupId.RESEARCH_STUDY, "科研 · 学习", "Left upper clean block", "TopLeft",
+                FullRegionFor(NativeDesktopLayoutGroupId.RESEARCH_STUDY, workArea, gridX, gridY), workArea, gridX, gridY),
+            FullGroup(NativeDesktopLayoutGroupId.AI_DEV, "AI · 开发", "Right upper clean block", "TopRight",
+                FullRegionFor(NativeDesktopLayoutGroupId.AI_DEV, workArea, gridX, gridY), workArea, gridX, gridY),
+            FullGroup(NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS, "办公 · 文档", "Left middle clean block", "MiddleLeft",
+                FullRegionFor(NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS, workArea, gridX, gridY), workArea, gridX, gridY),
+            FullGroup(NativeDesktopLayoutGroupId.DAILY_TOOLS, "日常工具", "Right middle clean block", "MiddleRight",
+                FullRegionFor(NativeDesktopLayoutGroupId.DAILY_TOOLS, workArea, gridX, gridY), workArea, gridX, gridY),
+            FullGroup(NativeDesktopLayoutGroupId.GAMES, "游戏", "Right lower clean block", "BottomRight",
+                FullRegionFor(NativeDesktopLayoutGroupId.GAMES, workArea, gridX, gridY), workArea, gridX, gridY),
+            FullGroup(NativeDesktopLayoutGroupId.SYSTEM_TEMP, "系统 · 临时", "Right utility slot", "BottomRightUtility",
+                FullRegionFor(NativeDesktopLayoutGroupId.SYSTEM_TEMP, workArea, gridX, gridY), workArea, gridX, gridY),
+            FullGroup(NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", "Bottom-left reserved block", "BottomLeft",
+                FullRegionFor(NativeDesktopLayoutGroupId.UNASSIGNED, workArea, gridX, gridY), workArea, gridX, gridY)
+        };
+
+        private static DesktopLayoutGroup FullGroup(
+            NativeDesktopLayoutGroupId id,
+            string title,
+            string region,
+            string anchor,
+            RectangleSlots home,
+            Rectangle workArea,
+            int gridX,
+            int gridY) => new()
+        {
+            GroupId = id,
+            GroupDisplayName = title,
+            Region = region,
+            Anchor = anchor,
+            HomeRegionLeft = workArea.Left + (home.Left * gridX),
+            HomeRegionTop = workArea.Top + (home.Top * gridY),
+            HomeRegionRight = workArea.Left + (home.Right * gridX),
+            HomeRegionBottom = workArea.Top + (home.Bottom * gridY)
+        };
+
+        private static RectangleSlots FullRegionFor(NativeDesktopLayoutGroupId group, Rectangle work, int gridX, int gridY)
+        {
+            int columns = Math.Max(1, (work.Width - 1) / gridX) + 1;
+            int rows = Math.Max(1, (work.Height - 1) / gridY) + 1;
+            RectangleSlots Ratio(double left, double right, double top, double bottom) => new(
+                Math.Clamp((int)Math.Round(columns * left), 0, columns - 1),
+                Math.Clamp((int)Math.Floor(columns * right) - 1, 0, columns - 1),
+                Math.Clamp((int)Math.Round(rows * top), 0, rows - 1),
+                Math.Clamp((int)Math.Floor(rows * bottom) - 1, 0, rows - 1));
+
+            return group switch
+            {
+                NativeDesktopLayoutGroupId.RESEARCH_STUDY => Ratio(0.1143, 0.2400, 0.2000, 0.4200),
+                NativeDesktopLayoutGroupId.AI_DEV => Ratio(0.8300, 0.9600, 0.0667, 0.3600),
+                NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS => Ratio(0.1143, 0.2400, 0.4667, 0.6200),
+                NativeDesktopLayoutGroupId.DAILY_TOOLS => Ratio(0.8300, 0.9600, 0.4000, 0.7000),
+                NativeDesktopLayoutGroupId.GAMES => Ratio(0.7700, 0.9300, 0.7333, 0.9500),
+                NativeDesktopLayoutGroupId.SYSTEM_TEMP => Ratio(0.9400, 1.0000, 0.9333, 1.0000),
+                NativeDesktopLayoutGroupId.UNASSIGNED => Ratio(0.0000, 0.1500, 0.6667, 1.0000),
+                _ => new RectangleSlots(0, columns - 1, 0, rows - 1)
+            };
+        }
+
+        private static CompactBlock? FindFullCompactBlock(
+            NativeDesktopLayoutGroupId group,
+            int itemCount,
+            RectangleSlots region,
+            ISet<string> occupied,
+            Rectangle work,
+            int gridX,
+            int gridY,
+            Rectangle centralClearZone,
+            IReadOnlyList<CompactBlock> reservedBlocks)
+        {
+            CompactBlock? best = null;
+            double bestScore = double.MaxValue;
+            int bestTop = int.MaxValue;
+            int bestLeft = int.MaxValue;
+
+            foreach ((int columns, int rows) in CandidateDimensions(group, itemCount))
+            {
+                if (columns > 6 || columns > region.Width || rows > region.Height)
+                    continue;
+
+                foreach (int top in Enumerable.Range(region.Top, region.Height - rows + 1))
+                foreach (int left in Enumerable.Range(region.Left, region.Width - columns + 1))
+                {
+                    var candidate = new CompactBlock(left, top, columns, rows, UsedFallback: false);
+                    if (BlockIntersectsCentralClearZone(candidate, work, gridX, gridY, centralClearZone))
+                        continue;
+                    if (!BlockSlotsAreVacant(candidate, occupied, work, gridX, gridY))
+                        continue;
+                    if (ExpandedBlockIntersectsReserved(candidate, work, gridX, gridY, reservedBlocks))
+                        continue;
+
+                    int anchorDistance = FullAnchorDistance(group, left, top, columns, rows, region);
+                    double aspect = columns / (double)rows;
+                    double aspectTarget = group is NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS or NativeDesktopLayoutGroupId.SYSTEM_TEMP ? 2.0 : 1.0;
+                    double score = anchorDistance * 0.5 + Math.Abs(aspect - aspectTarget) * 4.0;
+                    if (score < bestScore || (Math.Abs(score - bestScore) < 0.0001 && (top < bestTop || (top == bestTop && left < bestLeft))))
+                    {
+                        best = candidate;
+                        bestScore = score;
+                        bestTop = top;
+                        bestLeft = left;
+                    }
+                }
+            }
+
+            return best;
+        }
+
+        private static int FullAnchorDistance(NativeDesktopLayoutGroupId group, int left, int top, int columns, int rows, RectangleSlots region)
+        {
+            int targetLeft = group is NativeDesktopLayoutGroupId.AI_DEV or NativeDesktopLayoutGroupId.DAILY_TOOLS or NativeDesktopLayoutGroupId.GAMES or NativeDesktopLayoutGroupId.SYSTEM_TEMP
+                ? region.Right - columns + 1
+                : region.Left;
+            int targetTop = group is NativeDesktopLayoutGroupId.GAMES or NativeDesktopLayoutGroupId.UNASSIGNED ? region.Bottom - rows + 1 : region.Top;
+            return Math.Abs(left - targetLeft) + Math.Abs(top - targetTop);
+        }
+
+        private static bool BlockSlotsAreVacant(CompactBlock block, ISet<string> occupied, Rectangle work, int gridX, int gridY)
+        {
+            for (int row = 0; row < block.Rows; row++)
+            for (int column = 0; column < block.Columns; column++)
+            {
+                int x = work.Left + ((block.Left + column) * gridX);
+                int y = work.Top + ((block.Top + row) * gridY);
+                if (occupied.Contains(SlotKey(x, y, work, gridX, gridY)))
+                    return false;
+            }
+            return true;
+        }
+
+        private static bool BlockIntersectsCentralClearZone(CompactBlock block, Rectangle work, int gridX, int gridY, Rectangle centralClearZone)
+        {
+            Rectangle blockRectangle = new(
+                work.Left + (block.Left * gridX),
+                work.Top + (block.Top * gridY),
+                block.Columns * gridX,
+                block.Rows * gridY);
+            return blockRectangle.IntersectsWith(centralClearZone);
+        }
+
+        private static bool ExpandedBlockIntersectsReserved(CompactBlock block, Rectangle work, int gridX, int gridY, IReadOnlyList<CompactBlock> reservedBlocks)
+        {
+            if (reservedBlocks.Count == 0)
+                return false;
+
+            Rectangle expanded = new(
+                work.Left + (block.Left * gridX),
+                work.Top + (block.Top * gridY),
+                block.Columns * gridX,
+                block.Rows * gridY);
+            expanded.Inflate(gridX, gridY);
+
+            foreach (CompactBlock other in reservedBlocks)
+            {
+                Rectangle otherRectangle = new(
+                    work.Left + (other.Left * gridX),
+                    work.Top + (other.Top * gridY),
+                    other.Columns * gridX,
+                    other.Rows * gridY);
+                if (expanded.IntersectsWith(otherRectangle))
+                    return true;
+            }
+            return false;
+        }
+
+        private static string LayoutAreaForGroup(NativeDesktopLayoutGroupId group) => group switch
+        {
+            NativeDesktopLayoutGroupId.RESEARCH_STUDY => "RESEARCH_AREA",
+            NativeDesktopLayoutGroupId.AI_DEV => "AI_DEV_AREA",
+            NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS => "OFFICE_AREA",
+            NativeDesktopLayoutGroupId.DAILY_TOOLS => "DAILY_TOOLS_AREA",
+            NativeDesktopLayoutGroupId.GAMES => "GAMES_AREA",
+            NativeDesktopLayoutGroupId.SYSTEM_TEMP => "SYSTEM_TEMP_AREA",
+            _ => "UNASSIGNED_AREA"
+        };
+
+        private static bool IsFullMovableCandidate(DesktopLayoutItem item) => item.IsStableIdentity && !item.IsShellNamespace;
 
         private static DesktopLayoutGroup Group(NativeDesktopLayoutGroupId id, string title, string region,
             string anchor, RectangleSlots home) => new()
@@ -314,6 +842,7 @@ namespace Desktop_Frames.NativeDesktop
                 NativeDesktopLayoutGroupId.AI_DEV => 4,
                 NativeDesktopLayoutGroupId.DAILY_TOOLS => 4,
                 NativeDesktopLayoutGroupId.GAMES => 5,
+                NativeDesktopLayoutGroupId.UNASSIGNED => 5,
                 _ => Math.Min(4, Math.Max(1, itemCount))
             };
             int maxColumns = group switch
@@ -408,7 +937,7 @@ namespace Desktop_Frames.NativeDesktop
             NativeDesktopLayoutGroupId.DAILY_TOOLS => "日常工具",
             NativeDesktopLayoutGroupId.GAMES => "游戏",
             NativeDesktopLayoutGroupId.SYSTEM_TEMP => "系统 · 临时",
-            _ => "未整理"
+            _ => "待整理"
         };
 
         private static NativeDesktopLayoutGroupId ParseGroup(string value) =>
@@ -444,3 +973,7 @@ namespace Desktop_Frames.NativeDesktop
         private readonly record struct CompactBlock(int Left, int Top, int Columns, int Rows, bool UsedFallback);
     }
 }
+
+
+
+

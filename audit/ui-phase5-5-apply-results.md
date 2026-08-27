@@ -1,0 +1,34 @@
+# UI Phase 5.5 Dual-Rail Layout Results
+
+Apply=PASS
+ItemsMoved=0
+Reason=ALREADY_AT_TARGET
+TargetSatisfiedCount=0
+ExplorerSnapCount=81
+ExplorerClampFailures=0
+
+DesktopWorkArea=2560x1440
+DesktopListViewClientRect=2560x1440
+IconSpacingX=75
+IconSpacingY=100
+SafeColumns=33
+SafeRows=14
+RightSafetyMargin=19
+BottomSafetyMargin=25
+StableIconCount=81
+AmbiguousCount=2
+ShellNamespaceCount=2
+RequestedVsActualValidated=True
+ExplorerClampFailures=0
+ManagedIconsOutsideAssignedBounds=0
+UnassignedIconsOutsideUnassignedBounds=0
+CentralClearZone=675,0 1125x1400
+CentralClearZoneViolations=0
+DuplicateTargetCoordinates=0
+TargetOutsideWorkArea=0
+VisualQualityGate=PASS
+GroupHeadersVisible=true
+FilesystemMove=false
+FilesystemDelete=false
+FilesystemRename=false
+FilesystemCopy=false

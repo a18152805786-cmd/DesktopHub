@@ -56,6 +56,32 @@ namespace Desktop_Frames.NativeDesktop
             };
         }
 
+        public NativeDesktopSafeGrid GetSafeDesktopGrid()
+        {
+            IntPtr listView = RequireDesktopListView();
+            long spacing = Send(listView, LvmGetItemSpacing, IntPtr.Zero, IntPtr.Zero).ToInt64();
+            int spacingX = Math.Max(1, (int)unchecked((ushort)(spacing & 0xffff)));
+            int spacingY = Math.Max(1, (int)unchecked((ushort)((spacing >> 16) & 0xffff)));
+            if (!GetClientRect(listView, out NativeRect client) || client.Right <= 0 || client.Bottom <= 0)
+                throw new InvalidOperationException("Desktop ListView client rect was not readable.");
+
+            int rightMargin = Math.Max(1, (int)Math.Ceiling(spacingX * 0.25));
+            int bottomMargin = Math.Max(1, (int)Math.Ceiling(spacingY * 0.25));
+            int safeColumns = Math.Max(1, (client.Right - rightMargin) / spacingX);
+            int safeRows = Math.Max(1, (client.Bottom - bottomMargin) / spacingY);
+            return new NativeDesktopSafeGrid
+            {
+                ClientWidth = client.Right,
+                ClientHeight = client.Bottom,
+                IconSpacingX = spacingX,
+                IconSpacingY = spacingY,
+                SafeColumns = safeColumns,
+                SafeRows = safeRows,
+                RightSafetyMargin = rightMargin,
+                BottomSafetyMargin = bottomMargin
+            };
+        }
+
         public IReadOnlyList<NativeDesktopIconState> EnumerateDesktopIcons()
         {
             IntPtr listView = RequireDesktopListView();
@@ -444,6 +470,19 @@ namespace Desktop_Frames.NativeDesktop
                 if (Address != IntPtr.Zero) VirtualFreeEx(_process, Address, UIntPtr.Zero, MemRelease);
             }
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeRect
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetClientRect(IntPtr hWnd, out NativeRect rectangle);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr SendMessageTimeout(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam,

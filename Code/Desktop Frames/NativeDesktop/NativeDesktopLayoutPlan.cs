@@ -17,7 +17,15 @@ namespace Desktop_Frames.NativeDesktop
     public enum NativeDesktopLayoutMode
     {
         Legacy,
-        CompactGrouped
+        CompactGrouped,
+        DualRail
+    }
+
+    public enum DesktopRail
+    {
+        Left,
+        Right,
+        Fixed
     }
 
     /// <summary>Serializable, side-effect-free result of native Desktop layout planning.</summary>
@@ -26,6 +34,14 @@ namespace Desktop_Frames.NativeDesktop
         public int Version { get; init; } = 2;
         public string LayoutMode { get; init; } = NativeDesktopLayoutMode.CompactGrouped.ToString();
         public string UnassignedLayoutMode { get; init; } = "PRESERVE";
+        public int ListViewClientWidth { get; init; }
+        public int ListViewClientHeight { get; init; }
+        public int SafeColumns { get; init; }
+        public int SafeRows { get; init; }
+        public int SafeRightMargin { get; init; }
+        public int SafeBottomMargin { get; init; }
+        public bool RequestedVsActualValidated { get; set; }
+        public int ExplorerClampFailures { get; set; }
         public DateTimeOffset CreatedUtc { get; init; } = DateTimeOffset.UtcNow;
         public int WorkAreaLeft { get; init; }
         public int WorkAreaTop { get; init; }
@@ -39,11 +55,13 @@ namespace Desktop_Frames.NativeDesktop
         public bool PrimaryMonitorOnly { get; init; } = true;
         public List<DesktopLayoutGroup> Groups { get; init; } = new();
         public List<DesktopLayoutItem> Items { get; init; } = new();
-        public int CentralClearZoneLeft { get; init; }
-        public int CentralClearZoneTop { get; init; }
-        public int CentralClearZoneWidth { get; init; }
-        public int CentralClearZoneHeight { get; init; }
+        public int CentralClearZoneLeft { get; set; }
+        public int CentralClearZoneTop { get; set; }
+        public int CentralClearZoneWidth { get; set; }
+        public int CentralClearZoneHeight { get; set; }
         public bool CentralClearZonePreserved { get; set; }
+        public int ManagedIconsOutsideAssignedBounds { get; set; }
+        public int UnassignedIconsOutsideUnassignedBounds { get; set; }
         public int DuplicateTargetCoordinates { get; set; }
         public int TargetOutsideDesktopWorkArea { get; set; }
     }
@@ -54,6 +72,7 @@ namespace Desktop_Frames.NativeDesktop
         public string GroupDisplayName { get; init; } = string.Empty;
         public string Region { get; init; } = string.Empty;
         public string Anchor { get; init; } = string.Empty;
+        public DesktopRail Rail { get; init; } = DesktopRail.Fixed;
         public int HomeRegionLeft { get; init; }
         public int HomeRegionTop { get; init; }
         public int HomeRegionRight { get; init; }
@@ -67,6 +86,14 @@ namespace Desktop_Frames.NativeDesktop
         public bool UsedFallbackRegion { get; set; }
         public int PlannedItemCount { get; set; }
         public int EligibleItemCount { get; set; }
+        public int HeaderLeft { get; set; }
+        public int HeaderTop { get; set; }
+        public int HeaderWidth { get; set; }
+        public int HeaderHeight { get; set; }
+        public int IconBoundingLeft { get; set; }
+        public int IconBoundingTop { get; set; }
+        public int IconBoundingRight { get; set; }
+        public int IconBoundingBottom { get; set; }
     }
 
     public sealed class DesktopLayoutItem
@@ -85,8 +112,15 @@ namespace Desktop_Frames.NativeDesktop
         public bool IsStableIdentity { get; init; }
         public bool IsShellNamespace { get; init; }
         public bool IsManualOverride { get; init; }
+        public string LayoutArea { get; set; } = string.Empty;
         public bool IsEligibleForApply { get; set; }
         public string ApplyReason { get; set; } = string.Empty;
+        public int ActualX { get; set; }
+        public int ActualY { get; set; }
+        public int DeltaX { get; set; }
+        public int DeltaY { get; set; }
+        public bool TargetSatisfied { get; set; }
+        public string ReadBackReason { get; set; } = string.Empty;
     }
 
     public sealed class NativeDesktopLayoutBatchResult
@@ -102,3 +136,4 @@ namespace Desktop_Frames.NativeDesktop
         public List<string> Errors { get; } = new();
     }
 }
+
