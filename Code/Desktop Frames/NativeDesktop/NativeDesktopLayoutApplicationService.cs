@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using Forms = System.Windows.Forms;
 using Drawing = System.Drawing;
+using Desktop_Frames.Search;
 
 namespace Desktop_Frames.NativeDesktop
 {
@@ -20,6 +21,8 @@ namespace Desktop_Frames.NativeDesktop
         public const bool NativeDesktopLayoutAutoApply = false;
         private const string PlanJsonName = "ui-phase5-3-layout-plan.json";
         private const string BaselineName = "ui-phase5-3-desktop-layout-before.json";
+        private const string CompactPlanJsonName = "ui-phase5-3b-plan.json";
+        private const string CompactBaselineName = "ui-phase5-3b-before.json";
 
         public static bool IsNativeLayoutCommand(IEnumerable<string> args) =>
             args.Any(arg => arg.StartsWith("--native-layout-", StringComparison.OrdinalIgnoreCase));
@@ -33,6 +36,51 @@ namespace Desktop_Frames.NativeDesktop
 
             try
             {
+                if (args.Any(arg => arg.Equals("--native-layout-compact-preview", StringComparison.OrdinalIgnoreCase)))
+                {
+                    DesktopLayoutPlan plan = CreateAndWriteCompactPreview(auditDirectory);
+                    WriteCompactResults(auditDirectory, $"Preview=PASS\nStableIconCount={plan.Items.Count(item => item.IsStableIdentity)}");
+                    return 0;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-layout-compact-refresh", StringComparison.OrdinalIgnoreCase)))
+                {
+                    DesktopLayoutPlan plan = CreateAndWriteCompactPreview(auditDirectory);
+                    foreach (NativeDesktopLayoutGroupId group in new[]
+                    {
+                        NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS,
+                        NativeDesktopLayoutGroupId.AI_DEV,
+                        NativeDesktopLayoutGroupId.RESEARCH_STUDY
+                    })
+                    {
+                        NativeDesktopLayoutBatchResult result = Apply(auditDirectory, plan, group,
+                            CompactBaselineName, "ui-phase5-3b");
+                        if (!result.Applied)
+                            throw new InvalidOperationException($"Compact refresh stopped at {group}: {result.Reason}");
+                    }
+                    return 0;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-layout-compact-restore", StringComparison.OrdinalIgnoreCase)))
+                {
+                    RestoreSnapshot(auditDirectory, CompactBaselineName, "ui-phase5-3b-restore.md");
+                    return 0;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-layout-clean-empty-default-frame", StringComparison.OrdinalIgnoreCase)))
+                {
+                    string? framesPath = ExtractValue(args, "--native-layout-frames=");
+                    EmptyDefaultFrameCleanupResult result = CleanupEmptyDefaultFrame(auditDirectory, framesPath);
+                    WriteCompactResults(auditDirectory, result.ToAuditText());
+                    return result.Removed || !result.Found ? 0 : 1;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-layout-search-smoke", StringComparison.OrdinalIgnoreCase)))
+                {
+                    RunSearchSmoke(auditDirectory);
+                    return 0;
+                }
+
                 if (args.Any(arg => arg.Equals("--native-layout-preview", StringComparison.OrdinalIgnoreCase)))
                 {
                     DesktopLayoutPlan plan = CreateAndWritePreview(auditDirectory);
@@ -101,13 +149,36 @@ namespace Desktop_Frames.NativeDesktop
             return plan;
         }
 
+        public static DesktopLayoutPlan CreateAndWriteCompactPreview(string auditDirectory)
+        {
+            Directory.CreateDirectory(auditDirectory);
+            var layout = new NativeDesktopIconLayoutService();
+            string baselinePath = Path.Combine(auditDirectory, CompactBaselineName);
+            if (!File.Exists(baselinePath))
+                NativeDesktopIconLayoutService.SaveSnapshot(layout.CaptureSnapshot(), baselinePath);
+
+            var metadata = new NativeDesktopLayoutMetadataStore();
+            ManualLayoutResolution manual = metadata.LoadManualResolution();
+            var planner = new NativeDesktopLayoutPlanner(layout, manual.Groups, manual.UnmappedManualPaths);
+            DesktopLayoutPlan plan = planner.CreatePlan();
+            File.WriteAllText(Path.Combine(auditDirectory, CompactPlanJsonName),
+                JsonConvert.SerializeObject(plan, Formatting.Indented), new UTF8Encoding(false));
+            WriteCompactPreview(Path.Combine(auditDirectory, "ui-phase5-3b-preview.md"), plan);
+            WriteUnassignedPreview(Path.Combine(auditDirectory, "ui-phase5-3b-unassigned-preview.md"), plan);
+            WriteLayoutMap(Path.Combine(auditDirectory, "ui-phase5-3b-layout-map.svg"), plan);
+            return plan;
+        }
+
         public static NativeDesktopLayoutBatchResult ApplyNativeDesktopLayout(string auditDirectory, NativeDesktopLayoutGroupId group) =>
             Apply(auditDirectory, LoadOrCreatePlan(auditDirectory), group);
 
         public static NativeDesktopRestoreResult RestoreOriginalDesktopLayout(string auditDirectory)
+            => RestoreSnapshot(auditDirectory, BaselineName, "ui-phase5-3-restore-results.md");
+
+        private static NativeDesktopRestoreResult RestoreSnapshot(string auditDirectory, string baselineName, string resultName)
         {
-            string baselinePath = Path.Combine(auditDirectory, BaselineName);
-            if (!File.Exists(baselinePath)) throw new FileNotFoundException("Phase 5.3 baseline was not found.", baselinePath);
+            string baselinePath = Path.Combine(auditDirectory, baselineName);
+            if (!File.Exists(baselinePath)) throw new FileNotFoundException("Native Desktop layout baseline was not found.", baselinePath);
             var layout = new NativeDesktopIconLayoutService();
             NativeDesktopLayoutSnapshot baseline = NativeDesktopIconLayoutService.LoadSnapshot(baselinePath);
             NativeDesktopSnapshotValidationResult validation = layout.ValidateSnapshot(baseline);
@@ -116,7 +187,7 @@ namespace Desktop_Frames.NativeDesktop
 
             NativeDesktopRestoreResult result = layout.Restore(baseline);
             if (result.Failed != 0) throw new InvalidOperationException("RESTORE_FAILED: " + string.Join("; ", result.Errors));
-            WriteRestore(Path.Combine(auditDirectory, "ui-phase5-3-restore-results.md"), validation, result);
+            WriteRestore(Path.Combine(auditDirectory, resultName), validation, result);
             return result;
         }
 
@@ -128,14 +199,15 @@ namespace Desktop_Frames.NativeDesktop
                 ?? throw new InvalidDataException("Native Desktop layout plan is empty or invalid.");
         }
 
-        private static NativeDesktopLayoutBatchResult Apply(string auditDirectory, DesktopLayoutPlan plan, NativeDesktopLayoutGroupId group)
+        private static NativeDesktopLayoutBatchResult Apply(string auditDirectory, DesktopLayoutPlan plan,
+            NativeDesktopLayoutGroupId group, string baselineName = BaselineName, string auditPrefix = "ui-phase5-3")
         {
             string batchName = BatchName(group);
             var result = new NativeDesktopLayoutBatchResult { BatchName = batchName, GroupId = group };
             if (plan.AutoArrangeEnabled)
             {
                 result.Reason = "AUTO_ARRANGE_ENABLED";
-                WriteBatch(auditDirectory, result, Array.Empty<DesktopLayoutItem>(), Array.Empty<NativeDesktopIconSnapshotItem>(), Array.Empty<NativeDesktopIconSnapshotItem>());
+                WriteBatch(auditDirectory, result, Array.Empty<DesktopLayoutItem>(), Array.Empty<NativeDesktopIconSnapshotItem>(), Array.Empty<NativeDesktopIconSnapshotItem>(), auditPrefix);
                 return result;
             }
             if (plan.DuplicateTargetCoordinates != 0 || plan.TargetOutsideDesktopWorkArea != 0)
@@ -153,8 +225,8 @@ namespace Desktop_Frames.NativeDesktop
                 result.Applied = true;
                 result.FilesystemUnchanged = true;
                 result.Reason = "ALREADY_APPLIED_OR_NO_ELIGIBLE_ITEMS";
-                WriteBatch(auditDirectory, result, candidates, Array.Empty<NativeDesktopIconSnapshotItem>(), Array.Empty<NativeDesktopIconSnapshotItem>());
-                WriteResults(auditDirectory, $"{batchName}=PASS\nGroup={group}\nItemsMoved=0\nReason={result.Reason}\nFilesystemUnchanged=True\nOtherUnmanagedIconsChanged=False");
+                WriteBatch(auditDirectory, result, candidates, Array.Empty<NativeDesktopIconSnapshotItem>(), Array.Empty<NativeDesktopIconSnapshotItem>(), auditPrefix);
+                WriteApplyResult(auditDirectory, auditPrefix, $"{batchName}=PASS\nGroup={group}\nItemsMoved=0\nReason={result.Reason}\nFilesystemUnchanged=True\nOtherUnmanagedIconsChanged=False");
                 return result;
             }
 
@@ -166,7 +238,7 @@ namespace Desktop_Frames.NativeDesktop
                 return result;
             }
 
-            string baselinePath = Path.Combine(auditDirectory, BaselineName);
+            string baselinePath = Path.Combine(auditDirectory, baselineName);
             if (!File.Exists(baselinePath))
                 NativeDesktopIconLayoutService.SaveSnapshot(layout.CaptureSnapshot(), baselinePath);
             NativeDesktopLayoutSnapshot baseline = NativeDesktopIconLayoutService.LoadSnapshot(baselinePath);
@@ -182,8 +254,29 @@ namespace Desktop_Frames.NativeDesktop
             if (!TargetsAreVacant(layout.EnumerateDesktopIcons(), candidates, plan, state))
             {
                 result.Reason = "TARGET_SLOT_OCCUPIED";
-                WriteBatch(auditDirectory, result, candidates, before.Icons, before.Icons);
+                WriteBatch(auditDirectory, result, candidates, before.Icons, before.Icons, auditPrefix);
                 return result;
+            }
+
+            IReadOnlyList<(DesktopLayoutItem Item, int X, int Y)> staging =
+                BuildStagingPositions(layout.EnumerateDesktopIcons(), candidates, plan, state);
+            if (staging.Count != candidates.Count)
+            {
+                result.Reason = "NO_SAFE_STAGING_SLOTS";
+                WriteBatch(auditDirectory, result, candidates, before.Icons, before.Icons, auditPrefix);
+                return result;
+            }
+
+            foreach ((DesktopLayoutItem item, int x, int y) in staging)
+            {
+                if (!layout.TrySetPosition(item.OriginalPath, x, y, out _, out string reason))
+                {
+                    result.Errors.Add($"{item.DisplayName} staging: {reason}");
+                    NativeDesktopRestoreResult rollback = layout.Restore(before);
+                    result.Reason = rollback.Failed == 0 ? "STAGING_FAILED_ROLLED_BACK" : "STAGING_FAILED_ROLLBACK_FAILED";
+                    WriteBatch(auditDirectory, result, candidates, before.Icons, layout.CaptureSnapshot().Icons, auditPrefix);
+                    return result;
+                }
             }
 
             foreach (DesktopLayoutItem candidate in candidates)
@@ -193,7 +286,7 @@ namespace Desktop_Frames.NativeDesktop
                     result.Errors.Add($"{candidate.DisplayName}: {reason}");
                     NativeDesktopRestoreResult rollback = layout.Restore(before);
                     result.Reason = rollback.Failed == 0 ? "APPLY_FAILED_ROLLED_BACK" : "APPLY_FAILED_ROLLBACK_FAILED";
-                    WriteBatch(auditDirectory, result, candidates, before.Icons, layout.CaptureSnapshot().Icons);
+                    WriteBatch(auditDirectory, result, candidates, before.Icons, layout.CaptureSnapshot().Icons, auditPrefix);
                     return result;
                 }
                 result.Moved++;
@@ -207,16 +300,50 @@ namespace Desktop_Frames.NativeDesktop
             {
                 NativeDesktopRestoreResult rollback = layout.Restore(before);
                 result.Reason = rollback.Failed == 0 ? "POST_APPLY_VERIFICATION_FAILED_ROLLED_BACK" : "POST_APPLY_VERIFICATION_FAILED_ROLLBACK_FAILED";
-                WriteBatch(auditDirectory, result, candidates, before.Icons, layout.CaptureSnapshot().Icons);
+                WriteBatch(auditDirectory, result, candidates, before.Icons, layout.CaptureSnapshot().Icons, auditPrefix);
                 return result;
             }
 
             new NativeDesktopLayoutMetadataStore().PersistLayoutGroups(candidates);
             result.Applied = true;
             result.Reason = "APPLIED";
-            WriteBatch(auditDirectory, result, candidates, before.Icons, after.Icons);
-            WriteResults(auditDirectory, $"{batchName}=PASS\nGroup={group}\nItemsMoved={result.Moved}\nSnapshotDryRun=PASS CanResolve={validation.CanResolve}\nFilesystemUnchanged={result.FilesystemUnchanged}\nOtherUnmanagedIconsChanged={result.OtherUnmanagedIconsChanged}");
+            WriteBatch(auditDirectory, result, candidates, before.Icons, after.Icons, auditPrefix);
+            WriteApplyResult(auditDirectory, auditPrefix, $"{batchName}=PASS\nGroup={group}\nItemsMoved={result.Moved}\nSnapshotDryRun=PASS CanResolve={validation.CanResolve}\nFilesystemUnchanged={result.FilesystemUnchanged}\nOtherUnmanagedIconsChanged={result.OtherUnmanagedIconsChanged}");
             return result;
+        }
+
+        private static IReadOnlyList<(DesktopLayoutItem Item, int X, int Y)> BuildStagingPositions(
+            IReadOnlyList<NativeDesktopIconState> current, IReadOnlyList<DesktopLayoutItem> candidates,
+            DesktopLayoutPlan plan, NativeDesktopListViewState state)
+        {
+            Drawing.Rectangle work = new(plan.WorkAreaLeft, plan.WorkAreaTop, plan.WorkAreaWidth, plan.WorkAreaHeight);
+            int gridX = Math.Max(1, state.GridSpacingX);
+            int gridY = Math.Max(1, state.GridSpacingY);
+            var unavailable = current.Select(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, work, gridX, gridY))
+                .Concat(candidates.Select(item => NativeDesktopLayoutPlanner.SlotKey(item.TargetX, item.TargetY, work, gridX, gridY)))
+                .ToHashSet(StringComparer.Ordinal);
+            var staging = new List<(DesktopLayoutItem Item, int X, int Y)>();
+            int columns = Math.Max(1, (work.Width - 1) / gridX) + 1;
+            int rows = Math.Max(1, (work.Height - 1) / gridY) + 1;
+
+            foreach (DesktopLayoutItem item in candidates)
+            {
+                bool found = false;
+                for (int row = rows - 1; row >= 0 && !found; row--)
+                for (int column = columns - 1; column >= 0; column--)
+                {
+                    int x = work.Left + (column * gridX);
+                    int y = work.Top + (row * gridY);
+                    string key = NativeDesktopLayoutPlanner.SlotKey(x, y, work, gridX, gridY);
+                    if (unavailable.Contains(key)) continue;
+                    unavailable.Add(key);
+                    staging.Add((item, x, y));
+                    found = true;
+                    break;
+                }
+                if (!found) return Array.Empty<(DesktopLayoutItem Item, int X, int Y)>();
+            }
+            return staging;
         }
 
         private static bool TargetsAreVacant(IReadOnlyList<NativeDesktopIconState> current, IReadOnlyList<DesktopLayoutItem> candidates,
@@ -303,8 +430,142 @@ namespace Desktop_Frames.NativeDesktop
             File.WriteAllText(path, markdown.ToString(), new UTF8Encoding(false));
         }
 
+        private static void WriteCompactPreview(string path, DesktopLayoutPlan plan)
+        {
+            var markdown = new StringBuilder("# UI Phase 5.3b Compact Reflow Preview\n\n");
+            markdown.AppendLine($"- LayoutMode: {plan.LayoutMode}; UnassignedLayoutMode: {plan.UnassignedLayoutMode}");
+            markdown.AppendLine($"- DesktopWorkArea: {plan.WorkAreaWidth}x{plan.WorkAreaHeight}; DPI: {plan.Dpi}; Grid: {plan.GridSpacingX}x{plan.GridSpacingY}");
+            markdown.AppendLine($"- CentralClearZone: {plan.CentralClearZoneLeft},{plan.CentralClearZoneTop} {plan.CentralClearZoneWidth}x{plan.CentralClearZoneHeight}; preserved: {plan.CentralClearZonePreserved}");
+            markdown.AppendLine($"- DuplicateTargetCoordinates: {plan.DuplicateTargetCoordinates}; TargetOutsideWorkArea: {plan.TargetOutsideDesktopWorkArea}\n");
+            markdown.AppendLine("| Group | Anchor | Columns | Rows | AspectRatio | Fragmentation | Fallback | Classified | Eligible |");
+            markdown.AppendLine("|---|---|---:|---:|---:|---:|---|---:|---:|");
+            foreach (DesktopLayoutGroup group in plan.Groups)
+                markdown.AppendLine($"| {Cell(group.GroupDisplayName)} | {group.Anchor} | {group.Columns} | {group.Rows} | {group.AspectRatio:0.###} | {group.FragmentationCount} | {group.UsedFallbackRegion} | {group.PlannedItemCount} | {group.EligibleItemCount} |");
+            markdown.AppendLine();
+            markdown.AppendLine("| Name | Group | Current | Target | Eligible | Reason |");
+            markdown.AppendLine("|---|---|---|---|---|---|");
+            foreach (DesktopLayoutItem item in plan.Items.OrderBy(item => item.LayoutGroupId).ThenBy(item => item.TargetY).ThenBy(item => item.TargetX))
+                markdown.AppendLine($"| {Cell(item.DisplayName)} | {item.LayoutGroupId} | ({item.CurrentX}, {item.CurrentY}) | ({item.TargetX}, {item.TargetY}) | {item.IsEligibleForApply} | {item.ApplyReason} |");
+            File.WriteAllText(path, markdown.ToString(), new UTF8Encoding(false));
+        }
+
+        private static void WriteUnassignedPreview(string path, DesktopLayoutPlan plan)
+        {
+            List<DesktopLayoutItem> items = plan.Items.Where(item => item.LayoutGroupId == NativeDesktopLayoutGroupId.UNASSIGNED.ToString()).ToList();
+            int columns = Math.Min(5, Math.Max(1, (int)Math.Ceiling(Math.Sqrt(items.Count))));
+            int rows = (int)Math.Ceiling(items.Count / (double)columns);
+            int totalColumns = Math.Max(1, (plan.WorkAreaWidth - 1) / Math.Max(1, plan.GridSpacingX)) + 1;
+            int totalRows = Math.Max(1, (plan.WorkAreaHeight - 1) / Math.Max(1, plan.GridSpacingY)) + 1;
+            int left = Math.Max(0, totalColumns - columns);
+            int top = Math.Max(0, totalRows - rows);
+            var markdown = new StringBuilder("# UI Phase 5.3b Unassigned Compact Preview\n\n");
+            markdown.AppendLine("ApplyUnassigned=false\n");
+            markdown.AppendLine("This is a coordinate simulation only. Shell namespace, ambiguous, and unassigned items remain untouched.\n");
+            markdown.AppendLine("| Name | Current | SimulatedBottomRightTarget |");
+            markdown.AppendLine("|---|---|---|");
+            for (int index = 0; index < items.Count; index++)
+            {
+                int x = plan.WorkAreaLeft + ((left + (index % columns)) * plan.GridSpacingX);
+                int y = plan.WorkAreaTop + ((top + (index / columns)) * plan.GridSpacingY);
+                markdown.AppendLine($"| {Cell(items[index].DisplayName)} | ({items[index].CurrentX}, {items[index].CurrentY}) | ({x}, {y}) |");
+            }
+            File.WriteAllText(path, markdown.ToString(), new UTF8Encoding(false));
+        }
+
+        private static void WriteLayoutMap(string path, DesktopLayoutPlan plan)
+        {
+            static string Color(string group) => group switch
+            {
+                "RESEARCH_STUDY" => "#1f8a70",
+                "AI_DEV" => "#2563a6",
+                "OFFICE_DOCUMENTS" => "#c07a24",
+                _ => "#777777"
+            };
+            static string Xml(string value) => System.Security.SecurityElement.Escape(value) ?? string.Empty;
+
+            var svg = new StringBuilder();
+            svg.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{plan.WorkAreaWidth}\" height=\"{plan.WorkAreaHeight}\" viewBox=\"0 0 {plan.WorkAreaWidth} {plan.WorkAreaHeight}\">");
+            svg.AppendLine("<rect width=\"100%\" height=\"100%\" fill=\"#f2f4f6\"/>");
+            svg.AppendLine($"<rect x=\"{plan.CentralClearZoneLeft}\" y=\"{plan.CentralClearZoneTop}\" width=\"{plan.CentralClearZoneWidth}\" height=\"{plan.CentralClearZoneHeight}\" fill=\"none\" stroke=\"#8a929a\" stroke-dasharray=\"12 10\" stroke-width=\"3\"/>");
+            svg.AppendLine($"<text x=\"{plan.CentralClearZoneLeft + 12}\" y=\"{plan.CentralClearZoneTop + 28}\" font-family=\"Segoe UI\" font-size=\"20\" fill=\"#59616a\">Central clear zone</text>");
+            foreach (DesktopLayoutItem item in plan.Items)
+            {
+                bool managed = item.LayoutGroupId is "RESEARCH_STUDY" or "AI_DEV" or "OFFICE_DOCUMENTS";
+                string fill = managed ? Color(item.LayoutGroupId) : "#9aa1a8";
+                int x = item.TargetX + 4;
+                int y = item.TargetY + 4;
+                svg.AppendLine($"<rect x=\"{x}\" y=\"{y}\" width=\"{Math.Max(20, plan.GridSpacingX - 8)}\" height=\"{Math.Max(20, plan.GridSpacingY - 8)}\" rx=\"3\" fill=\"{fill}\" opacity=\"{(managed ? "0.88" : "0.38")}\"><title>{Xml(item.DisplayName)} [{item.LayoutGroupId}]</title></rect>");
+            }
+            svg.AppendLine("</svg>");
+            File.WriteAllText(path, svg.ToString(), new UTF8Encoding(false));
+        }
+
+        private static EmptyDefaultFrameCleanupResult CleanupEmptyDefaultFrame(string auditDirectory, string? explicitFramesPath)
+        {
+            string framesPath = string.IsNullOrWhiteSpace(explicitFramesPath)
+                ? ProfileManager.GetProfileFilePath("frames.json")
+                : Path.GetFullPath(explicitFramesPath);
+            var result = new EmptyDefaultFrameCleanupResult { FramesPath = framesPath };
+            if (!File.Exists(framesPath)) return result;
+
+            JArray frames = JArray.Parse(File.ReadAllText(framesPath, Encoding.UTF8));
+            List<JObject> matches = frames.OfType<JObject>().Where(IsConfirmedEmptyDefaultFrame).ToList();
+            result.Found = matches.Count > 0;
+            result.MatchCount = matches.Count;
+            if (matches.Count != 1)
+            {
+                result.Reason = matches.Count == 0 ? "NO_CONFIRMED_EMPTY_DEFAULT_FRAME" : "AMBIGUOUS_MULTIPLE_DEFAULT_FRAMES";
+                return result;
+            }
+
+            string backupDirectory = Path.Combine(auditDirectory, "backups", "ui-phase5-3b");
+            Directory.CreateDirectory(backupDirectory);
+            string backupPath = Path.Combine(backupDirectory, "frames-before-empty-default-cleanup.json");
+            File.Copy(framesPath, backupPath, overwrite: true);
+            result.BackupPath = backupPath;
+            frames.Remove(matches[0]);
+            File.WriteAllText(framesPath, frames.ToString(Formatting.Indented), new UTF8Encoding(false));
+            result.Removed = true;
+            result.Reason = "CONFIRMED_EMPTY_NON_SYSTEM_DEFAULT_FRAME_REMOVED";
+            return result;
+        }
+
+        private static bool IsConfirmedEmptyDefaultFrame(JObject frame)
+        {
+            string title = frame["Title"]?.ToString().Trim() ?? string.Empty;
+            bool builtInTitle = title.Equals("New Frame - Drop your shortcuts here", StringComparison.Ordinal) ||
+                title.Equals("新建分组 - 将快捷方式拖到这里", StringComparison.Ordinal);
+            return builtInTitle && frame["ItemsType"]?.ToString().Equals("Data", StringComparison.OrdinalIgnoreCase) == true &&
+                string.IsNullOrWhiteSpace(frame["SystemFrameId"]?.ToString()) &&
+                ((frame["Items"] as JArray)?.Count ?? 0) == 0 && ((frame["Tabs"] as JArray)?.Count ?? 0) == 0;
+        }
+
+        private static void RunSearchSmoke(string auditDirectory)
+        {
+            var service = new SearchService();
+            service.Refresh();
+            string[] queries = { "Codex", "论文", "PDF" };
+            var markdown = new StringBuilder("# UI Phase 5.3b SpotSearch Smoke Test\n\n");
+            bool passed = true;
+            foreach (string query in queries)
+            {
+                IReadOnlyList<SearchResult> results = service.Search(query, 5);
+                bool found = results.Count > 0;
+                passed &= found;
+                markdown.AppendLine($"## {query}\n");
+                markdown.AppendLine($"Result={ (found ? "PASS" : "FAIL") }\n");
+                foreach (SearchResult result in results)
+                    markdown.AppendLine($"- {result.DisplayName} | {result.OriginalPath} | {result.SourceProvider}");
+                markdown.AppendLine();
+            }
+            markdown.AppendLine($"SearchRegression={(passed ? "PASS" : "FAIL")}");
+            File.WriteAllText(Path.Combine(auditDirectory, "ui-phase5-3b-search.md"), markdown.ToString(), new UTF8Encoding(false));
+            if (!passed) throw new InvalidOperationException("SPOT_SEARCH_SMOKE_FAILED");
+        }
+
         private static void WriteBatch(string auditDirectory, NativeDesktopLayoutBatchResult result, IReadOnlyList<DesktopLayoutItem> candidates,
-            IReadOnlyList<NativeDesktopIconSnapshotItem> before, IReadOnlyList<NativeDesktopIconSnapshotItem> after)
+            IReadOnlyList<NativeDesktopIconSnapshotItem> before, IReadOnlyList<NativeDesktopIconSnapshotItem> after,
+            string auditPrefix = "ui-phase5-3")
         {
             var afterByPath = after.Where(item => item.IdentityStatus == NativeIconIdentityStatus.StablePath)
                 .GroupBy(item => NormalizePath(item.OriginalPath), StringComparer.OrdinalIgnoreCase)
@@ -320,7 +581,7 @@ namespace Desktop_Frames.NativeDesktop
                 csv.Append(Csv(item.DisplayName)).Append(',').Append(oldItem?.X ?? item.CurrentX).Append(',').Append(oldItem?.Y ?? item.CurrentY)
                     .Append(',').Append(newItem?.X ?? item.CurrentX).Append(',').Append(newItem?.Y ?? item.CurrentY).Append("\r\n");
             }
-            File.WriteAllText(Path.Combine(auditDirectory, $"ui-phase5-3-{result.BatchName.ToLowerInvariant()}.csv"), csv.ToString(), new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(auditDirectory, $"{auditPrefix}-{result.BatchName.ToLowerInvariant()}.csv"), csv.ToString(), new UTF8Encoding(false));
         }
 
         private static void WriteRestore(string path, NativeDesktopSnapshotValidationResult validation, NativeDesktopRestoreResult result)
@@ -330,6 +591,18 @@ namespace Desktop_Frames.NativeDesktop
 
         private static void WriteResults(string auditDirectory, string content) =>
             File.WriteAllText(Path.Combine(auditDirectory, "ui-phase5-3-layout-results.md"), "# UI Phase 5.3 Native Layout Results\n\n" + content + "\n", new UTF8Encoding(false));
+
+        private static void WriteCompactResults(string auditDirectory, string content) =>
+            File.WriteAllText(Path.Combine(auditDirectory, "ui-phase5-3b-command-log.md"),
+                "# UI Phase 5.3b Command Log\n\n" + content + "\n", new UTF8Encoding(false));
+
+        private static void WriteApplyResult(string auditDirectory, string auditPrefix, string content)
+        {
+            if (string.Equals(auditPrefix, "ui-phase5-3b", StringComparison.OrdinalIgnoreCase))
+                WriteCompactResults(auditDirectory, content);
+            else
+                WriteResults(auditDirectory, content);
+        }
 
         private static string BatchName(NativeDesktopLayoutGroupId group) => group switch
         {
@@ -441,6 +714,20 @@ namespace Desktop_Frames.NativeDesktop
         public string LayoutGroupId { get; set; } = string.Empty;
         public bool IsManualOverride { get; set; }
         public DateTimeOffset UpdatedUtc { get; set; }
+    }
+
+    internal sealed class EmptyDefaultFrameCleanupResult
+    {
+        public string FramesPath { get; init; } = string.Empty;
+        public bool Found { get; set; }
+        public int MatchCount { get; set; }
+        public bool Removed { get; set; }
+        public string BackupPath { get; set; } = string.Empty;
+        public string Reason { get; set; } = "FRAMES_FILE_NOT_FOUND";
+
+        public string ToAuditText() =>
+            $"EmptyDefaultFrameFound={Found}\nEmptyDefaultFrameMatches={MatchCount}\n" +
+            $"EmptyDefaultFrameRemoved={Removed}\nFramesPath={FramesPath}\nBackupPath={BackupPath}\nReason={Reason}";
     }
 
     internal sealed class DesktopFilesystemFingerprint : IEquatable<DesktopFilesystemFingerprint>

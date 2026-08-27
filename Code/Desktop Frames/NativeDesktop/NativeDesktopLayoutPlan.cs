@@ -14,10 +14,18 @@ namespace Desktop_Frames.NativeDesktop
         UNASSIGNED
     }
 
+    public enum NativeDesktopLayoutMode
+    {
+        Legacy,
+        CompactGrouped
+    }
+
     /// <summary>Serializable, side-effect-free result of native Desktop layout planning.</summary>
     public sealed class DesktopLayoutPlan
     {
-        public int Version { get; init; } = 1;
+        public int Version { get; init; } = 2;
+        public string LayoutMode { get; init; } = NativeDesktopLayoutMode.CompactGrouped.ToString();
+        public string UnassignedLayoutMode { get; init; } = "PRESERVE";
         public DateTimeOffset CreatedUtc { get; init; } = DateTimeOffset.UtcNow;
         public int WorkAreaLeft { get; init; }
         public int WorkAreaTop { get; init; }
@@ -31,6 +39,11 @@ namespace Desktop_Frames.NativeDesktop
         public bool PrimaryMonitorOnly { get; init; } = true;
         public List<DesktopLayoutGroup> Groups { get; init; } = new();
         public List<DesktopLayoutItem> Items { get; init; } = new();
+        public int CentralClearZoneLeft { get; init; }
+        public int CentralClearZoneTop { get; init; }
+        public int CentralClearZoneWidth { get; init; }
+        public int CentralClearZoneHeight { get; init; }
+        public bool CentralClearZonePreserved { get; set; }
         public int DuplicateTargetCoordinates { get; set; }
         public int TargetOutsideDesktopWorkArea { get; set; }
     }
@@ -40,6 +53,18 @@ namespace Desktop_Frames.NativeDesktop
         public NativeDesktopLayoutGroupId GroupId { get; init; }
         public string GroupDisplayName { get; init; } = string.Empty;
         public string Region { get; init; } = string.Empty;
+        public string Anchor { get; init; } = string.Empty;
+        public int HomeRegionLeft { get; init; }
+        public int HomeRegionTop { get; init; }
+        public int HomeRegionRight { get; init; }
+        public int HomeRegionBottom { get; init; }
+        public int Columns { get; set; }
+        public int Rows { get; set; }
+        public int BoundingWidthGridSlots { get; set; }
+        public int BoundingHeightGridSlots { get; set; }
+        public double AspectRatio { get; set; }
+        public int FragmentationCount { get; set; }
+        public bool UsedFallbackRegion { get; set; }
         public int PlannedItemCount { get; set; }
         public int EligibleItemCount { get; set; }
     }

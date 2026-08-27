@@ -1,0 +1,690 @@
+{
+  "Version": 1,
+  "CreatedUtc": "2026-08-27T09:20:18.6928261+00:00",
+  "AutoArrangeEnabled": false,
+  "AlignToGridEnabled": true,
+  "GridSpacingX": 75,
+  "GridSpacingY": 100,
+  "Icons": [
+    {
+      "Identity": "shell-display:此电脑",
+      "OriginalPath": "",
+      "DisplayName": "此电脑",
+      "IdentityStatus": 2,
+      "X": 13,
+      "Y": 102
+    },
+    {
+      "Identity": "shell-display:回收站",
+      "OriginalPath": "",
+      "DisplayName": "回收站",
+      "IdentityStatus": 2,
+      "X": 13,
+      "Y": 202
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\16_90页正式版V1全量质检",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\16_90页正式版V1全量质检",
+      "DisplayName": "16_90页正式版V1全量质检",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 302
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\17_老师旧PPT_vs_90页V1信息密度对比",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\17_老师旧PPT_vs_90页V1信息密度对比",
+      "DisplayName": "17_老师旧PPT_vs_90页V1信息密度对比",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 402
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\687c8c5c-06d5-4a44-88c5-36fd278e8c96",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\687c8c5c-06d5-4a44-88c5-36fd278e8c96",
+      "DisplayName": "687c8c5c-06d5-4a44-88c5-36fd278e8c96",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\0731bdd8-dc69-458b-b01b-da03e90d9617",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\0731bdd8-dc69-458b-b01b-da03e90d9617",
+      "DisplayName": "0731bdd8-dc69-458b-b01b-da03e90d9617",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 602
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\AI工具学习",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\AI工具学习",
+      "DisplayName": "AI工具学习",
+      "IdentityStatus": 0,
+      "X": 613,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\DesktopHub",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\DesktopHub",
+      "DisplayName": "DesktopHub",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 802
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\HUNNU-Research-Harness",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\HUNNU-Research-Harness",
+      "DisplayName": "HUNNU-Research-Harness",
+      "IdentityStatus": 0,
+      "X": 688,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\HUNNU-Research-Harness-Output",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\HUNNU-Research-Harness-Output",
+      "DisplayName": "HUNNU-Research-Harness-Output",
+      "IdentityStatus": 0,
+      "X": 763,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Kimi_K3_9页视觉小样素材包_V1",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Kimi_K3_9页视觉小样素材包_V1",
+      "DisplayName": "Kimi_K3_9页视觉小样素材包_V1",
+      "IdentityStatus": 0,
+      "X": 1438,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Kimi_K3_PPT研究资料交接包_V1",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Kimi_K3_PPT研究资料交接包_V1",
+      "DisplayName": "Kimi_K3_PPT研究资料交接包_V1",
+      "IdentityStatus": 0,
+      "X": 838,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\NINE SOLS ARTBOOK_Digital",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\NINE SOLS ARTBOOK_Digital",
+      "DisplayName": "NINE SOLS ARTBOOK_Digital",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 1302
+    },
+    {
+      "Identity": "ambiguous-display:The Seance of Blake Manor",
+      "OriginalPath": "",
+      "DisplayName": "The Seance of Blake Manor",
+      "IdentityStatus": 1,
+      "X": 88,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\健身环大冒险 [版本1.2(1).0]",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\健身环大冒险 [版本1.2(1).0]",
+      "DisplayName": "健身环大冒险 [版本1.2(1).0]",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 102
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\科研相关Skills-KimiWork-20260821",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\科研相关Skills-KimiWork-20260821",
+      "DisplayName": "科研相关Skills-KimiWork-20260821",
+      "IdentityStatus": 0,
+      "X": 13,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\炉石MOD",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\炉石MOD",
+      "DisplayName": "炉石MOD",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 302
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\论文下载",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\论文下载",
+      "DisplayName": "论文下载",
+      "IdentityStatus": 0,
+      "X": 538,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\日常",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\日常",
+      "DisplayName": "日常",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\数据-AI漂洗",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\数据-AI漂洗",
+      "DisplayName": "数据-AI漂洗",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 602
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\太吾公式",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\太吾公式",
+      "DisplayName": "太吾公式",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 702
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Hades II.url",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Hades II.url",
+      "DisplayName": "Hades II",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 802
+    },
+    {
+      "Identity": "ambiguous-display:The Seance of Blake Manor",
+      "OriginalPath": "",
+      "DisplayName": "The Seance of Blake Manor",
+      "IdentityStatus": 1,
+      "X": 88,
+      "Y": 902
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\九日.url",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\九日.url",
+      "DisplayName": "九日",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 1002
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\双点博物馆.url",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\双点博物馆.url",
+      "DisplayName": "双点博物馆",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 1102
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\死亡空间.url",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\死亡空间.url",
+      "DisplayName": "死亡空间",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 1202
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\太吾绘卷：天幕心帷.url",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\太吾绘卷：天幕心帷.url",
+      "DisplayName": "太吾绘卷：天幕心帷",
+      "IdentityStatus": 0,
+      "X": 88,
+      "Y": 1302
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\勇气默示录 FLYING FAIRY HD Remaster.url",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\勇气默示录 FLYING FAIRY HD Remaster.url",
+      "DisplayName": "勇气默示录 FLYING FAIRY HD Remaster",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\论文 - 快捷方式.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\论文 - 快捷方式.lnk",
+      "DisplayName": "论文 - 快捷方式",
+      "IdentityStatus": 0,
+      "X": 1063,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\西部世界VPN.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\西部世界VPN.lnk",
+      "DisplayName": "西部世界VPN",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 702
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\夸克网盘.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\夸克网盘.lnk",
+      "DisplayName": "夸克网盘",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 902
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Battle.net.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Battle.net.lnk",
+      "DisplayName": "Battle.net",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 1102
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Clash Verge.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Clash Verge.lnk",
+      "DisplayName": "Clash Verge",
+      "IdentityStatus": 0,
+      "X": 2038,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Creative App.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Creative App.lnk",
+      "DisplayName": "Creative App",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 1302
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Free Download Manager.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Free Download Manager.lnk",
+      "DisplayName": "Free Download Manager",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Google Chrome.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Google Chrome.lnk",
+      "DisplayName": "Google Chrome",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 102
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\LibreOffice 26.2.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\LibreOffice 26.2.lnk",
+      "DisplayName": "LibreOffice 26.2",
+      "IdentityStatus": 0,
+      "X": 913,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Logitech G HUB.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Logitech G HUB.lnk",
+      "DisplayName": "Logitech G HUB",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 402
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Microsoft Edge.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Microsoft Edge.lnk",
+      "DisplayName": "Microsoft Edge",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\NVIDIA App.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\NVIDIA App.lnk",
+      "DisplayName": "NVIDIA App",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 602
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Obsidian.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Obsidian.lnk",
+      "DisplayName": "Obsidian",
+      "IdentityStatus": 0,
+      "X": 1138,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Pixel Repair.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Pixel Repair.lnk",
+      "DisplayName": "Pixel Repair",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 802
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Revo Uninstaller Pro.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Revo Uninstaller Pro.lnk",
+      "DisplayName": "Revo Uninstaller Pro",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 902
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Steam.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Steam.lnk",
+      "DisplayName": "Steam",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 1002
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\WorkBuddy.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\WorkBuddy.lnk",
+      "DisplayName": "WorkBuddy",
+      "IdentityStatus": 0,
+      "X": 1813,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\Zotero.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\Zotero.lnk",
+      "DisplayName": "Zotero",
+      "IdentityStatus": 0,
+      "X": 463,
+      "Y": 102
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\不心动才有鬼.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\不心动才有鬼.lnk",
+      "DisplayName": "不心动才有鬼",
+      "IdentityStatus": 0,
+      "X": 238,
+      "Y": 1302
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\飞智空间站 4.0.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\飞智空间站 4.0.lnk",
+      "DisplayName": "飞智空间站 4.0",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\爐石戰記.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\爐石戰記.lnk",
+      "DisplayName": "爐石戰記",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 102
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\微信.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\微信.lnk",
+      "DisplayName": "微信",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 202
+    },
+    {
+      "Identity": "path:C:\\Users\\Public\\Desktop\\迅游加速器.lnk",
+      "OriginalPath": "C:\\Users\\Public\\Desktop\\迅游加速器.lnk",
+      "DisplayName": "迅游加速器",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 302
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\.ssh - 快捷方式.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\.ssh - 快捷方式.lnk",
+      "DisplayName": ".ssh - 快捷方式",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 402
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\BepInEx - 快捷方式.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\BepInEx - 快捷方式.lnk",
+      "DisplayName": "BepInEx - 快捷方式",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Cheat Engine.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Cheat Engine.lnk",
+      "DisplayName": "Cheat Engine",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 602
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Codex++ 管理工具.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Codex++ 管理工具.lnk",
+      "DisplayName": "Codex++ 管理工具",
+      "IdentityStatus": 0,
+      "X": 1738,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Codex++.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Codex++.lnk",
+      "DisplayName": "Codex++",
+      "IdentityStatus": 0,
+      "X": 1663,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Firestone.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Firestone.lnk",
+      "DisplayName": "Firestone",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 902
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Firestone2Green 启动 Firestone.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Firestone2Green 启动 Firestone.lnk",
+      "DisplayName": "Firestone2Green 启动 Firestone",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 1002
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Graduate_Research - 快捷方式.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Graduate_Research - 快捷方式.lnk",
+      "DisplayName": "Graduate_Research - 快捷方式",
+      "IdentityStatus": 0,
+      "X": 913,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Hearthstone Deck Tracker.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Hearthstone Deck Tracker.lnk",
+      "DisplayName": "Hearthstone Deck Tracker",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 1202
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Language Reactor.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Language Reactor.lnk",
+      "DisplayName": "Language Reactor",
+      "IdentityStatus": 0,
+      "X": 313,
+      "Y": 1302
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Logs - 快捷方式.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Logs - 快捷方式.lnk",
+      "DisplayName": "Logs - 快捷方式",
+      "IdentityStatus": 0,
+      "X": 388,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\MSI Afterburner.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\MSI Afterburner.lnk",
+      "DisplayName": "MSI Afterburner",
+      "IdentityStatus": 0,
+      "X": 388,
+      "Y": 102
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Run-ClashVerge-TunRescue.cmd - 快捷方式.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Run-ClashVerge-TunRescue.cmd - 快捷方式.lnk",
+      "DisplayName": "Run-ClashVerge-TunRescue.cmd - 快捷方式",
+      "IdentityStatus": 0,
+      "X": 2113,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\StataMP 18 (64-bit).lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\StataMP 18 (64-bit).lnk",
+      "DisplayName": "StataMP 18 (64-bit)",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 102
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\SteamTools.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\SteamTools.lnk",
+      "DisplayName": "SteamTools",
+      "IdentityStatus": 0,
+      "X": 388,
+      "Y": 402
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\THE MERMAID MASK.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\THE MERMAID MASK.lnk",
+      "DisplayName": "THE MERMAID MASK",
+      "IdentityStatus": 0,
+      "X": 388,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Visual Studio Code.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Visual Studio Code.lnk",
+      "DisplayName": "Visual Studio Code",
+      "IdentityStatus": 0,
+      "X": 2188,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\ZCode.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\ZCode.lnk",
+      "DisplayName": "ZCode",
+      "IdentityStatus": 0,
+      "X": 2263,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\zhong - Chrome.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\zhong - Chrome.lnk",
+      "DisplayName": "zhong - Chrome",
+      "IdentityStatus": 0,
+      "X": 388,
+      "Y": 802
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\百度网盘.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\百度网盘.lnk",
+      "DisplayName": "百度网盘",
+      "IdentityStatus": 0,
+      "X": 388,
+      "Y": 902
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\查看WSL状态.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\查看WSL状态.lnk",
+      "DisplayName": "查看WSL状态",
+      "IdentityStatus": 0,
+      "X": 1888,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\电池模式-关闭wsl.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\电池模式-关闭wsl.lnk",
+      "DisplayName": "电池模式-关闭wsl",
+      "IdentityStatus": 0,
+      "X": 1963,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\科研模式-启动wsl.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\科研模式-启动wsl.lnk",
+      "DisplayName": "科研模式-启动wsl",
+      "IdentityStatus": 0,
+      "X": 988,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\ppt",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\ppt",
+      "DisplayName": "ppt",
+      "IdentityStatus": 0,
+      "X": 463,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Temp",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Temp",
+      "DisplayName": "Temp",
+      "IdentityStatus": 0,
+      "X": 463,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Claude Profile Switcher.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Claude Profile Switcher.lnk",
+      "DisplayName": "Claude Profile Switcher",
+      "IdentityStatus": 0,
+      "X": 1588,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Claude - Pro2.lnk",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Claude - Pro2.lnk",
+      "DisplayName": "Claude - Pro2",
+      "IdentityStatus": 0,
+      "X": 1513,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\Claude-Code-Desktop-Switcher-GUI",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\Claude-Code-Desktop-Switcher-GUI",
+      "DisplayName": "Claude-Code-Desktop-Switcher-GUI",
+      "IdentityStatus": 0,
+      "X": 1363,
+      "Y": 2
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\文档",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\文档",
+      "DisplayName": "文档",
+      "IdentityStatus": 0,
+      "X": 163,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\PDF",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\PDF",
+      "DisplayName": "PDF",
+      "IdentityStatus": 0,
+      "X": 538,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\数据表格",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\数据表格",
+      "DisplayName": "数据表格",
+      "IdentityStatus": 0,
+      "X": 613,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\图片",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\图片",
+      "DisplayName": "图片",
+      "IdentityStatus": 0,
+      "X": 688,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\压缩包",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\压缩包",
+      "DisplayName": "压缩包",
+      "IdentityStatus": 0,
+      "X": 763,
+      "Y": 502
+    },
+    {
+      "Identity": "path:C:\\Users\\71966\\Desktop\\安装包",
+      "OriginalPath": "C:\\Users\\71966\\Desktop\\安装包",
+      "DisplayName": "安装包",
+      "IdentityStatus": 0,
+      "X": 838,
+      "Y": 502
+    }
+  ]
+}

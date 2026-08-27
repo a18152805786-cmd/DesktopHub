@@ -1,0 +1,32 @@
+[
+  {
+    "Id": "c2d98a8a-a3fe-4b80-b7df-595966533213",
+    "Title": "New Frame - Drop your shortcuts here",
+    "X": 801.0,
+    "Y": 54.0,
+    "Width": 360.0,
+    "Height": 180.0,
+    "ItemsType": "Data",
+    "Items": [],
+    "IsLocked": "false",
+    "IsHidden": "true",
+    "IsRolled": "false",
+    "AutoRoll": "false",
+    "AlwaysOnTop": "false",
+    "UnrolledHeight": 180.0,
+    "TabsEnabled": "false",
+    "CurrentTab": 0,
+    "Tabs": [],
+    "CustomColor": null,
+    "FrameBorderThickness": 2,
+    "IconSize": "Medium",
+    "IconSpacing": 5,
+    "CustomLaunchEffect": null,
+    "TextColor": null,
+    "TitleTextColor": null,
+    "TitleTextSize": "Medium",
+    "BoldTitleText": "false",
+    "DisableTextShadow": "false",
+    "GrayscaleIcons": "false"
+  }
+]
