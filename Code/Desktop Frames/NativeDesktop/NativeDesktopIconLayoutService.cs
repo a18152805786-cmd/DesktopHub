@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -88,20 +88,44 @@ namespace Desktop_Frames.NativeDesktop
             var resolver = new NativeDesktopIconIdentityResolver();
             int count = Send(listView, LvmGetItemCount, IntPtr.Zero, IntPtr.Zero).ToInt32();
             var icons = new List<NativeDesktopIconState>(Math.Max(count, 0));
+            // Icons sharing a label are told apart by their order in the
+            // ListView, which is stable for as long as the enumeration lasts.
+            var labelCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
             using var process = new ExplorerProcessMemory(listView);
             for (int index = 0; index < count; index++)
             {
                 string displayName = GetItemText(listView, process, index);
                 NativePoint point = GetItemPosition(listView, process, index);
-                var identity = resolver.Resolve(displayName);
+                ResolvedDesktopIconIdentity identity = resolver.ResolveDetailed(displayName);
+                labelCounts.TryGetValue(displayName, out int ordinal);
+                labelCounts[displayName] = ordinal + 1;
+                // Two Desktop entries can share one visible label - a folder and
+                // a .url beside it, for instance, because Explorer never shows
+                // the .url extension. Explorer offers no way to say which
+                // ListView item is which, so the k-th item carrying a label is
+                // paired with the k-th candidate path in sorted order. The
+                // pairing is arbitrary but stable and one-to-one, which is
+                // enough to address each icon exactly once. The status stays
+                // AmbiguousDisplayName, so snapshot and restore remain as
+                // conservative as they were; only callers that have established
+                // the candidates belong together act on the path.
+                string resolvedPath = identity.OriginalPath;
+                if (identity.Status == NativeIconIdentityStatus.AmbiguousDisplayName &&
+                    ordinal < identity.CandidatePaths.Count)
+                {
+                    resolvedPath = identity.CandidatePaths.OrderBy(candidate => candidate, StringComparer.OrdinalIgnoreCase)
+                        .ElementAt(ordinal);
+                }
                 icons.Add(new NativeDesktopIconState
                 {
                     RuntimeIndex = index,
                     DisplayName = displayName,
                     Identity = identity.Identity,
-                    OriginalPath = identity.OriginalPath,
+                    OriginalPath = resolvedPath,
                     IdentityStatus = identity.Status,
+                    CandidatePaths = identity.CandidatePaths,
+                    LabelOrdinal = ordinal,
                     X = point.X,
                     Y = point.Y
                 });
@@ -144,7 +168,7 @@ namespace Desktop_Frames.NativeDesktop
             }
 
             NativeDesktopIconState[] matches = EnumerateDesktopIcons()
-                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath &&
+                .Where(icon => !string.IsNullOrEmpty(icon.OriginalPath) &&
                     string.Equals(NormalizePath(icon.OriginalPath), normalized, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
             if (matches.Length != 1)
@@ -169,6 +193,43 @@ namespace Desktop_Frames.NativeDesktop
                 X = actual.X,
                 Y = actual.Y
             };
+            return true;
+        }
+
+        /// <summary>
+        /// Positions an icon addressed by its label and its ordinal among the
+        /// icons sharing that label.
+        ///
+        /// This exists for the one case a path cannot address: two Desktop
+        /// entries whose visible names are identical, where Explorer offers no
+        /// way to tell which ListView item is which. The caller may only use it
+        /// once it has established that every candidate behind the label belongs
+        /// in the same group, so which of them lands in which slot does not
+        /// change the outcome.
+        /// </summary>
+        public bool TrySetPositionByLabel(string displayName, int labelOrdinal, int x, int y, out string reason)
+        {
+            reason = string.Empty;
+            NativeDesktopListViewState state = GetListViewState();
+            if (state.AutoArrangeEnabled)
+            {
+                reason = "AUTO_ARRANGE_ENABLED";
+                return false;
+            }
+
+            NativeDesktopIconState[] matches = EnumerateDesktopIcons()
+                .Where(icon => string.Equals(icon.DisplayName, displayName, StringComparison.Ordinal))
+                .OrderBy(icon => icon.LabelOrdinal)
+                .ToArray();
+            if (labelOrdinal < 0 || labelOrdinal >= matches.Length)
+            {
+                reason = "LABEL_ORDINAL_NOT_FOUND";
+                return false;
+            }
+
+            IntPtr listView = state.Handle;
+            using var process = new ExplorerProcessMemory(listView);
+            SetItemPosition(listView, process, matches[labelOrdinal].RuntimeIndex, x, y);
             return true;
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Desktop_Frames.NativeDesktop
@@ -14,6 +14,12 @@ namespace Desktop_Frames.NativeDesktop
     {
         public int RuntimeIndex { get; init; }
         public string DisplayName { get; init; } = string.Empty;
+
+        /// <summary>Paths behind this icon's label; more than one means the label is ambiguous.</summary>
+        public IReadOnlyList<string> CandidatePaths { get; init; } = Array.Empty<string>();
+
+        /// <summary>Position of this icon among the icons sharing its label, in ListView order.</summary>
+        public int LabelOrdinal { get; init; }
         public string Identity { get; init; } = string.Empty;
         public string OriginalPath { get; init; } = string.Empty;
         public NativeIconIdentityStatus IdentityStatus { get; init; }

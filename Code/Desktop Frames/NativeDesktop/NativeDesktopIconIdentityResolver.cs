@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,6 +10,13 @@ namespace Desktop_Frames.NativeDesktop
     /// the user and public Desktop. Ambiguous labels deliberately fail closed.
     /// Runtime ListView indexes are never treated as persistent identities.
     /// </summary>
+    /// <summary>Resolution result, including the candidates behind an ambiguous label.</summary>
+    public sealed record ResolvedDesktopIconIdentity(
+        NativeIconIdentityStatus Status,
+        string Identity,
+        string OriginalPath,
+        IReadOnlyList<string> CandidatePaths);
+
     public sealed class NativeDesktopIconIdentityResolver
     {
         private readonly Dictionary<string, List<string>> _pathsByDisplayName;
@@ -22,11 +29,26 @@ namespace Desktop_Frames.NativeDesktop
 
         public (NativeIconIdentityStatus Status, string Identity, string OriginalPath) Resolve(string displayName)
         {
+            var resolved = ResolveDetailed(displayName);
+            return (resolved.Status, resolved.Identity, resolved.OriginalPath);
+        }
+
+        /// <summary>
+        /// Resolve, plus the paths that made a label ambiguous.
+        ///
+        /// Failing closed on an ambiguous label is right for anything that needs
+        /// to know WHICH file an icon is. It is needlessly strict for the one
+        /// question that matters to grouping: if every candidate behind a label
+        /// belongs in the same group, the ambiguity does not change the answer,
+        /// and the caller can act on it.
+        /// </summary>
+        public ResolvedDesktopIconIdentity ResolveDetailed(string displayName)
+        {
             string label = NormalizeLabel(displayName);
             if (label.Length == 0 || !_pathsByDisplayName.TryGetValue(label, out List<string>? candidates))
             {
-                return (NativeIconIdentityStatus.UnmanagedShellItem,
-                    $"shell-display:{displayName}", string.Empty);
+                return new ResolvedDesktopIconIdentity(NativeIconIdentityStatus.UnmanagedShellItem,
+                    $"shell-display:{displayName}", string.Empty, Array.Empty<string>());
             }
 
             string[] unique = candidates
@@ -35,12 +57,12 @@ namespace Desktop_Frames.NativeDesktop
                 .ToArray();
             if (unique.Length != 1)
             {
-                return (NativeIconIdentityStatus.AmbiguousDisplayName,
-                    $"ambiguous-display:{displayName}", string.Empty);
+                return new ResolvedDesktopIconIdentity(NativeIconIdentityStatus.AmbiguousDisplayName,
+                    $"ambiguous-display:{displayName}", string.Empty, unique);
             }
 
-            return (NativeIconIdentityStatus.StablePath,
-                $"path:{unique[0]}", unique[0]);
+            return new ResolvedDesktopIconIdentity(NativeIconIdentityStatus.StablePath,
+                $"path:{unique[0]}", unique[0], unique);
         }
 
         private static Dictionary<string, List<string>> BuildIndex(IEnumerable<string> roots)
