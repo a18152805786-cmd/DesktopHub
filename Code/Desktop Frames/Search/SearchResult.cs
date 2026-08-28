@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Desktop_Frames.Search
 {
@@ -33,5 +34,8 @@ namespace Desktop_Frames.Search
         public string FrameId { get; set; } = string.Empty;
         public string FrameTitle { get; set; } = string.Empty;
         public bool IsFolder { get; set; }
+        public List<SearchAlias> SearchAliases { get; } = new List<SearchAlias>();
     }
+
+    internal sealed record SearchAlias(string Field, string Value);
 }

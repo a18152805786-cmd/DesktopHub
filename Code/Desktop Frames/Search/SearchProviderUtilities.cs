@@ -50,7 +50,7 @@ namespace Desktop_Frames.Search
                 uri = ReadInternetShortcutUri(fullPath);
             }
 
-            return new SearchResult
+            var result = new SearchResult
             {
                 DisplayName = isFolder ? Path.GetFileName(fullPath) : Path.GetFileNameWithoutExtension(fullPath),
                 FullPathOrUri = string.IsNullOrEmpty(uri) ? fullPath : uri,
@@ -66,6 +66,25 @@ namespace Desktop_Frames.Search
                 Uri = uri,
                 IsFolder = isFolder
             };
+
+            AddAlias(result, "DisplayName", result.DisplayName);
+            AddAlias(result, "FileName", Path.GetFileName(fullPath));
+            AddAlias(result, "FileNameWithoutExtension", Path.GetFileNameWithoutExtension(fullPath));
+            AddAlias(result, "TargetPath", targetPath);
+            AddAlias(result, "TargetFileName", Path.GetFileName(targetPath));
+            AddAlias(result, "TargetFileNameWithoutExtension", Path.GetFileNameWithoutExtension(targetPath));
+            AddAlias(result, "Arguments", arguments);
+            AddAlias(result, "URI", uri);
+            return result;
+        }
+
+        public static void AddAlias(SearchResult result, string field, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            if (result.SearchAliases.Exists(alias =>
+                    alias.Field.Equals(field, StringComparison.OrdinalIgnoreCase) &&
+                    alias.Value.Equals(value, StringComparison.CurrentCultureIgnoreCase))) return;
+            result.SearchAliases.Add(new SearchAlias(field, value));
         }
 
         public static string NormalizePath(string path)

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Desktop_Frames.Localization;
 using Desktop_Frames.NativeDesktop;
+using Desktop_Frames.Search;
 using System.IO;
 
 namespace Desktop_Frames
@@ -40,6 +41,15 @@ namespace Desktop_Frames
                 // Before any window is built, or half the interface would be
                 // laid out in the language the setting is replacing.
                 Desktop_Frames.Localization.Strings.SetLanguage(SettingsManager.Language);
+
+                string? spotSearchRegression = e.Args.FirstOrDefault(arg =>
+                    arg.StartsWith("--spotsearch-regression=", StringComparison.OrdinalIgnoreCase));
+                if (spotSearchRegression != null)
+                {
+                    SpotSearchRegressionHarness.Run(spotSearchRegression.Substring("--spotsearch-regression=".Length));
+                    Shutdown(0);
+                    return;
+                }
 
                 // Phase 5.3 is a self-contained, manual native-coordinate
                 // command. Run it before mutex/startup side effects so it can

@@ -52,6 +52,7 @@ namespace Desktop_Frames.Search.Providers
                 SearchResult result = SearchProviderUtilities.FromPath(path, "Frame", frameItem: true);
                 result.DisplayName = item["DisplayName"]?.ToString()
                     ?? Path.GetFileNameWithoutExtension(storedPath);
+                SearchProviderUtilities.AddAlias(result, "DisplayName", result.DisplayName);
                 result.FrameId = frame.Id?.ToString() ?? string.Empty;
                 result.FrameTitle = frame.Title?.ToString() ?? string.Empty;
                 result.IsFolder = item["IsFolder"]?.ToObject<bool>() ?? Directory.Exists(path);
