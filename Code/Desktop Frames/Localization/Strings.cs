@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -661,6 +661,7 @@ namespace Desktop_Frames.Localization
         public static string AboutTagline => Get("AboutTagline");
         public static string AboutTitle => Get("AboutTitle");
         public static string AboutVisitGitHub => Get("AboutVisitGitHub");
+
         // ── Widget plugins ─────────────────────────────────────────────────
         public static string CalcBadgeFade => Get("CalcBadgeFade");
         public static string CalcClear => Get("CalcClear");

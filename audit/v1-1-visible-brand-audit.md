@@ -205,6 +205,32 @@ the licence notice is now stated in all nine languages rather than two.
 | MITAttributionPreserved | true |
 | CopyrightNoticePreserved | true |
 
+## Bucket D — dormant author easter eggs, left in place and flagged
+
+`InterCore.ProcessTitleChange` still reacts to the upstream author's handle and
+name when they are typed as a **frame title**:
+
+| Trigger | Effect | Location |
+|---|---|---|
+| `limbo666` | sparkle/fireworks effect, then silently reverts the title | `InterCore.cs:144` |
+| `Nikos`, `Nikos Georgousis`, or any title containing `>:` | persistent "Legendary Mode" visual effect on the frame | `InterCore.cs:151-153` |
+
+These were **left unchanged** and are the reason `limbo666` still appears as a
+string in the built assembly. The reasoning:
+
+- They render no promotional text, link, logo, or product name. A user never
+  sees upstream branding from them; they are visual effects only.
+- They activate only if the user deliberately types those exact names, so they
+  are not part of the visible UI this phase was asked to clean.
+- `ProcessTitleChange` is on the frame-rename path, which is Core V1 behaviour,
+  and stability outranks cosmetic purity in this phase's priority order.
+
+Worth the user's attention as an optional follow-up, for two reasons beyond
+branding: `limbo666` **silently discards a title the user typed**, and the `>:`
+substring trigger can fire on a title a user might reasonably choose (for
+example `Work >: Urgent`), applying a persistent effect they did not ask for.
+Removing all three triggers is a small, self-contained change if wanted.
+
 ## Pre-existing observation (not changed)
 
 `pack://application:,,,/Resources/steam-White.png` is referenced in source, but
