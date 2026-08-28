@@ -35,7 +35,8 @@ row is left behind.
 https://raw.githubusercontent.com/limbo666/DesktopFramesPlus/refs/heads/main/ngdfcs/getversion.json
 ```
 
-The manifest live at that URL contains:
+This repository is a fork of that upstream project, and its own copy of that
+exact manifest path — `ngdfcs/getversion.json`, inherited at the fork — contains:
 
 ```json
 { "Title": "Support Desktop Frames +",
@@ -44,10 +45,21 @@ The manifest live at that URL contains:
   "MaxDisplayCount": 3 }
 ```
 
-DesktopHub rendered that into its own notification window via
-`NotificationFormManager.Show(msg)` — **a PayPal solicitation for the upstream
-author, shown up to three times, arriving over the network.** No amount of
-static string cleaning would have removed it.
+That is the fork's copy, read locally. The live upstream file was not fetched
+for this audit, so its present content is not asserted here — but the fetch
+itself is confirmed, not inferred: the application's own log records
+
+```
+RemoteInfoManager: Downloading manifest from
+https://raw.githubusercontent.com/limbo666/DesktopFramesPlus/refs/heads/main/ngdfcs/getversion.json?t=...
+```
+
+on three separate starts. Whatever that file says on any given day is rendered
+into DesktopHub's own notification window via `NotificationFormManager.Show(msg)`
+with its title, body and clickable link — **an announcement surface owned by the
+upstream author, up to three impressions, arriving over the network.** No amount
+of static string cleaning would have removed it, and its content can change
+without any change to this codebase.
 
 The same channel also carried:
 

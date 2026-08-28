@@ -169,3 +169,11 @@ Idle CPU is at the noise floor (1.03 CPU-seconds over 5 minutes) and idle memory
 is flat to within 0.34 MB across the window. There is no leak, drift, or resident
 polling cost to chase on this baseline — which sets the honest expectation that
 this phase cannot deliver a meaningful *runtime* memory win.
+
+> **These runtime figures are NOT the before/after baseline.** They were taken
+> from a process with ~11 minutes of uptime that the user had been actively
+> driving (a group drag is in its log), so they are not comparable to a fresh
+> start. The before/after pair in `v1-1-pure-footprint-after.md` comes from a
+> separate matched run: both builds deployed to the same directory against the
+> same profile, launched fresh, left untouched, sampled identically. Use that
+> pair. These numbers are kept only as a record of the baseline as first found.
