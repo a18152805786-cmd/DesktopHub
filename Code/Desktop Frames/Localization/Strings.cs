@@ -634,8 +634,6 @@ namespace Desktop_Frames.Localization
         public static string NoteCopyAll => Get("NoteCopyAll");
         public static string NoteHotkeysRestart => Get("NoteHotkeysRestart");
         public static string NoteTextFormat => Get("NoteTextFormat");
-        public static string NotificationDontShowAgain => Get("NotificationDontShowAgain");
-        public static string NotificationTitle => Get("NotificationTitle");
         public static string ProfileActive => Get("ProfileActive");
         public static string ProfileManagerTitle => Get("ProfileManagerTitle");
         public static string SearchPlaceholder => Get("SearchPlaceholder");
@@ -649,8 +647,6 @@ namespace Desktop_Frames.Localization
         public static string TextAppearance => Get("TextAppearance");
         public static string TextBehavior => Get("TextBehavior");
         public static string TextFormatTitle => Get("TextFormatTitle");
-        public static string UpdateAvailable => Get("UpdateAvailable");
-
         // ── About panel ────────────────────────────────────────────────────
         public static string AboutBody => Get("AboutBody");
         public static string AboutCreditsBody => Get("AboutCreditsBody");

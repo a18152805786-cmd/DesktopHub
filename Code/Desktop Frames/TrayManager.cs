@@ -91,8 +91,6 @@ namespace Desktop_Frames
             IsStartWithWindows = CheckIfStartWithWindowsEnabled();
 
 
-            // 3. Start Remote Info System (Runs 25s later)
-            RemoteInfoManager.Initialize();
 
             Instance = this; // Set singleton instance
         }

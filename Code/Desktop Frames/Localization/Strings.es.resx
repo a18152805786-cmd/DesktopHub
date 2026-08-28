@@ -1344,12 +1344,6 @@ Cada ventana lee sus textos mientras se construye, así que el cambio se ve al r
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Formato del texto…</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>No volver a mostrar este mensaje</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - Notificación</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Ocultar los marcos automáticamente</value>
   </data>
@@ -1781,9 +1775,6 @@ Cada ventana lee sus textos mientras se construye, así que el cambio se ve al r
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Mostrar los marcos ocultos</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Actualización disponible</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Lista</value>

@@ -1344,12 +1344,6 @@ Uruchomić ponownie teraz?</value>
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Format tekstu…</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>Nie pokazuj więcej tej wiadomości</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - Powiadomienie</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Automatycznie ukrywaj ramki</value>
   </data>
@@ -1781,9 +1775,6 @@ Uruchomić ponownie teraz?</value>
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Pokaż ukryte ramki</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Dostępna aktualizacja</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Lista</value>

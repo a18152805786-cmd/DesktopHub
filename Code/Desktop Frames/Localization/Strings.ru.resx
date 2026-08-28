@@ -1344,12 +1344,6 @@
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Формат текста…</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>Больше не показывать это сообщение</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - Уведомление</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Автоматически скрывать рамки</value>
   </data>
@@ -1781,9 +1775,6 @@
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Показать скрытые рамки</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Доступно обновление</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Список</value>

@@ -1351,12 +1351,6 @@
   <data name="NoteTextFormat" xml:space="preserve">
     <value>文字格式…</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>不再显示此消息</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - 通知</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>自动隐藏面板</value>
   </data>
@@ -1782,9 +1776,6 @@
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>显示隐藏的分组</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>有可用更新</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>详细信息</value>

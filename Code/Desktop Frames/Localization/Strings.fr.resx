@@ -1344,12 +1344,6 @@ Redémarrer maintenant ?</value>
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Format du texte…</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>Ne plus afficher ce message</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - Notification</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Masquer automatiquement les cadres</value>
   </data>
@@ -1781,9 +1775,6 @@ Redémarrer maintenant ?</value>
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Afficher les cadres masqués</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Mise à jour disponible</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Liste</value>

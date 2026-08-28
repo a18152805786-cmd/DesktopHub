@@ -1292,12 +1292,6 @@ Restart now?</value>
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Text Format...</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>Don't show this again</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub Notification</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Auto hide frames</value>
   </data>
@@ -1723,9 +1717,6 @@ Restart now?</value>
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Show Hidden Frames</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Update Available</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Details</value>

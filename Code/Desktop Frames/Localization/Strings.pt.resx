@@ -1344,12 +1344,6 @@ Reiniciar agora?</value>
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Formato do texto…</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>Não mostrar esta mensagem outra vez</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - Notificação</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Ocultar as molduras automaticamente</value>
   </data>
@@ -1781,9 +1775,6 @@ Reiniciar agora?</value>
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Mostrar as molduras ocultas</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Atualização disponível</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Lista</value>

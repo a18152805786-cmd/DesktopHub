@@ -1289,12 +1289,6 @@ Vuoi riavviare adesso?</value>
   <data name="NoteTextFormat" xml:space="preserve">
     <value>Formato del testo...</value>
   </data>
-  <data name="NotificationDontShowAgain" xml:space="preserve">
-    <value>Non mostrare più questo messaggio</value>
-  </data>
-  <data name="NotificationTitle" xml:space="preserve">
-    <value>DesktopHub - Notifica</value>
-  </data>
   <data name="OptAutoHideFrames" xml:space="preserve">
     <value>Nascondi automaticamente le frame</value>
   </data>
@@ -1720,9 +1714,6 @@ Vuoi riavviare adesso?</value>
   </data>
   <data name="TrayShowHiddenFrames" xml:space="preserve">
     <value>Mostra le frame nascoste</value>
-  </data>
-  <data name="UpdateAvailable" xml:space="preserve">
-    <value>Aggiornamento disponibile</value>
   </data>
   <data name="ViewDetails" xml:space="preserve">
     <value>Elenco</value>

@@ -2807,13 +2807,6 @@ namespace Desktop_Frames
                 // 3. Reload Window & CLEANUP EFFECTS
                 if (currentWindow != null)
                 {
-                    // Cleanup Legendary Effects
-                    string currentTitle = frame.Title?.ToString() ?? "";
-                    if (currentTitle == "Nikos" || currentTitle == "Nikos Georgousis" || currentTitle.Contains(">:"))
-                    {
-                        InterCore.ProcessTitleChange(liveFrame, "RESET_EFFECT_TEMP", "");
-                    }
-
                     _heartTextBlocks.Remove(frame);
                     if (_portalFrames.ContainsKey(frame))
                     {
@@ -5390,7 +5383,7 @@ namespace Desktop_Frames
 
                 string originalTitle = frame.Title.ToString();
                 string newTitle = titletb.Text;
-                string finalTitle = InterCore.ProcessTitleChange(frame, newTitle, originalTitle);
+                string finalTitle = newTitle;
 
                 // Update Data
                 string id = frame.Id?.ToString();
@@ -5454,7 +5447,7 @@ namespace Desktop_Frames
             //    {
             //        string originalTitle = frame.Title.ToString();
             //        string newTitle = titletb.Text;
-            //        string finalTitle = InterCore.ProcessTitleChange(frame, newTitle, originalTitle);
+            //        string finalTitle = newTitle;
 
             //        // Update LIVE Data
             //        string id = frame.Id?.ToString();
@@ -5499,7 +5492,7 @@ namespace Desktop_Frames
 
             //    string originalTitle = frame.Title.ToString();
             //    string newTitle = titletb.Text;
-            //    string finalTitle = InterCore.ProcessTitleChange(frame, newTitle, originalTitle);
+            //    string finalTitle = newTitle;
 
             //    string id = frame.Id?.ToString();
             //    var liveFrame = GetFrameData().FirstOrDefault(f => f.Id?.ToString() == id);
@@ -5802,7 +5795,7 @@ namespace Desktop_Frames
             //        string newTitle = titletb.Text;
 
             //        // Process through InterCore for special triggers
-            //        string finalTitle = InterCore.ProcessTitleChange(frame, newTitle, originalTitle);
+            //        string finalTitle = newTitle;
 
             //        // --- FIX START: Update LIVE Data ---
             //        // Get the ID to find the fresh object in the global list
@@ -5859,7 +5852,7 @@ namespace Desktop_Frames
 
             //    string originalTitle = frame.Title.ToString();
             //    string newTitle = titletb.Text;
-            //    string finalTitle = InterCore.ProcessTitleChange(frame, newTitle, originalTitle);
+            //    string finalTitle = newTitle;
 
             //    string id = frame.Id?.ToString();
             //    var liveFrame = FrameDataManager.FrameData.FirstOrDefault(f => f.Id?.ToString() == id);
@@ -6764,25 +6757,6 @@ namespace Desktop_Frames
 
 
 
-            // Check for persistent Legendary Mode (Nikos or >:)
-            string fTitle = frame.Title?.ToString() ?? "";
-            if (fTitle == "Nikos" || fTitle == "Nikos Georgousis" || fTitle.Contains(">:"))
-            {
-                // Defer slightly to ensure window is loaded
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    // We call ProcessTitleChange to trigger the visual effect
-                    InterCore.ProcessTitleChange(frame, fTitle, "");
-                }), System.Windows.Threading.DispatcherPriority.Background);
-            }
-            {
-                // Defer slightly to ensure window is loaded
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    // We call ProcessTitleChange with same names just to trigger the logic
-                    InterCore.ProcessTitleChange(frame, frame.Title.ToString(), "");
-                }), System.Windows.Threading.DispatcherPriority.Background);
-            }
 
 
 
