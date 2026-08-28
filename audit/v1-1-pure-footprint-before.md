@@ -134,11 +134,15 @@ Idle numbers from the matched 300 s sample are in section 6.
   payload to trim. No change proposed.
 - **No `PublishTrimmed`, no `PublishReadyToRun`, no NativeAOT** in the csproj.
   All three stay off, per phase constraints.
-- **BackgroundPollingDetected: none.** All timer constructions across the tree are
-  one-shot or debounce timers created in response to an event
-  (`NativeFrameSurfaceManager` 200 ms debounce, `App.xaml.cs` 800 ms/10 s
-  one-shots that `Stop()` in their first tick, launch/animation effects). There is
-  no resident polling loop for the desktop, mouse, or icons.
+- **BackgroundPollingDetected: one, pre-existing.** `InterCore.Initialize` starts a
+  `DispatcherTimer` at a 1000 ms interval (`_registryMonitor`) that reads a registry
+  value every second for the whole session, to receive external "draw mode" and
+  "wake up" triggers. This is a Core V1 feature and is unchanged by this phase.
+  **An earlier revision of this document stated no polling existed; that was wrong.**
+  Every *other* timer across the tree is one-shot or debounce, created in response
+  to an event (`NativeFrameSurfaceManager` 200 ms debounce, `App.xaml.cs` 800 ms/10 s
+  one-shots that `Stop()` in their first tick, launch/animation effects). No polling
+  loop for the desktop, mouse, or icons exists, and none was added.
 - **DispatcherTimer inventory (declaration sites):** InterCore 16, LaunchEffects 7,
   FrameManager 8, ProfileManager 2, PortalFrameManager 2, SystemIpPlugin 2,
   NativeFrameSurfaceManager 2, App 2, plus 1 each in TargetChecker, SmartToast,

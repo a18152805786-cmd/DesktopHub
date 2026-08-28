@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -11,7 +11,7 @@
 		<AssemblyVersion>2.7.8.358</AssemblyVersion>
 		<FileVersion>2.7.8.358</FileVersion>
 		<Version>2.7.8.358</Version>
-		<ApplicationIcon>Resources\logo2.ico</ApplicationIcon>
+		<ApplicationIcon>Resources\DesktopHubIcon.ico</ApplicationIcon>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -67,7 +67,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="Resources\logo2.ico" />
+		<Content Include="Resources\DesktopHubIcon.ico" />
 	</ItemGroup>
 
 	<ItemGroup>

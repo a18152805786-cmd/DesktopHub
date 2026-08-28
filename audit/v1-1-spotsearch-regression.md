@@ -1,7 +1,7 @@
 # SpotSearch visible Desktop regression
 
-GeneratedUtc=2026-08-28T02:20:18.5773868+00:00
-CandidateCount=123
+GeneratedUtc=2026-08-28T02:53:24.7451306+00:00
+CandidateCount=124
 UserDesktop=C:\Users\71966\Desktop
 PublicDesktop=C:\Users\Public\Desktop
 SteamExplorerLabel=Steam
