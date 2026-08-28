@@ -94,7 +94,7 @@ namespace Desktop_Frames.NativeDesktop
             // Preflight all identities before changing a single icon so an
             // ambiguous/missing item cannot leave a partially moved group.
             var available = layout.EnumerateDesktopIcons()
-                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath)
+                .Where(icon => icon.IdentityStatus.IsResolved())
                 .GroupBy(icon => NormalizePath(icon.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
             foreach (NativeDesktopIconPlacement placement in placements)

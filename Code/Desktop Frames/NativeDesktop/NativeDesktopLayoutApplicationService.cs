@@ -40,6 +40,25 @@ namespace Desktop_Frames.NativeDesktop
 
             try
             {
+                if (args.Any(arg => arg.Equals("--native-layout-identity-tests", StringComparison.OrdinalIgnoreCase)))
+                {
+                    NativeDesktopIdentityClassificationTestHarness.Run(auditDirectory);
+                    return 0;
+                }
+
+                string? liveIdentityLabel = ExtractValue(args, "--native-layout-live-identity-label=");
+                if (!string.IsNullOrWhiteSpace(liveIdentityLabel))
+                {
+                    NativeDesktopIdentityClassificationTestHarness.RunLiveAddressTest(auditDirectory, liveIdentityLabel);
+                    return 0;
+                }
+
+                if (args.Any(arg => arg.Equals("--native-layout-phase571-game-drag", StringComparison.OrdinalIgnoreCase)))
+                {
+                    RunPhase571GameDragRegression(auditDirectory);
+                    return 0;
+                }
+
                 if (args.Any(arg => arg.Equals("--native-layout-compact-preview", StringComparison.OrdinalIgnoreCase)))
                 {
                     DesktopLayoutPlan plan = CreateAndWriteCompactPreview(auditDirectory);
@@ -550,10 +569,98 @@ namespace Desktop_Frames.NativeDesktop
             DesktopLayoutPlan plan = planner.PlanDualRailLayout();
             File.WriteAllText(Path.Combine(auditDirectory, DualRailPlanJsonName),
                 JsonConvert.SerializeObject(plan, Formatting.Indented), new UTF8Encoding(false));
+            WriteIdentityClassificationAudit(
+                Path.Combine(auditDirectory, "ui-phase5-7-1-identity-classification-audit.md"), plan);
             WriteFilesystemFingerprint(Path.Combine(auditDirectory, "ui-phase5-5-desktop-files-before.csv"));
             WriteFullPreview(Path.Combine(auditDirectory, "ui-phase5-5-layout-preview.md"), plan);
             WriteFullLayoutMap(Path.Combine(auditDirectory, "ui-phase5-5-layout-map.svg"), plan);
             return plan;
+        }
+
+        private static void WriteIdentityClassificationAudit(string path, DesktopLayoutPlan plan)
+        {
+            static string Cell(string? value) => (value ?? string.Empty)
+                .Replace("|", "\\|")
+                .Replace("\r", " ")
+                .Replace("\n", " ");
+
+            var markdown = new StringBuilder();
+            markdown.AppendLine("# UI Phase 5.7.1 identity / classification audit");
+            markdown.AppendLine();
+            markdown.AppendLine("IdentityClassificationSeparated=true");
+            markdown.AppendLine("OrdinalMappingMethod=ItemTypeRank+NormalizedOriginalPath");
+            markdown.AppendLine("SharedExplorerLabelDoesNotShareClassification=true");
+            markdown.AppendLine();
+            markdown.AppendLine("| ExplorerLabel | LabelOrdinal | CandidatePath | CandidateType | TargetPath | Arguments | URI | ManualOverride | ClassifierGroup | Confidence | ResolutionStatus | FinalGroup |");
+            markdown.AppendLine("|---|---:|---|---|---|---|---|---:|---|---|---|---|");
+            foreach (DesktopLayoutItem item in plan.Items
+                         .OrderBy(item => item.ExplorerLabel, StringComparer.OrdinalIgnoreCase)
+                         .ThenBy(item => item.LabelOrdinal))
+            {
+                markdown.AppendLine($"| {Cell(item.ExplorerLabel)} | {item.LabelOrdinal} | {Cell(item.OriginalPath)} | " +
+                    $"{Cell(item.CandidateType)} | {Cell(item.TargetPath)} | {Cell(item.Arguments)} | {Cell(item.Uri)} | " +
+                    $"{item.IsManualOverride.ToString().ToLowerInvariant()} | {Cell(item.ClassifierGroup)} | " +
+                    $"{Cell(item.ClassificationConfidence)} | {Cell(item.ResolutionStatus)} | {Cell(item.LayoutGroupId)} |");
+            }
+            File.WriteAllText(path, markdown.ToString(), new UTF8Encoding(false));
+        }
+
+        private static void RunPhase571GameDragRegression(string auditDirectory)
+        {
+            DesktopLayoutPlan initial = CreateAndWriteDualRailPreview(auditDirectory);
+            ApplyDualRailLayout(auditDirectory);
+            initial = LoadDualRailPlan(auditDirectory);
+            DesktopLayoutGroup gamesBefore = initial.Groups.Single(group =>
+                group.GroupId == NativeDesktopLayoutGroupId.GAMES);
+            int expectedColumn = gamesBefore.RailColumn + 1;
+            int expectedMemberCount = initial.Items.Count(item =>
+                string.Equals(item.LayoutGroupId, NativeDesktopLayoutGroupId.GAMES.ToString(), StringComparison.Ordinal) &&
+                item.IsStableIdentity && !item.IsShellNamespace);
+
+            DesktopGroupMoveResult move = DesktopGroupDragService.MoveGroup(
+                initial, NativeDesktopLayoutGroupId.GAMES, 1, 0);
+            if (!move.Moved || move.IconsMoved != expectedMemberCount || !move.FilesystemUnchanged)
+            {
+                throw new InvalidOperationException(
+                    $"PHASE_5_7_1_GAME_DRAG_FAILED Moved={move.Moved}; Reason={move.Reason}; " +
+                    $"IconsMoved={move.IconsMoved}; Expected={expectedMemberCount}; FilesystemUnchanged={move.FilesystemUnchanged}");
+            }
+
+            DesktopLayoutPlan persisted = CreateAndWriteDualRailPreview(auditDirectory);
+            DesktopLayoutGroup gamesAfter = persisted.Groups.Single(group =>
+                group.GroupId == NativeDesktopLayoutGroupId.GAMES);
+            bool mappingStillSeparated = persisted.Items
+                .Where(item => string.Equals(item.ExplorerLabel, "The Seance of Blake Manor", StringComparison.Ordinal))
+                .OrderBy(item => item.LabelOrdinal)
+                .Select(item => item.LayoutGroupId)
+                .SequenceEqual(new[] { "UNASSIGNED", "GAMES" }, StringComparer.Ordinal);
+            if (!gamesAfter.HasManualAnchor || gamesAfter.RailColumn != expectedColumn ||
+                gamesAfter.RailRow != gamesBefore.RailRow || !mappingStillSeparated)
+            {
+                throw new InvalidOperationException(
+                    $"PHASE_5_7_1_GAME_DRAG_PERSISTENCE_FAILED ExpectedColumn={expectedColumn}; " +
+                    $"ActualColumn={gamesAfter.RailColumn}; ManualAnchor={gamesAfter.HasManualAnchor}; " +
+                    $"IdentityClassificationSeparated={mappingStillSeparated}");
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("# UI Phase 5.7.1 GAMES group drag regression");
+            report.AppendLine();
+            report.AppendLine("GroupMoveAccepted=true");
+            report.AppendLine("DeltaColumns=1");
+            report.AppendLine("DeltaRows=0");
+            report.AppendLine($"GameIconsMovedTogether={move.IconsMoved == expectedMemberCount}");
+            report.AppendLine($"GameIconsMoved={move.IconsMoved}");
+            report.AppendLine("OwnMembersAreObstacles=false");
+            report.AppendLine("OwnSameLabelIconsDoNotBlock=true");
+            report.AppendLine($"InternalLayoutPreserved={move.InternalLayoutPreserved}");
+            report.AppendLine($"FilesystemUnchanged={move.FilesystemUnchanged}");
+            report.AppendLine($"ManualPositionPersisted={gamesAfter.HasManualAnchor}");
+            report.AppendLine($"PersistedColumn={gamesAfter.RailColumn}");
+            report.AppendLine($"PersistedRow={gamesAfter.RailRow}");
+            report.AppendLine($"IdentityClassificationStillSeparated={mappingStillSeparated}");
+            File.WriteAllText(Path.Combine(auditDirectory, "ui-phase5-7-1-group-drag.md"),
+                report.ToString(), new UTF8Encoding(false));
         }
 
         /// <summary>

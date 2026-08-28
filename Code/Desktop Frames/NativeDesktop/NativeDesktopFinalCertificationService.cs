@@ -156,7 +156,7 @@ namespace Desktop_Frames.NativeDesktop
         {
             Drawing.Rectangle primary = Forms.Screen.PrimaryScreen?.Bounds ?? Forms.Screen.AllScreens.First().Bounds;
             var native = layout.EnumerateDesktopIcons()
-                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath && primary.Contains(icon.X, icon.Y))
+                .Where(icon => icon.IdentityStatus.IsResolved() && primary.Contains(icon.X, icon.Y))
                 .Select(icon => NormalizePath(icon.OriginalPath))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             return preview

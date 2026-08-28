@@ -149,8 +149,17 @@ namespace Desktop_Frames.NativeDesktop
         public string LayoutGroupId { get; set; } = string.Empty;
         public string GroupDisplayName { get; set; } = string.Empty;
         public string OriginalPath { get; init; } = string.Empty;
+        public string ExplorerLabel { get; init; } = string.Empty;
+        public int LabelOrdinal { get; init; }
+        public int ExplorerLabelCount { get; init; }
+        public string ResolutionStatus { get; init; } = string.Empty;
+        public string CandidateType { get; init; } = string.Empty;
         public string DisplayName { get; init; } = string.Empty;
         public string Type { get; init; } = string.Empty;
+        public string TargetPath { get; init; } = string.Empty;
+        public string Arguments { get; init; } = string.Empty;
+        public string Uri { get; init; } = string.Empty;
+        public string ClassifierGroup { get; init; } = string.Empty;
         public int CurrentX { get; init; }
         public int CurrentY { get; init; }
         public int TargetX { get; set; }

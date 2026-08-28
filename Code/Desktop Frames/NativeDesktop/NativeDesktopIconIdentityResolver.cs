@@ -5,69 +5,109 @@ using System.Linq;
 
 namespace Desktop_Frames.NativeDesktop
 {
-    /// <summary>
-    /// Resolves Explorer display labels back to visible filesystem entries on
-    /// the user and public Desktop. Ambiguous labels deliberately fail closed.
-    /// Runtime ListView indexes are never treated as persistent identities.
-    /// </summary>
     /// <summary>Resolution result, including the candidates behind an ambiguous label.</summary>
     public sealed record ResolvedDesktopIconIdentity(
+        string ExplorerLabel,
+        int LabelOrdinal,
+        int ExplorerLabelCount,
         NativeIconIdentityStatus Status,
         string Identity,
         string OriginalPath,
-        IReadOnlyList<string> CandidatePaths);
+        NativeDesktopCandidateType? CandidateType,
+        IReadOnlyList<NativeDesktopIconCandidate> Candidates)
+    {
+        public IReadOnlyList<string> CandidatePaths => Candidates.Select(candidate => candidate.OriginalPath).ToArray();
+    }
 
+    public sealed record NativeDesktopIconCandidate(
+        string OriginalPath,
+        NativeDesktopCandidateType ItemType);
+
+    /// <summary>
+    /// Stage A only: resolves Explorer display labels to filesystem candidates.
+    /// It never classifies candidates and never owns a layout GroupId.
+    /// </summary>
     public sealed class NativeDesktopIconIdentityResolver
     {
-        private readonly Dictionary<string, List<string>> _pathsByDisplayName;
+        private readonly Dictionary<string, List<NativeDesktopIconCandidate>> _candidatesByDisplayName;
 
         public NativeDesktopIconIdentityResolver(IEnumerable<string>? desktopRoots = null)
         {
             IEnumerable<string> roots = desktopRoots ?? GetDesktopRoots();
-            _pathsByDisplayName = BuildIndex(roots);
+            _candidatesByDisplayName = BuildIndex(roots);
         }
 
         public (NativeIconIdentityStatus Status, string Identity, string OriginalPath) Resolve(string displayName)
         {
-            var resolved = ResolveDetailed(displayName);
+            var resolved = ResolveDetailed(displayName, 1, 0);
             return (resolved.Status, resolved.Identity, resolved.OriginalPath);
         }
 
         /// <summary>
-        /// Resolve, plus the paths that made a label ambiguous.
-        ///
-        /// Failing closed on an ambiguous label is right for anything that needs
-        /// to know WHICH file an icon is. It is needlessly strict for the one
-        /// question that matters to grouping: if every candidate behind a label
-        /// belongs in the same group, the ambiguity does not change the answer,
-        /// and the caller can act on it.
+        /// Resolves one ListView item. Ordinal pairing is allowed only when the
+        /// Explorer label count exactly matches the deterministic candidate count.
+        /// A mismatch fails closed and returns no OriginalPath.
         /// </summary>
-        public ResolvedDesktopIconIdentity ResolveDetailed(string displayName)
+        public ResolvedDesktopIconIdentity ResolveDetailed(
+            string displayName,
+            int explorerLabelCount,
+            int labelOrdinal)
         {
             string label = NormalizeLabel(displayName);
-            if (label.Length == 0 || !_pathsByDisplayName.TryGetValue(label, out List<string>? candidates))
+            if (label.Length == 0)
             {
-                return new ResolvedDesktopIconIdentity(NativeIconIdentityStatus.UnmanagedShellItem,
-                    $"shell-display:{displayName}", string.Empty, Array.Empty<string>());
+                return NewResult(displayName, labelOrdinal, explorerLabelCount,
+                    NativeIconIdentityStatus.Unresolved, $"unresolved-display:{displayName}",
+                    string.Empty, null, Array.Empty<NativeDesktopIconCandidate>());
             }
 
-            string[] unique = candidates
-                .Select(NormalizePath)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+            if (!_candidatesByDisplayName.TryGetValue(label, out List<NativeDesktopIconCandidate>? indexed))
+            {
+                return NewResult(displayName, labelOrdinal, explorerLabelCount,
+                    NativeIconIdentityStatus.ShellNamespace, $"shell-display:{displayName}",
+                    string.Empty, null, Array.Empty<NativeDesktopIconCandidate>());
+            }
+
+            NativeDesktopIconCandidate[] candidates = indexed
+                .GroupBy(candidate => NormalizePath(candidate.OriginalPath), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(candidate => CandidateTypeRank(candidate.ItemType))
+                .ThenBy(candidate => NormalizePath(candidate.OriginalPath), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(candidate => NormalizePath(candidate.OriginalPath), StringComparer.Ordinal)
                 .ToArray();
-            if (unique.Length != 1)
+
+            if (explorerLabelCount <= 0 || explorerLabelCount != candidates.Length ||
+                labelOrdinal < 0 || labelOrdinal >= explorerLabelCount)
             {
-                return new ResolvedDesktopIconIdentity(NativeIconIdentityStatus.AmbiguousDisplayName,
-                    $"ambiguous-display:{displayName}", string.Empty, unique);
+                return NewResult(displayName, labelOrdinal, explorerLabelCount,
+                    NativeIconIdentityStatus.Ambiguous, $"ambiguous-display:{displayName}",
+                    string.Empty, null, candidates);
             }
 
-            return new ResolvedDesktopIconIdentity(NativeIconIdentityStatus.StablePath,
-                $"path:{unique[0]}", unique[0], unique);
+            NativeDesktopIconCandidate selected = candidates[labelOrdinal];
+            NativeIconIdentityStatus status = candidates.Length == 1
+                ? NativeIconIdentityStatus.Exact
+                : NativeIconIdentityStatus.OrdinalResolved;
+            return NewResult(displayName, labelOrdinal, explorerLabelCount, status,
+                $"path:{NormalizePath(selected.OriginalPath)}", selected.OriginalPath,
+                selected.ItemType, candidates);
         }
 
-        private static Dictionary<string, List<string>> BuildIndex(IEnumerable<string> roots)
+        private static ResolvedDesktopIconIdentity NewResult(
+            string explorerLabel,
+            int labelOrdinal,
+            int explorerLabelCount,
+            NativeIconIdentityStatus status,
+            string identity,
+            string originalPath,
+            NativeDesktopCandidateType? candidateType,
+            IReadOnlyList<NativeDesktopIconCandidate> candidates) =>
+            new(explorerLabel, labelOrdinal, explorerLabelCount, status, identity,
+                originalPath, candidateType, candidates);
+
+        private static Dictionary<string, List<NativeDesktopIconCandidate>> BuildIndex(IEnumerable<string> roots)
         {
-            var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var result = new Dictionary<string, List<NativeDesktopIconCandidate>>(StringComparer.OrdinalIgnoreCase);
             foreach (string root in roots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 IEnumerable<string> entries;
@@ -92,21 +132,42 @@ namespace Desktop_Frames.NativeDesktop
                         continue;
                     }
 
+                    var candidate = new NativeDesktopIconCandidate(NormalizePath(path), GetCandidateType(path));
                     foreach (string alias in GetDisplayAliases(path))
                     {
                         string key = NormalizeLabel(alias);
                         if (key.Length == 0) continue;
-                        if (!result.TryGetValue(key, out List<string>? paths))
+                        if (!result.TryGetValue(key, out List<NativeDesktopIconCandidate>? paths))
                         {
-                            paths = new List<string>();
+                            paths = new List<NativeDesktopIconCandidate>();
                             result[key] = paths;
                         }
-                        paths.Add(path);
+                        paths.Add(candidate);
                     }
                 }
             }
             return result;
         }
+
+        private static NativeDesktopCandidateType GetCandidateType(string path)
+        {
+            if (Directory.Exists(path)) return NativeDesktopCandidateType.Directory;
+            string extension = Path.GetExtension(path);
+            if (extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+                return NativeDesktopCandidateType.LinkShortcut;
+            if (extension.Equals(".url", StringComparison.OrdinalIgnoreCase))
+                return NativeDesktopCandidateType.InternetShortcut;
+            return NativeDesktopCandidateType.RegularFile;
+        }
+
+        private static int CandidateTypeRank(NativeDesktopCandidateType type) => type switch
+        {
+            NativeDesktopCandidateType.Directory => 0,
+            NativeDesktopCandidateType.LinkShortcut => 1,
+            NativeDesktopCandidateType.InternetShortcut => 2,
+            NativeDesktopCandidateType.RegularFile => 3,
+            _ => int.MaxValue
+        };
 
         private static IEnumerable<string> GetDisplayAliases(string path)
         {

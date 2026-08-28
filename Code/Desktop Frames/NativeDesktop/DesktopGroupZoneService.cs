@@ -139,7 +139,7 @@ namespace Desktop_Frames.NativeDesktop
 
             foreach (NativeDesktopIconState icon in icons)
             {
-                if (icon.IdentityStatus != NativeIconIdentityStatus.StablePath) continue;
+                if (!icon.IdentityStatus.IsResolved()) continue;
                 if (!byPath.TryGetValue(NormalizePath(icon.OriginalPath), out DesktopLayoutItem? item)) continue;
 
                 // The centre of the icon cell, so an icon sitting on a boundary

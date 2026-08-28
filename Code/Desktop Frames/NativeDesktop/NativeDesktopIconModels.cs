@@ -5,9 +5,26 @@ namespace Desktop_Frames.NativeDesktop
 {
     public enum NativeIconIdentityStatus
     {
-        StablePath,
-        AmbiguousDisplayName,
-        UnmanagedShellItem
+        // Preserve 0/1/2 for compatibility with existing numeric snapshots.
+        Exact = 0,
+        Ambiguous = 1,
+        ShellNamespace = 2,
+        OrdinalResolved = 3,
+        Unresolved = 4
+    }
+
+    public enum NativeDesktopCandidateType
+    {
+        Directory,
+        LinkShortcut,
+        InternetShortcut,
+        RegularFile
+    }
+
+    public static class NativeIconIdentityStatusExtensions
+    {
+        public static bool IsResolved(this NativeIconIdentityStatus status) =>
+            status is NativeIconIdentityStatus.Exact or NativeIconIdentityStatus.OrdinalResolved;
     }
 
     public sealed class NativeDesktopIconState
@@ -15,11 +32,16 @@ namespace Desktop_Frames.NativeDesktop
         public int RuntimeIndex { get; init; }
         public string DisplayName { get; init; } = string.Empty;
 
-        /// <summary>Paths behind this icon's label; more than one means the label is ambiguous.</summary>
+        /// <summary>Paths behind this icon's label, in deterministic ordinal order.</summary>
         public IReadOnlyList<string> CandidatePaths { get; init; } = Array.Empty<string>();
+
+        /// <summary>Filesystem types for CandidatePaths, in the same deterministic order.</summary>
+        public IReadOnlyList<NativeDesktopCandidateType> CandidateTypes { get; init; } = Array.Empty<NativeDesktopCandidateType>();
 
         /// <summary>Position of this icon among the icons sharing its label, in ListView order.</summary>
         public int LabelOrdinal { get; init; }
+        public int ExplorerLabelCount { get; init; }
+        public NativeDesktopCandidateType? CandidateType { get; init; }
         public string Identity { get; init; } = string.Empty;
         public string OriginalPath { get; init; } = string.Empty;
         public NativeIconIdentityStatus IdentityStatus { get; init; }
@@ -33,6 +55,7 @@ namespace Desktop_Frames.NativeDesktop
         public string OriginalPath { get; init; } = string.Empty;
         public string DisplayName { get; init; } = string.Empty;
         public NativeIconIdentityStatus IdentityStatus { get; init; }
+        public int LabelOrdinal { get; init; }
         public int X { get; init; }
         public int Y { get; init; }
     }

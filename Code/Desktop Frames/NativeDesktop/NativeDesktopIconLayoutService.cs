@@ -88,44 +88,40 @@ namespace Desktop_Frames.NativeDesktop
             var resolver = new NativeDesktopIconIdentityResolver();
             int count = Send(listView, LvmGetItemCount, IntPtr.Zero, IntPtr.Zero).ToInt32();
             var icons = new List<NativeDesktopIconState>(Math.Max(count, 0));
-            // Icons sharing a label are told apart by their order in the
-            // ListView, which is stable for as long as the enumeration lasts.
-            var labelCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var rawIcons = new List<(int RuntimeIndex, string DisplayName, NativePoint Point)>(Math.Max(count, 0));
 
             using var process = new ExplorerProcessMemory(listView);
             for (int index = 0; index < count; index++)
             {
                 string displayName = GetItemText(listView, process, index);
                 NativePoint point = GetItemPosition(listView, process, index);
-                ResolvedDesktopIconIdentity identity = resolver.ResolveDetailed(displayName);
-                labelCounts.TryGetValue(displayName, out int ordinal);
-                labelCounts[displayName] = ordinal + 1;
-                // Two Desktop entries can share one visible label - a folder and
-                // a .url beside it, for instance, because Explorer never shows
-                // the .url extension. Explorer offers no way to say which
-                // ListView item is which, so the k-th item carrying a label is
-                // paired with the k-th candidate path in sorted order. The
-                // pairing is arbitrary but stable and one-to-one, which is
-                // enough to address each icon exactly once. The status stays
-                // AmbiguousDisplayName, so snapshot and restore remain as
-                // conservative as they were; only callers that have established
-                // the candidates belong together act on the path.
-                string resolvedPath = identity.OriginalPath;
-                if (identity.Status == NativeIconIdentityStatus.AmbiguousDisplayName &&
-                    ordinal < identity.CandidatePaths.Count)
-                {
-                    resolvedPath = identity.CandidatePaths.OrderBy(candidate => candidate, StringComparer.OrdinalIgnoreCase)
-                        .ElementAt(ordinal);
-                }
+                rawIcons.Add((index, displayName, point));
+            }
+
+            Dictionary<string, int> explorerLabelCounts = rawIcons
+                .GroupBy(icon => icon.DisplayName, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+            var nextOrdinal = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            foreach ((int runtimeIndex, string displayName, NativePoint point) in rawIcons)
+            {
+                nextOrdinal.TryGetValue(displayName, out int ordinal);
+                nextOrdinal[displayName] = ordinal + 1;
+                int explorerLabelCount = explorerLabelCounts[displayName];
+                ResolvedDesktopIconIdentity identity = resolver.ResolveDetailed(
+                    displayName, explorerLabelCount, ordinal);
                 icons.Add(new NativeDesktopIconState
                 {
-                    RuntimeIndex = index,
+                    RuntimeIndex = runtimeIndex,
                     DisplayName = displayName,
                     Identity = identity.Identity,
-                    OriginalPath = resolvedPath,
+                    OriginalPath = identity.OriginalPath,
                     IdentityStatus = identity.Status,
                     CandidatePaths = identity.CandidatePaths,
+                    CandidateTypes = identity.Candidates.Select(candidate => candidate.ItemType).ToArray(),
+                    CandidateType = identity.CandidateType,
                     LabelOrdinal = ordinal,
+                    ExplorerLabelCount = explorerLabelCount,
                     X = point.X,
                     Y = point.Y
                 });
@@ -148,6 +144,7 @@ namespace Desktop_Frames.NativeDesktop
                     OriginalPath = icon.OriginalPath,
                     DisplayName = icon.DisplayName,
                     IdentityStatus = icon.IdentityStatus,
+                    LabelOrdinal = icon.LabelOrdinal,
                     X = icon.X,
                     Y = icon.Y
                 }).ToList()
@@ -190,6 +187,11 @@ namespace Desktop_Frames.NativeDesktop
                 Identity = match.Identity,
                 OriginalPath = match.OriginalPath,
                 IdentityStatus = match.IdentityStatus,
+                CandidatePaths = match.CandidatePaths,
+                CandidateTypes = match.CandidateTypes,
+                CandidateType = match.CandidateType,
+                LabelOrdinal = match.LabelOrdinal,
+                ExplorerLabelCount = match.ExplorerLabelCount,
                 X = actual.X,
                 Y = actual.Y
             };
@@ -200,12 +202,9 @@ namespace Desktop_Frames.NativeDesktop
         /// Positions an icon addressed by its label and its ordinal among the
         /// icons sharing that label.
         ///
-        /// This exists for the one case a path cannot address: two Desktop
-        /// entries whose visible names are identical, where Explorer offers no
-        /// way to tell which ListView item is which. The caller may only use it
-        /// once it has established that every candidate behind the label belongs
-        /// in the same group, so which of them lands in which slot does not
-        /// change the outcome.
+        /// This is only a native ListView addressing primitive. It does not
+        /// classify the item or imply that icons sharing the label share a group.
+        /// Count validation and ordinal resolution must already have succeeded.
         /// </summary>
         public bool TrySetPositionByLabel(string displayName, int labelOrdinal, int x, int y, out string reason)
         {
@@ -221,6 +220,11 @@ namespace Desktop_Frames.NativeDesktop
                 .Where(icon => string.Equals(icon.DisplayName, displayName, StringComparison.Ordinal))
                 .OrderBy(icon => icon.LabelOrdinal)
                 .ToArray();
+            if (matches.Length == 0 || matches.Any(icon => !icon.IdentityStatus.IsResolved()))
+            {
+                reason = "LABEL_IDENTITY_NOT_RESOLVED";
+                return false;
+            }
             if (labelOrdinal < 0 || labelOrdinal >= matches.Length)
             {
                 reason = "LABEL_ORDINAL_NOT_FOUND";
@@ -241,13 +245,13 @@ namespace Desktop_Frames.NativeDesktop
             if (state.AutoArrangeEnabled)
             {
                 result.Failed = snapshot.Icons.Count(icon =>
-                    icon.IdentityStatus == NativeIconIdentityStatus.StablePath);
+                    icon.IdentityStatus.IsResolved());
                 result.Errors.Add("AUTO_ARRANGE_ENABLED");
                 return result;
             }
 
             Dictionary<string, NativeDesktopIconState[]> current = EnumerateDesktopIcons()
-                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath)
+                .Where(icon => icon.IdentityStatus.IsResolved())
                 .GroupBy(icon => NormalizePath(icon.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
 
@@ -255,12 +259,12 @@ namespace Desktop_Frames.NativeDesktop
             using var process = new ExplorerProcessMemory(listView);
             foreach (NativeDesktopIconSnapshotItem item in snapshot.Icons)
             {
-                if (item.IdentityStatus == NativeIconIdentityStatus.UnmanagedShellItem)
+                if (item.IdentityStatus == NativeIconIdentityStatus.ShellNamespace)
                 {
                     result.SkippedUnmanaged++;
                     continue;
                 }
-                if (item.IdentityStatus == NativeIconIdentityStatus.AmbiguousDisplayName)
+                if (!item.IdentityStatus.IsResolved())
                 {
                     result.SkippedAmbiguous++;
                     continue;
@@ -299,13 +303,13 @@ namespace Desktop_Frames.NativeDesktop
             NativeDesktopListViewState state = GetListViewState();
             var result = new NativeDesktopSnapshotValidationResult { AutoArrangeEnabled = state.AutoArrangeEnabled };
             Dictionary<string, int> current = EnumerateDesktopIcons()
-                .Where(icon => icon.IdentityStatus == NativeIconIdentityStatus.StablePath)
+                .Where(icon => icon.IdentityStatus.IsResolved())
                 .GroupBy(icon => NormalizePath(icon.OriginalPath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
 
             foreach (NativeDesktopIconSnapshotItem item in snapshot.Icons)
             {
-                if (item.IdentityStatus != NativeIconIdentityStatus.StablePath)
+                if (!item.IdentityStatus.IsResolved())
                 {
                     result.SkippedUnmanaged++;
                     continue;

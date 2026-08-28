@@ -728,104 +728,40 @@ namespace Desktop_Frames.NativeDesktop
 
         private DesktopLayoutItem ToLayoutItem(NativeDesktopIconState icon)
         {
-            if (icon.IdentityStatus == NativeIconIdentityStatus.AmbiguousDisplayName)
-                return FromAmbiguousLabel(icon);
-
-            if (icon.IdentityStatus != NativeIconIdentityStatus.StablePath)
-            {
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", icon.IdentityStatus.ToString(),
-                    isManual: false, "Non-stable identity is an occupied obstacle and is never moved.");
-            }
-
-            string path = NormalizePath(icon.OriginalPath);
-            if (_manualLayoutGroups.TryGetValue(path, out NativeDesktopLayoutGroupId manualGroup))
-            {
-                return NewItem(icon, manualGroup, DisplayName(manualGroup), "HIGH", true,
-                    "ManualLayoutGroupId is authoritative; automatic classification is skipped.");
-            }
-            if (_manualButUnmappedPaths.Contains(path))
-            {
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", "HIGH", true,
-                    "ManualFrameId is authoritative but has no mapped LayoutGroupId; icon remains in place.");
-            }
-
-            if (!ReferenceFrameItem.IsSupportedPath(path))
-            {
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理", "UNASSIGNED", false,
-                    "Desktop item is not a supported shortcut, URL, or folder.");
-            }
-
-            ReferenceFrameItem reference = ReferenceFrameItem.Create(path);
-            ReferenceGroupingDecision decision = ReferenceGroupingClassifier.Classify(reference);
-            NativeDesktopLayoutGroupId group = Map(decision.Group);
-            return NewItem(icon, group, DisplayName(group), decision.Confidence.ToString().ToUpperInvariant(),
-                decision.IsManualOverride, decision.Reason, reference.ReferenceType.ToString());
-        }
-
-        /// <summary>
-        /// Decides whether icons sharing one visible label can still be grouped.
-        ///
-        /// Failing closed is right when the answer depends on WHICH file an icon
-        /// is. It is needlessly strict when every candidate behind the label
-        /// belongs in the same place: a game shortcut and the folder of the same
-        /// name sitting next to it are, to the user, one thing. So the
-        /// candidates are all classified, and if exactly one confident group
-        /// comes out of them, all of them take it. Anything less certain stays
-        /// an untouchable obstacle exactly as before.
-        /// </summary>
-        private DesktopLayoutItem FromAmbiguousLabel(NativeDesktopIconState icon)
-        {
-            const string unmanaged = "Ambiguous display name with no agreed group is an obstacle and is never moved.";
-            if (icon.CandidatePaths.Count == 0 || string.IsNullOrEmpty(icon.OriginalPath))
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理",
-                    icon.IdentityStatus.ToString(), isManual: false, unmanaged);
-
-            string path = NormalizePath(icon.OriginalPath);
-            if (_manualLayoutGroups.TryGetValue(path, out NativeDesktopLayoutGroupId manualGroup))
-            {
-                return NewItem(icon, manualGroup, DisplayName(manualGroup), "HIGH", true,
-                    "ManualLayoutGroupId is authoritative even for a shared display name.", stableIdentity: true);
-            }
-
-            var confident = new HashSet<NativeDesktopLayoutGroupId>();
-            foreach (string candidate in icon.CandidatePaths)
-            {
-                if (!ReferenceFrameItem.IsSupportedPath(candidate)) continue;
-                ReferenceGroupingDecision decision;
-                try { decision = ReferenceGroupingClassifier.Classify(ReferenceFrameItem.Create(candidate)); }
-                catch { continue; }
-                NativeDesktopLayoutGroupId mapped = Map(decision.Group);
-                if (decision.Confidence == GroupingConfidence.High && mapped != NativeDesktopLayoutGroupId.UNASSIGNED)
-                    confident.Add(mapped);
-            }
-
-            if (confident.Count != 1)
-                return NewItem(icon, NativeDesktopLayoutGroupId.UNASSIGNED, "待整理",
-                    icon.IdentityStatus.ToString(), isManual: false, unmanaged);
-
-            NativeDesktopLayoutGroupId group = confident.Single();
-            return NewItem(icon, group, DisplayName(group), "HIGH", false,
-                $"Every entry sharing the display name resolves to {group}, so the shared label does not change the grouping.",
-                stableIdentity: true);
+            ClassifiedDesktopItem classified = NativeDesktopItemClassificationService.Classify(
+                icon, _manualLayoutGroups, _manualButUnmappedPaths);
+            return NewItem(icon, classified.FinalGroup, classified.GroupDisplayName,
+                classified.Confidence, classified.IsManualOverride, classified.Reason,
+                classified.Reference?.ReferenceType.ToString() ?? icon.CandidateType?.ToString(),
+                classified.Reference, classified.ClassifierGroup);
         }
 
         private static DesktopLayoutItem NewItem(NativeDesktopIconState icon, NativeDesktopLayoutGroupId group,
             string displayGroup, string confidence, bool isManual, string reason, string? type = null,
-            bool? stableIdentity = null) => new()
+            ReferenceFrameItem? reference = null, string? classifierGroup = null) => new()
             {
                 LayoutGroupId = group.ToString(),
                 GroupDisplayName = displayGroup,
                 OriginalPath = icon.OriginalPath,
+                ExplorerLabel = icon.DisplayName,
+                LabelOrdinal = icon.LabelOrdinal,
+                ExplorerLabelCount = icon.ExplorerLabelCount,
+                ResolutionStatus = icon.IdentityStatus.ToString(),
+                CandidateType = icon.CandidateType?.ToString() ?? string.Empty,
                 DisplayName = icon.DisplayName,
                 Type = type ?? icon.IdentityStatus.ToString(),
+                TargetPath = reference?.TargetPath ?? string.Empty,
+                Arguments = reference?.Arguments ?? string.Empty,
+                Uri = reference?.Uri ?? string.Empty,
+                ClassifierGroup = classifierGroup ?? group.ToString(),
                 CurrentX = icon.X,
                 CurrentY = icon.Y,
                 TargetX = icon.X,
                 TargetY = icon.Y,
                 ClassificationConfidence = confidence,
                 ClassificationReason = reason,
-                IsStableIdentity = stableIdentity ?? icon.IdentityStatus == NativeIconIdentityStatus.StablePath,
-                IsShellNamespace = icon.IdentityStatus == NativeIconIdentityStatus.UnmanagedShellItem,
+                IsStableIdentity = icon.IdentityStatus.IsResolved(),
+                IsShellNamespace = icon.IdentityStatus == NativeIconIdentityStatus.ShellNamespace,
                 IsManualOverride = isManual,
                 ApplyReason = "NOT_PLANNED"
             };
@@ -1201,28 +1137,6 @@ namespace Desktop_Frames.NativeDesktop
                 (name.Contains("codex") || name.Contains("claude") || name.Contains("workbuddy"))) return 1;
             return 10;
         }
-
-        private static NativeDesktopLayoutGroupId Map(ReferenceGroup group) => group switch
-        {
-            ReferenceGroup.ResearchStudy => NativeDesktopLayoutGroupId.RESEARCH_STUDY,
-            ReferenceGroup.AiDev => NativeDesktopLayoutGroupId.AI_DEV,
-            ReferenceGroup.OfficeDocuments or ReferenceGroup.WorkTools => NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS,
-            ReferenceGroup.DailyTools => NativeDesktopLayoutGroupId.DAILY_TOOLS,
-            ReferenceGroup.Games => NativeDesktopLayoutGroupId.GAMES,
-            ReferenceGroup.SystemTemp => NativeDesktopLayoutGroupId.SYSTEM_TEMP,
-            _ => NativeDesktopLayoutGroupId.UNASSIGNED
-        };
-
-        private static string DisplayName(NativeDesktopLayoutGroupId group) => group switch
-        {
-            NativeDesktopLayoutGroupId.RESEARCH_STUDY => "科研 · 学习",
-            NativeDesktopLayoutGroupId.AI_DEV => "AI · 开发",
-            NativeDesktopLayoutGroupId.OFFICE_DOCUMENTS => "办公 · 文档",
-            NativeDesktopLayoutGroupId.DAILY_TOOLS => "日常工具",
-            NativeDesktopLayoutGroupId.GAMES => "游戏",
-            NativeDesktopLayoutGroupId.SYSTEM_TEMP => "系统 · 临时",
-            _ => "待整理"
-        };
 
         private static NativeDesktopLayoutGroupId ParseGroup(string value) =>
             Enum.TryParse(value, true, out NativeDesktopLayoutGroupId group) ? group : NativeDesktopLayoutGroupId.UNASSIGNED;
