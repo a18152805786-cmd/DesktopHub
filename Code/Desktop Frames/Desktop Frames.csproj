@@ -23,12 +23,10 @@
 		<None Remove="folderX.png" />
 		<None Remove="portal.png" />
 		<None Remove="Resources\36505577-smooth-simple-notification-274738.wav" />
-		<None Remove="Resources\ding.wav" />
 		<None Remove="Resources\DesktopHubVertical.png" />
 		<None Remove="Resources\dot.png" />
 		<None Remove="Resources\dragon-studio-new-notification-444814.wav" />
 		<None Remove="Resources\empty.png" />
-		<None Remove="Resources\koiroylers-slow-ding-354125.wav" />
 		<None Remove="Resources\link-White.png" />
 		<None Remove="Resources\notification_message-best-notification-1-286672.wav" />
 		<None Remove="Resources\notification_message-nada-1-326000.wav" />
@@ -38,8 +36,6 @@
 		<None Remove="Resources\steam-White.png" />
 		<None Remove="Resources\sweep-sound-effect-240243.wav" />
 		<None Remove="Resources\ui-8-warning-sound-effect-336254.wav" />
-		<None Remove="Resources\universfield-bright-notification-352449.wav" />
-		<None Remove="Resources\universfield-new-notification-062-494544.wav" />
 		<None Remove="Resources\universfield-soft-notice-146623.wav" />
 	</ItemGroup>
 
@@ -85,9 +81,7 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Resources\36505577-smooth-simple-notification-274738.wav" />
-		<EmbeddedResource Include="Resources\ding.wav" />
 		<EmbeddedResource Include="Resources\dragon-studio-new-notification-444814.wav" />
-		<EmbeddedResource Include="Resources\koiroylers-slow-ding-354125.wav" />
 		<EmbeddedResource Include="Resources\logo1.png" />
 	</ItemGroup>
 	<ItemGroup>
@@ -97,8 +91,6 @@
 		<EmbeddedResource Include="Resources\steam-White.png" />
 		<EmbeddedResource Include="Resources\sweep-sound-effect-240243.wav" />
 		<EmbeddedResource Include="Resources\ui-8-warning-sound-effect-336254.wav" />
-		<EmbeddedResource Include="Resources\universfield-bright-notification-352449.wav" />
-		<EmbeddedResource Include="Resources\universfield-new-notification-062-494544.wav" />
 		<EmbeddedResource Include="Resources\universfield-soft-notice-146623.wav" />
 	</ItemGroup>
 	<ItemGroup>
