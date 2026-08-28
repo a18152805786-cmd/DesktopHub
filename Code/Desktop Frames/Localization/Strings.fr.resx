@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- Seed translation produced with AI assistance and not yet reviewed by a native speaker. Any key that is ever removed falls back to English at runtime. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
@@ -59,31 +59,16 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AboutAnd" xml:space="preserve">
-    <value> et </value>
-  </data>
   <data name="AboutBody" xml:space="preserve">
     <value>DesktopHub crée des cadres virtuels sur votre bureau, où regrouper et ranger vos icônes proprement.</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>DesktopHub est un utilitaire open source pour Windows, né du travail de HakanKokcu sous le nom BirdyFences.
+    <value>DesktopHub est une version modifiée de Desktop Frames + (DesktopFramesPlus), créée à l'origine par HakanKokcu sous le nom BirdyFences et maintenue par Nikos Georgousis.
 
-Il est aujourd'hui maintenu par Nikos Georgousis, qui l'a enrichi et rendu plus stable et agréable à utiliser.</value>
-  </data>
-  <data name="AboutDonateBig" xml:space="preserve">
-    <value>Donner 999,00 €</value>
-  </data>
-  <data name="AboutDontFeedDragons" xml:space="preserve">
-    <value>Ne nourrissez pas les dragons</value>
-  </data>
-  <data name="AboutGreatToHaveYou" xml:space="preserve">
-    <value>Content de vous avoir ici</value>
+Le projet amont et ses composants sont utilisés selon leur licence MIT.</value>
   </data>
   <data name="AboutLicense" xml:space="preserve">
     <value>⚖ Licence MIT</value>
-  </data>
-  <data name="AboutPleaseDonate" xml:space="preserve">
-    <value>Faites un don</value>
   </data>
   <data name="AboutSectionAbout" xml:space="preserve">
     <value>À propos</value>
@@ -91,17 +76,8 @@ Il est aujourd'hui maintenu par Nikos Georgousis, qui l'a enrichi et rendu plus 
   <data name="AboutSectionCredits" xml:space="preserve">
     <value>Crédits</value>
   </data>
-  <data name="AboutSoundCredits" xml:space="preserve">
-    <value>Sons gratuits depuis </value>
-  </data>
-  <data name="AboutSupportDevelopment" xml:space="preserve">
-    <value>Soutenir le développement</value>
-  </data>
   <data name="AboutTagline" xml:space="preserve">
     <value>Rangez votre bureau comme par magie.</value>
-  </data>
-  <data name="AboutThinkAgain" xml:space="preserve">
-    <value>Vraiment ? Réfléchissez !</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
     <value>À propos de DesktopHub</value>
@@ -111,9 +87,6 @@ Il est aujourd'hui maintenu par Nikos Georgousis, qui l'a enrichi et rendu plus 
   </data>
   <data name="AboutVisitGitHub" xml:space="preserve">
     <value>⚡ Voir le dépôt GitHub</value>
-  </data>
-  <data name="AboutWhat" xml:space="preserve">
-    <value>Comment !?</value>
   </data>
   <data name="AutomationClickTarget" xml:space="preserve">
     <value>CLIQUEZ SUR LA FENÊTRE CIBLE</value>
@@ -210,9 +183,6 @@ Il est aujourd'hui maintenu par Nikos Georgousis, qui l'a enrichi et rendu plus 
   </data>
   <data name="BtnDefault" xml:space="preserve">
     <value>Par défaut</value>
-  </data>
-  <data name="BtnDonate" xml:space="preserve">
-    <value>♥ Faire un don via PayPal</value>
   </data>
   <data name="BtnImportLanguagePack" xml:space="preserve">
     <value>Importer un pack de langue…</value>
@@ -820,9 +790,6 @@ Il est aujourd'hui maintenu par Nikos Georgousis, qui l'a enrichi et rendu plus 
   <data name="LblDisplayName" xml:space="preserve">
     <value>Nom affiché :</value>
   </data>
-  <data name="LblDonate" xml:space="preserve">
-    <value>Soutenez la maintenance et le développement de ce projet par un don</value>
-  </data>
   <data name="LblEffect" xml:space="preserve">
     <value>Effet</value>
   </data>
@@ -1175,7 +1142,7 @@ L'application va redémarrer pour les appliquer.</value>
   <data name="MsgHotkeysSavedRestartNeeded" xml:space="preserve">
     <value>Les raccourcis clavier ont été enregistrés et appliqués à tous les profils.
 
-Redémarrez Desktop Frames pour les activer.</value>
+Redémarrez DesktopHub pour les activer.</value>
   </data>
   <data name="MsgImportFailed" xml:space="preserve">
     <value>Échec de l'importation : {0}</value>
@@ -1591,7 +1558,7 @@ Redémarrer maintenant ?</value>
     <value>Tapez pour rechercher…</value>
   </data>
   <data name="SearchTitle" xml:space="preserve">
-    <value>Recherche Desktop Frames</value>
+    <value>Recherche DesktopHub</value>
   </data>
   <data name="SecAppearance" xml:space="preserve">
     <value>Apparence</value>
@@ -1789,13 +1756,13 @@ Redémarrer maintenant ?</value>
     <value>Valeurs du registre exportées dans le dossier du programme.</value>
   </data>
   <data name="TrayExportDoneTitle" xml:space="preserve">
-    <value>Desktop Frames Plus</value>
+    <value>DesktopHub</value>
   </data>
   <data name="TrayExportFailedText" xml:space="preserve">
     <value>Échec de l'export des valeurs du registre. Consultez le journal.</value>
   </data>
   <data name="TrayExportFailedTitle" xml:space="preserve">
-    <value>Desktop Frames Plus - Erreur</value>
+    <value>DesktopHub - Erreur</value>
   </data>
   <data name="TrayFocusFrame" xml:space="preserve">
     <value>Aller au cadre... ({0})</value>

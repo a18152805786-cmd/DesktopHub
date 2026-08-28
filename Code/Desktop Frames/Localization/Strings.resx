@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -58,9 +58,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AboutAnd" xml:space="preserve">
-    <value> and </value>
-  </data>
   <data name="AboutBody" xml:space="preserve">
     <value>DesktopHub groups your desktop icons automatically, keeps the layout tidy, and lets you find files and apps instantly.</value>
   </data>
@@ -69,20 +66,8 @@
 
 The upstream project and its components are used under their MIT License.</value>
   </data>
-  <data name="AboutDonateBig" xml:space="preserve">
-    <value>Donate 999,00 €</value>
-  </data>
-  <data name="AboutDontFeedDragons" xml:space="preserve">
-    <value>Don't feed the dragons</value>
-  </data>
-  <data name="AboutGreatToHaveYou" xml:space="preserve">
-    <value>It is great to have you here</value>
-  </data>
   <data name="AboutLicense" xml:space="preserve">
     <value>⚖ MIT License</value>
-  </data>
-  <data name="AboutPleaseDonate" xml:space="preserve">
-    <value>Please donate</value>
   </data>
   <data name="AboutSectionAbout" xml:space="preserve">
     <value>About</value>
@@ -90,17 +75,8 @@ The upstream project and its components are used under their MIT License.</value
   <data name="AboutSectionCredits" xml:space="preserve">
     <value>Open Source Licenses</value>
   </data>
-  <data name="AboutSoundCredits" xml:space="preserve">
-    <value>Using free sound files from </value>
-  </data>
-  <data name="AboutSupportDevelopment" xml:space="preserve">
-    <value>Support Development</value>
-  </data>
   <data name="AboutTagline" xml:space="preserve">
     <value>Sort your desktop, keep it tidy, find anything fast.</value>
-  </data>
-  <data name="AboutThinkAgain" xml:space="preserve">
-    <value>Are you sure? Think again!</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
     <value>About DesktopHub</value>
@@ -110,9 +86,6 @@ The upstream project and its components are used under their MIT License.</value
   </data>
   <data name="AboutVisitGitHub" xml:space="preserve">
     <value>View DesktopHub source code</value>
-  </data>
-  <data name="AboutWhat" xml:space="preserve">
-    <value>What!?</value>
   </data>
   <data name="AutomationClickTarget" xml:space="preserve">
     <value>CLICK ON THE TARGET WINDOW</value>
@@ -212,9 +185,6 @@ The upstream project and its components are used under their MIT License.</value
   </data>
   <data name="BtnDefault" xml:space="preserve">
     <value>Default</value>
-  </data>
-  <data name="BtnDonate" xml:space="preserve">
-    <value>♥ Donate via PayPal</value>
   </data>
   <data name="BtnManageAutomation" xml:space="preserve">
     <value>Manage Automation</value>
@@ -774,9 +744,6 @@ The upstream project and its components are used under their MIT License.</value
   <data name="LblDisplayName" xml:space="preserve">
     <value>Display Name:</value>
   </data>
-  <data name="LblDonate" xml:space="preserve">
-    <value>Support the Maintenance and Enhancement of This Project by Donating</value>
-  </data>
   <data name="LblEffect" xml:space="preserve">
     <value>Effect</value>
   </data>
@@ -1126,7 +1093,7 @@ The application will now restart to apply changes.</value>
   <data name="MsgHotkeysSavedRestartNeeded" xml:space="preserve">
     <value>Global Hotkey changes have been saved and applied to all profiles.
 
-Please restart Desktop Frames to activate the new shortcuts.</value>
+Please restart DesktopHub to activate the new shortcuts.</value>
   </data>
   <data name="MsgImportFailed" xml:space="preserve">
     <value>Import failed: {0}</value>
@@ -1539,7 +1506,7 @@ Restart now?</value>
     <value>Type to search...</value>
   </data>
   <data name="SearchTitle" xml:space="preserve">
-    <value>Desktop Frames Search</value>
+    <value>DesktopHub Search</value>
   </data>
   <data name="SecAppearance" xml:space="preserve">
     <value>Appearance</value>
@@ -1731,13 +1698,13 @@ Restart now?</value>
     <value>Registry values exported successfully to program folder.</value>
   </data>
   <data name="TrayExportDoneTitle" xml:space="preserve">
-    <value>Desktop Frames Plus</value>
+    <value>DesktopHub</value>
   </data>
   <data name="TrayExportFailedText" xml:space="preserve">
     <value>Failed to export registry values. Check log for details.</value>
   </data>
   <data name="TrayExportFailedTitle" xml:space="preserve">
-    <value>Desktop Frames Plus - Error</value>
+    <value>DesktopHub - Error</value>
   </data>
   <data name="TrayFocusFrame" xml:space="preserve">
     <value>Focus Frame... ({0})</value>
@@ -1890,7 +1857,7 @@ Restart now?</value>
     <value>DesktopHub Startup Tips</value>
   </data>
   <data name="StartupTipsContent" xml:space="preserve">
-    <value>WELCOME TO DESKTOP FRAMES +
+    <value>WELCOME TO DESKTOPHUB
 ---------------------------
 • Roll Up/Down: Double-click the frame title bar.
 • Rename: Ctrl + Click the title bar (Enter to save).

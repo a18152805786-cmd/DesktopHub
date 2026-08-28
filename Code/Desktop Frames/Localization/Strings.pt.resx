@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- Seed translation produced with AI assistance and not yet reviewed by a native speaker. Any key that is ever removed falls back to English at runtime. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
@@ -59,31 +59,16 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AboutAnd" xml:space="preserve">
-    <value> e </value>
-  </data>
   <data name="AboutBody" xml:space="preserve">
     <value>O DesktopHub cria molduras virtuais no ambiente de trabalho, onde reunir e arrumar os ícones de forma limpa e cómoda.</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>O DesktopHub é um utilitário de código aberto para Windows, nascido do trabalho de HakanKokcu com o nome BirdyFences.
+    <value>O DesktopHub é uma versão modificada do Desktop Frames + (DesktopFramesPlus), criado originalmente por HakanKokcu como BirdyFences e mantido por Nikos Georgousis.
 
-Hoje é mantido por Nikos Georgousis, que o alargou e o tornou mais estável e agradável de usar.</value>
-  </data>
-  <data name="AboutDonateBig" xml:space="preserve">
-    <value>Doar 999,00 €</value>
-  </data>
-  <data name="AboutDontFeedDragons" xml:space="preserve">
-    <value>Não dê de comer aos dragões</value>
-  </data>
-  <data name="AboutGreatToHaveYou" xml:space="preserve">
-    <value>É bom tê-lo por cá</value>
+O projeto original e os seus componentes são utilizados ao abrigo da respetiva Licença MIT.</value>
   </data>
   <data name="AboutLicense" xml:space="preserve">
     <value>⚖ Licença MIT</value>
-  </data>
-  <data name="AboutPleaseDonate" xml:space="preserve">
-    <value>Faça um donativo</value>
   </data>
   <data name="AboutSectionAbout" xml:space="preserve">
     <value>Acerca de</value>
@@ -91,17 +76,8 @@ Hoje é mantido por Nikos Georgousis, que o alargou e o tornou mais estável e a
   <data name="AboutSectionCredits" xml:space="preserve">
     <value>Créditos</value>
   </data>
-  <data name="AboutSoundCredits" xml:space="preserve">
-    <value>Sons gratuitos de </value>
-  </data>
-  <data name="AboutSupportDevelopment" xml:space="preserve">
-    <value>Apoiar o desenvolvimento</value>
-  </data>
   <data name="AboutTagline" xml:space="preserve">
     <value>Arrume o ambiente de trabalho como por magia.</value>
-  </data>
-  <data name="AboutThinkAgain" xml:space="preserve">
-    <value>De certeza? Pense melhor!</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
     <value>Acerca do DesktopHub</value>
@@ -111,9 +87,6 @@ Hoje é mantido por Nikos Georgousis, que o alargou e o tornou mais estável e a
   </data>
   <data name="AboutVisitGitHub" xml:space="preserve">
     <value>⚡ Ir ao repositório GitHub</value>
-  </data>
-  <data name="AboutWhat" xml:space="preserve">
-    <value>Como!?</value>
   </data>
   <data name="AutomationClickTarget" xml:space="preserve">
     <value>CLIQUE NA JANELA DE DESTINO</value>
@@ -210,9 +183,6 @@ Hoje é mantido por Nikos Georgousis, que o alargou e o tornou mais estável e a
   </data>
   <data name="BtnDefault" xml:space="preserve">
     <value>Predefinido</value>
-  </data>
-  <data name="BtnDonate" xml:space="preserve">
-    <value>♥ Doar via PayPal</value>
   </data>
   <data name="BtnImportLanguagePack" xml:space="preserve">
     <value>Importar um pacote de idioma…</value>
@@ -820,9 +790,6 @@ Hoje é mantido por Nikos Georgousis, que o alargou e o tornou mais estável e a
   <data name="LblDisplayName" xml:space="preserve">
     <value>Nome apresentado:</value>
   </data>
-  <data name="LblDonate" xml:space="preserve">
-    <value>Apoie a manutenção e o desenvolvimento deste projeto com um donativo</value>
-  </data>
   <data name="LblEffect" xml:space="preserve">
     <value>Efeito</value>
   </data>
@@ -1175,7 +1142,7 @@ A aplicação vai reiniciar para as aplicar.</value>
   <data name="MsgHotkeysSavedRestartNeeded" xml:space="preserve">
     <value>Os atalhos globais foram guardados e aplicados a todos os perfis.
 
-Reinicie o Desktop Frames para os ativar.</value>
+Reinicie o DesktopHub para os ativar.</value>
   </data>
   <data name="MsgImportFailed" xml:space="preserve">
     <value>A importação falhou: {0}</value>
@@ -1591,7 +1558,7 @@ Reiniciar agora?</value>
     <value>Escreva para procurar…</value>
   </data>
   <data name="SearchTitle" xml:space="preserve">
-    <value>Pesquisa do Desktop Frames</value>
+    <value>Pesquisa do DesktopHub</value>
   </data>
   <data name="SecAppearance" xml:space="preserve">
     <value>Aspeto</value>
@@ -1789,13 +1756,13 @@ Reiniciar agora?</value>
     <value>Valores do registo exportados para a pasta do programa.</value>
   </data>
   <data name="TrayExportDoneTitle" xml:space="preserve">
-    <value>Desktop Frames Plus</value>
+    <value>DesktopHub</value>
   </data>
   <data name="TrayExportFailedText" xml:space="preserve">
     <value>Falha ao exportar os valores do registo. Consulte o registo.</value>
   </data>
   <data name="TrayExportFailedTitle" xml:space="preserve">
-    <value>Desktop Frames Plus - Erro</value>
+    <value>DesktopHub - Erro</value>
   </data>
   <data name="TrayFocusFrame" xml:space="preserve">
     <value>Ir para a moldura... ({0})</value>

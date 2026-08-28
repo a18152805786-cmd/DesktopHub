@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -231,7 +231,6 @@ namespace Desktop_Frames.Localization
         public static string BtnClose => Get("BtnClose");
         public static string BtnCreate => Get("BtnCreate");
         public static string BtnDefault => Get("BtnDefault");
-        public static string BtnDonate => Get("BtnDonate");
         public static string BtnManageAutomation => Get("BtnManageAutomation");
         public static string BtnManageProfiles => Get("BtnManageProfiles");
         public static string BtnMoveDown => Get("BtnMoveDown");
@@ -547,7 +546,6 @@ namespace Desktop_Frames.Localization
         public static string LblDefaultPortalView => Get("LblDefaultPortalView");
         public static string LblDisableTextShadow => Get("LblDisableTextShadow");
         public static string LblDisplayName => Get("LblDisplayName");
-        public static string LblDonate => Get("LblDonate");
         public static string LblEffect => Get("LblEffect");
         public static string LblEnableProfileAutomation => Get("LblEnableProfileAutomation");
         public static string LblFontFamily => Get("LblFontFamily");
@@ -654,25 +652,15 @@ namespace Desktop_Frames.Localization
         public static string UpdateAvailable => Get("UpdateAvailable");
 
         // ── About panel ────────────────────────────────────────────────────
-        public static string AboutAnd => Get("AboutAnd");
         public static string AboutBody => Get("AboutBody");
         public static string AboutCreditsBody => Get("AboutCreditsBody");
-        public static string AboutDonateBig => Get("AboutDonateBig");
-        public static string AboutDontFeedDragons => Get("AboutDontFeedDragons");
-        public static string AboutGreatToHaveYou => Get("AboutGreatToHaveYou");
         public static string AboutLicense => Get("AboutLicense");
-        public static string AboutPleaseDonate => Get("AboutPleaseDonate");
         public static string AboutSectionAbout => Get("AboutSectionAbout");
         public static string AboutSectionCredits => Get("AboutSectionCredits");
         public static string AboutSectionProject => Get("AboutSectionProject");
-        public static string AboutSoundCredits => Get("AboutSoundCredits");
-        public static string AboutSupportDevelopment => Get("AboutSupportDevelopment");
         public static string AboutTagline => Get("AboutTagline");
-        public static string AboutThinkAgain => Get("AboutThinkAgain");
         public static string AboutTitle => Get("AboutTitle");
         public static string AboutVisitGitHub => Get("AboutVisitGitHub");
-        public static string AboutWhat => Get("AboutWhat");
-
         // ── Widget plugins ─────────────────────────────────────────────────
         public static string CalcBadgeFade => Get("CalcBadgeFade");
         public static string CalcClear => Get("CalcClear");

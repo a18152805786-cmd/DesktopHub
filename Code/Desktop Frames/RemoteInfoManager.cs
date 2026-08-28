@@ -11,8 +11,17 @@ namespace Desktop_Frames
 {
     public static class RemoteInfoManager
     {
-        // YOUR REAL GITHUB URL
-        private const string MANIFEST_URL = "https://raw.githubusercontent.com/limbo666/DesktopFramesPlus/refs/heads/main/ngdfcs/getversion.json";
+        // DesktopHub ships with no remote manifest. The upstream feed this once
+        // pointed at is another project's channel: it served that project's
+        // PayPal announcement into this window, and its Meta carries a
+        // ForceKillSwitch that shuts the application down. Neither belongs in a
+        // build the upstream author does not publish.
+        //
+        // The mechanism itself is kept and is strictly opt-in. Drop a
+        // developer_repo.txt next to the executable containing an http(s) URL to
+        // your own manifest and the check runs against that. With no such file
+        // there is no manifest, no network call, and no announcement.
+        private const string DeveloperRepoFileName = "developer_repo.txt";
 
         private static bool _hasChecked = false;
 
@@ -21,62 +30,61 @@ namespace Desktop_Frames
             if (_hasChecked) return;
             _hasChecked = true;
 
+            string? manifestUrl = ResolveManifestUrl();
+            if (manifestUrl == null)
+            {
+                LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                    "RemoteInfoManager: no manifest configured, remote check skipped.");
+                return;
+            }
+
             // Run in background
             Task.Run(async () =>
             {
-                string debugUrlFile = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "developer_repo.txt");
-
-                // 3-second delay for dev testing, 25-second for production release
-                if (System.IO.File.Exists(debugUrlFile))
-                {
-                    await Task.Delay(3000);
-                }
-                else
-                {
-                    await Task.Delay(25000);
-                }
-
-                await PerformCheck();
+                await Task.Delay(3000);
+                await PerformCheck(manifestUrl);
             });
         }
 
-        private static async Task PerformCheck()
+        /// <summary>
+        /// Returns the operator-supplied manifest URL, or null when none is
+        /// configured. There is deliberately no built-in default.
+        /// </summary>
+        private static string? ResolveManifestUrl()
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, DeveloperRepoFileName);
+                if (!System.IO.File.Exists(path)) return null;
+
+                string rawContent = System.IO.File.ReadAllText(path).Trim();
+                if (!string.IsNullOrWhiteSpace(rawContent) &&
+                    (rawContent.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                     rawContent.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return rawContent;
+                }
+
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General,
+                    $"RemoteInfoManager: {DeveloperRepoFileName} is empty or malformed, remote check skipped.");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
+                    $"RemoteInfoManager: failed to read {DeveloperRepoFileName}: {ex.Message}. Remote check skipped.");
+                return null;
+            }
+        }
+
+        private static async Task PerformCheck(string targetUrl)
         {
             try
             {
                 using (var client = new HttpClient())
                 {
-                    client.DefaultRequestHeaders.UserAgent.ParseAdd("DesktopFrames/2.7"); // Identify app
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("DesktopHub"); // Identify app
                     client.Timeout = TimeSpan.FromSeconds(10);
-
-                    string targetUrl = MANIFEST_URL;
-                    string debugUrlFile = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "developer_repo.txt");
-
-                    // OVERRIDE: Read secret URL and sanitize
-                    if (System.IO.File.Exists(debugUrlFile))
-                    {
-                        try
-                        {
-                            string rawContent = System.IO.File.ReadAllText(debugUrlFile).Trim();
-
-                            // Sanitize: Check if it's not empty and is a valid HTTP/HTTPS URL
-                            if (!string.IsNullOrWhiteSpace(rawContent) &&
-                                (rawContent.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                                 rawContent.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
-                            {
-                                targetUrl = rawContent;
-                                LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General, $"RemoteInfoManager: Using validated developer repo.");
-                            }
-                            else
-                            {
-                                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General, "RemoteInfoManager: developer_repo.txt is empty or malformed. Falling back to default URL.");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General, $"RemoteInfoManager: Failed to read developer_repo.txt: {ex.Message}. Falling back to default URL.");
-                        }
-                    }
 
                     // Add Cache Buster
                     string urlWithNoCache = $"{targetUrl}?t={DateTime.Now.Ticks}";
@@ -150,7 +158,7 @@ namespace Desktop_Frames
                         Title = Strings.UpdateAvailable,
                         Body = $"A new version ({remoteVer}) is available.\nYou are currently using {currentVer}.",
                         Type = meta.CriticalUpdate ? "Alert" : "Info",
-                        Link = !string.IsNullOrEmpty(meta.DownloadUrl) ? meta.DownloadUrl : "https://github.com/limbo666/DesktopFramesPlus/releases",
+                        Link = !string.IsNullOrEmpty(meta.DownloadUrl) ? meta.DownloadUrl : "https://github.com/a18152805786-cmd/DesktopHub/releases",
                         CanUserDismiss = !meta.CriticalUpdate,
                         MaxDisplayCount = meta.CriticalUpdate ? 50 : 3 // Nag more for critical
                     };

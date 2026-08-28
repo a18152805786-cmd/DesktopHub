@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- Seed translation produced with AI assistance and not yet reviewed by a native speaker. Any key that is ever removed falls back to English at runtime. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
@@ -59,31 +59,16 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AboutAnd" xml:space="preserve">
-    <value> и </value>
-  </data>
   <data name="AboutBody" xml:space="preserve">
     <value>DesktopHub создаёт на рабочем столе виртуальные рамки, в которых значки удобно и опрятно группируются.</value>
   </data>
   <data name="AboutCreditsBody" xml:space="preserve">
-    <value>DesktopHub — открытая утилита для Windows, выросшая из работы HakanKokcu под названием BirdyFences.
+    <value>DesktopHub — модифицированная сборка Desktop Frames + (DesktopFramesPlus), изначально созданная HakanKokcu под названием BirdyFences и сопровождаемая Nikos Georgousis.
 
-Сегодня её сопровождает Nikos Georgousis, который её расширил и сделал стабильнее и приятнее в работе.</value>
-  </data>
-  <data name="AboutDonateBig" xml:space="preserve">
-    <value>Пожертвовать 999,00 €</value>
-  </data>
-  <data name="AboutDontFeedDragons" xml:space="preserve">
-    <value>Не кормите драконов</value>
-  </data>
-  <data name="AboutGreatToHaveYou" xml:space="preserve">
-    <value>Рады видеть вас здесь</value>
+Исходный проект и его компоненты используются на условиях их лицензии MIT.</value>
   </data>
   <data name="AboutLicense" xml:space="preserve">
     <value>⚖ Лицензия MIT</value>
-  </data>
-  <data name="AboutPleaseDonate" xml:space="preserve">
-    <value>Пожалуйста, поддержите</value>
   </data>
   <data name="AboutSectionAbout" xml:space="preserve">
     <value>О программе</value>
@@ -91,17 +76,8 @@
   <data name="AboutSectionCredits" xml:space="preserve">
     <value>Благодарности</value>
   </data>
-  <data name="AboutSoundCredits" xml:space="preserve">
-    <value>Бесплатные звуки с </value>
-  </data>
-  <data name="AboutSupportDevelopment" xml:space="preserve">
-    <value>Поддержать разработку</value>
-  </data>
   <data name="AboutTagline" xml:space="preserve">
     <value>Наведите порядок на рабочем столе как по волшебству.</value>
-  </data>
-  <data name="AboutThinkAgain" xml:space="preserve">
-    <value>Уверены? Подумайте ещё раз!</value>
   </data>
   <data name="AboutTitle" xml:space="preserve">
     <value>О программе DesktopHub</value>
@@ -111,9 +87,6 @@
   </data>
   <data name="AboutVisitGitHub" xml:space="preserve">
     <value>⚡ Открыть репозиторий GitHub</value>
-  </data>
-  <data name="AboutWhat" xml:space="preserve">
-    <value>Что!?</value>
   </data>
   <data name="AutomationClickTarget" xml:space="preserve">
     <value>ЩЁЛКНИТЕ ПО ЦЕЛЕВОМУ ОКНУ</value>
@@ -210,9 +183,6 @@
   </data>
   <data name="BtnDefault" xml:space="preserve">
     <value>По умолчанию</value>
-  </data>
-  <data name="BtnDonate" xml:space="preserve">
-    <value>♥ Поддержать через PayPal</value>
   </data>
   <data name="BtnImportLanguagePack" xml:space="preserve">
     <value>Импортировать языковой пакет…</value>
@@ -820,9 +790,6 @@
   <data name="LblDisplayName" xml:space="preserve">
     <value>Отображаемое имя:</value>
   </data>
-  <data name="LblDonate" xml:space="preserve">
-    <value>Поддержите сопровождение и развитие проекта пожертвованием</value>
-  </data>
   <data name="LblEffect" xml:space="preserve">
     <value>Эффект</value>
   </data>
@@ -1175,7 +1142,7 @@
   <data name="MsgHotkeysSavedRestartNeeded" xml:space="preserve">
     <value>Глобальные сочетания клавиш сохранены и применены ко всем профилям.
 
-Перезапустите Desktop Frames, чтобы они заработали.</value>
+Перезапустите DesktopHub, чтобы они заработали.</value>
   </data>
   <data name="MsgImportFailed" xml:space="preserve">
     <value>Не удалось выполнить импорт: {0}</value>
@@ -1591,7 +1558,7 @@
     <value>Введите для поиска…</value>
   </data>
   <data name="SearchTitle" xml:space="preserve">
-    <value>Поиск Desktop Frames</value>
+    <value>Поиск DesktopHub</value>
   </data>
   <data name="SecAppearance" xml:space="preserve">
     <value>Внешний вид</value>
@@ -1789,13 +1756,13 @@
     <value>Значения реестра экспортированы в папку программы.</value>
   </data>
   <data name="TrayExportDoneTitle" xml:space="preserve">
-    <value>Desktop Frames Plus</value>
+    <value>DesktopHub</value>
   </data>
   <data name="TrayExportFailedText" xml:space="preserve">
     <value>Не удалось экспортировать значения реестра. Смотрите журнал.</value>
   </data>
   <data name="TrayExportFailedTitle" xml:space="preserve">
-    <value>Desktop Frames Plus - Ошибка</value>
+    <value>DesktopHub - Ошибка</value>
   </data>
   <data name="TrayFocusFrame" xml:space="preserve">
     <value>Перейти к рамке... ({0})</value>
