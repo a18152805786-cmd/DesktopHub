@@ -76,6 +76,31 @@ namespace Desktop_Frames.NativeDesktop
                 .ThenBy(candidate => NormalizePath(candidate.OriginalPath), StringComparer.Ordinal)
                 .ToArray();
 
+            // A file is indexed under its full name and again under its name
+            // without the extension, so identities still resolve when Explorer
+            // hides known extensions. The cost is that "Report.zip" also answers
+            // to the label "Report": put a folder named "Report" beside it while
+            // Explorer IS showing extensions, and Explorer reports one icon
+            // called "Report" while the index offers two candidates. The count
+            // mismatch failed closed, so the folder lost its identity, dropped
+            // out of its group, and - being unmanaged - became an obstacle that
+            // pushed the whole rail inward.
+            //
+            // An exact filename match is stronger evidence than an
+            // extension-stripped alias. When the exact matches alone account for
+            // what Explorer reported, they are the answer. Otherwise the full
+            // alias set stands, which is what lets a folder and a same-named
+            // .url - whose extension Explorer always hides - still pair up by
+            // ordinal.
+            NativeDesktopIconCandidate[] exactNameMatches = candidates
+                .Where(candidate => string.Equals(
+                    Path.GetFileName(NormalizePath(candidate.OriginalPath)),
+                    label,
+                    StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (exactNameMatches.Length > 0 && exactNameMatches.Length == explorerLabelCount)
+                candidates = exactNameMatches;
+
             if (explorerLabelCount <= 0 || explorerLabelCount != candidates.Length ||
                 labelOrdinal < 0 || labelOrdinal >= explorerLabelCount)
             {
