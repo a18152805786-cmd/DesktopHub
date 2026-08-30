@@ -498,6 +498,10 @@ namespace Desktop_Frames
         [DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyIcon(IntPtr hIcon);
+
         // --- NEW: Native Shell API for robust icon extraction ---
         // --- UPDATED: Strict Unicode Shell API ---
     
@@ -524,6 +528,7 @@ namespace Desktop_Frames
 
         public static ImageSource GetShellIcon(string path, bool isFolder)
         {
+            SHFILEINFO shinfo = new SHFILEINFO();
             try
             {
                 // 1. PATH CORRECTION
@@ -534,8 +539,6 @@ namespace Desktop_Frames
                     string checkPath = System.IO.Path.Combine(exeDir, path);
                     if (System.IO.File.Exists(checkPath)) path = checkPath;
                 }
-
-                SHFILEINFO shinfo = new SHFILEINFO();
 
                 // 2. FLAG SELECTION
                 // Critical: Do NOT use SHGFI_USEFILEATTRIBUTES for .lnk files. 
@@ -579,13 +582,17 @@ namespace Desktop_Frames
                     img.Freeze();
                 }
 
-                DeleteObject(shinfo.hIcon);
                 return img;
             }
             catch (Exception ex)
             {
                 LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.IconHandling, $"GetShellIcon failed for {path}: {ex.Message}");
                 return null;
+            }
+            finally
+            {
+                // SHGetFileInfo transfers ownership of the HICON to the caller.
+                if (shinfo.hIcon != IntPtr.Zero) DestroyIcon(shinfo.hIcon);
             }
         }
 
