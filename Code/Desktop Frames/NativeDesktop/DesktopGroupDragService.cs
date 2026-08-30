@@ -45,7 +45,9 @@ namespace Desktop_Frames.NativeDesktop
                 result.Reason = "GROUP_NOT_PLANNED";
                 return result;
             }
-            if (group.Locked)
+            // A plan is a geometry snapshot, not the authority for a later
+            // user lock/unlock command. Read the same store used by the menu.
+            if (DesktopGroupZoneStore.IsLocked(groupId))
             {
                 result.Reason = "GROUP_LOCKED";
                 return result;

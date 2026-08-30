@@ -47,7 +47,9 @@ namespace Desktop_Frames.NativeDesktop
                 result.Reason = "GROUP_NOT_PLANNED";
                 return result;
             }
-            if (group.Locked)
+            // A restored plan may predate the last lock/unlock command.
+            // The store is the authority for both drag and resize decisions.
+            if (DesktopGroupZoneStore.IsLocked(groupId))
             {
                 result.Reason = "GROUP_LOCKED";
                 return result;
