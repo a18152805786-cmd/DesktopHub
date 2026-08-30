@@ -10,6 +10,7 @@ namespace Desktop_Frames.NativeDesktop
     {
         public bool Accepted { get; set; }
         public string Reason { get; set; } = string.Empty;
+        public string Detail { get; set; } = string.Empty;
         public int Columns { get; set; }
         public int Rows { get; set; }
         public int RequiredSlots { get; set; }
@@ -31,14 +32,27 @@ namespace Desktop_Frames.NativeDesktop
         public const int MinimumRows = 1;
 
         /// <summary>
-        /// Validates a proposed size and stores it. Nothing on the desktop moves
-        /// here; the caller re-runs the layout once the size is accepted.
+        /// Validates the entire candidate layout without storing the size.
+        /// CommitResize owns persistence and rolls it back if application fails.
         /// </summary>
         public static DesktopGroupResizeResult Resize(
             DesktopLayoutPlan plan,
             NativeDesktopLayoutGroupId groupId,
             int columns,
             int rows)
+            => Resize(plan, groupId, columns, rows,
+                () => new NativeDesktopIconLayoutService().GetSafeDesktopGrid(),
+                zones => NativeDesktopLayoutApplicationService.CreateDualRailPlan(zones));
+
+        // Separating the read-only environment from the decision allows the
+        // exact production gates to run against an isolated layout snapshot.
+        internal static DesktopGroupResizeResult Resize(
+            DesktopLayoutPlan plan,
+            NativeDesktopLayoutGroupId groupId,
+            int columns,
+            int rows,
+            Func<NativeDesktopSafeGrid> getSafeGrid,
+            Func<IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>, DesktopLayoutPlan> createPlan)
         {
             var result = new DesktopGroupResizeResult { Columns = columns, Rows = rows };
             DesktopLayoutGroup? group = plan.Groups.FirstOrDefault(candidate => candidate.GroupId == groupId);
@@ -65,25 +79,90 @@ namespace Desktop_Frames.NativeDesktop
 
             // A zone that cannot hold its own members is not a smaller zone, it
             // is a broken one. Refuse rather than silently dropping icons out.
-            if (columns * rows < required)
+            if ((long)columns * rows < required)
             {
                 result.Reason = "CAPACITY_TOO_SMALL";
                 return result;
             }
 
-            var layout = new NativeDesktopIconLayoutService();
-            NativeDesktopSafeGrid safeGrid = layout.GetSafeDesktopGrid();
-            if (group.RailColumn + columns > safeGrid.SafeColumns ||
-                group.RailRow + rows > safeGrid.SafeRows)
+            NativeDesktopSafeGrid safeGrid = getSafeGrid();
+            if ((long)group.RailColumn + columns > safeGrid.SafeColumns ||
+                (long)group.RailRow + rows > safeGrid.SafeRows)
             {
                 result.Reason = "OUTSIDE_SAFE_GRID";
                 return result;
             }
 
-            DesktopGroupZoneStore.SaveSize(groupId, columns, rows);
-            group.HasManualSize = true;
+            var proposedZones = DesktopGroupZoneStore.Load().ToDictionary(pair => pair.Key, pair => pair.Value);
+            proposedZones.TryGetValue(groupId, out DesktopGroupZone? previous);
+            proposedZones[groupId] = new DesktopGroupZone
+            {
+                Column = previous?.Column ?? 0,
+                Row = previous?.Row ?? 0,
+                IsManualPosition = previous?.IsManualPosition ?? false,
+                ExtraColumns = previous?.ExtraColumns ?? 0,
+                Locked = previous?.Locked ?? false,
+                IsManualSize = true,
+                ManualColumns = columns,
+                ManualRows = rows
+            };
+            try
+            {
+                // This is the full, unchanged Dual-Rail planner, not just the
+                // resized rectangle: neighbours, anchors and clear space count.
+                DesktopLayoutPlan candidate = createPlan(proposedZones);
+                NativeDesktopLayoutApplicationService.ValidateDualRailPlan(candidate, safeGrid);
+            }
+            catch (Exception ex)
+            {
+                result.Reason = "LAYOUT_INVALID";
+                result.Detail = ex.Message;
+                return result;
+            }
+
             result.Accepted = true;
-            result.Reason = "RESIZED";
+            result.Reason = "VALIDATED";
+            return result;
+        }
+
+        /// <summary>
+        /// One synchronous commit after the mouse event has unwound. The
+        /// caller's rollback restores its plan, window geometry and native
+        /// snapshot; the store restores exact bytes even if saving itself fails.
+        /// </summary>
+        internal static DesktopGroupResizeResult CommitResize(
+            NativeDesktopLayoutGroupId groupId, DesktopGroupResizeResult result,
+            Action applyLayout, Action rollbackLayout)
+        {
+            if (!result.Accepted) return result;
+            Action restoreZones = DesktopGroupZoneStore.CaptureRollback();
+            bool applyStarted = false;
+            try
+            {
+                DesktopGroupZoneStore.SaveSize(groupId, result.Columns, result.Rows);
+                applyStarted = true;
+                applyLayout();
+                result.Reason = "RESIZED";
+            }
+            catch (Exception ex)
+            {
+                result.Accepted = false;
+                result.Reason = "APPLY_FAILED_ROLLED_BACK";
+                result.Detail = ex.Message;
+                var failures = new List<string>();
+                try { restoreZones(); }
+                catch (Exception rollbackError) { failures.Add("metadata: " + rollbackError.Message); }
+                if (applyStarted)
+                {
+                    try { rollbackLayout(); }
+                    catch (Exception rollbackError) { failures.Add("layout: " + rollbackError.Message); }
+                }
+                if (failures.Count > 0)
+                {
+                    result.Reason = "ROLLBACK_FAILED";
+                    result.Detail += "; rollback: " + string.Join("; ", failures);
+                }
+            }
             return result;
         }
 

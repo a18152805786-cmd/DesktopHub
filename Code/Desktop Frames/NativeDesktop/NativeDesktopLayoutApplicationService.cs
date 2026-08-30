@@ -563,11 +563,7 @@ namespace Desktop_Frames.NativeDesktop
             if (!File.Exists(baselinePath))
                 NativeDesktopIconLayoutService.SaveSnapshot(layout.CaptureSnapshot(), baselinePath);
 
-            var metadata = new NativeDesktopLayoutMetadataStore();
-            ManualLayoutResolution manual = metadata.LoadManualResolution();
-            var planner = new NativeDesktopLayoutPlanner(layout, manual.Groups, manual.UnmappedManualPaths,
-                DesktopGroupZoneStore.Load());
-            DesktopLayoutPlan plan = planner.PlanDualRailLayout();
+            DesktopLayoutPlan plan = CreateDualRailPlan();
             File.WriteAllText(Path.Combine(auditDirectory, DualRailPlanJsonName),
                 JsonConvert.SerializeObject(plan, Formatting.Indented), new UTF8Encoding(false));
             WriteIdentityClassificationAudit(
@@ -576,6 +572,20 @@ namespace Desktop_Frames.NativeDesktop
             WriteFullPreview(Path.Combine(auditDirectory, "ui-phase5-5-layout-preview.md"), plan);
             WriteFullLayoutMap(Path.Combine(auditDirectory, "ui-phase5-5-layout-map.svg"), plan);
             return plan;
+        }
+
+        /// <summary>
+        /// Plans with proposed zone metadata without saving it or writing an
+        /// audit/restore point. Resize uses the normal planner before commit.
+        /// </summary>
+        internal static DesktopLayoutPlan CreateDualRailPlan(
+            IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>? proposedZones = null)
+        {
+            var metadata = new NativeDesktopLayoutMetadataStore();
+            ManualLayoutResolution manual = metadata.LoadManualResolution();
+            var planner = new NativeDesktopLayoutPlanner(new NativeDesktopIconLayoutService(),
+                manual.Groups, manual.UnmappedManualPaths, proposedZones ?? DesktopGroupZoneStore.Load());
+            return planner.PlanDualRailLayout();
         }
 
         private static void WriteIdentityClassificationAudit(string path, DesktopLayoutPlan plan)
@@ -694,19 +704,7 @@ namespace Desktop_Frames.NativeDesktop
 
             DesktopLayoutPlan plan = LoadDualRailPlan(auditDirectory);
             NativeDesktopSafeGrid safeGrid = new NativeDesktopIconLayoutService().GetSafeDesktopGrid();
-            int outOfSafeGrid = plan.Items.Count(item => item.IsStableIdentity && !item.IsShellNamespace &&
-                (item.TargetX - plan.WorkAreaLeft + safeGrid.IconSpacingX + safeGrid.RightSafetyMargin > safeGrid.ClientWidth ||
-                 item.TargetY - plan.WorkAreaTop + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin > safeGrid.ClientHeight));
-            if (plan.AutoArrangeEnabled)
-                throw new InvalidOperationException("DUAL_RAIL_APPLY_BLOCKED_AUTO_ARRANGE_ENABLED");
-            if (plan.DuplicateTargetCoordinates != 0 || plan.TargetOutsideDesktopWorkArea != 0 ||
-                !plan.CentralClearZonePreserved || outOfSafeGrid != 0)
-            {
-                throw new InvalidOperationException(
-                    $"DUAL_RAIL_DRY_RUN_FAILED DuplicateTargets={plan.DuplicateTargetCoordinates}; " +
-                    $"OutOfBounds={plan.TargetOutsideDesktopWorkArea}; OutOfSafeGrid={outOfSafeGrid}; " +
-                    $"CentralViolations={!plan.CentralClearZonePreserved}");
-            }
+            ValidateDualRailPlan(plan, safeGrid);
 
             List<DesktopLayoutItem> managedItems = plan.Items
                 .Where(item => item.IsStableIdentity && !item.IsShellNamespace)
@@ -963,6 +961,27 @@ namespace Desktop_Frames.NativeDesktop
                 $"Restore point healed: dropped {pruned} entr{(pruned == 1 ? "y" : "ies")} whose desktop item no longer exists.");
             return healed;
         }
+
+        /// <summary>The same non-mutating gates apply to preview and commit.</summary>
+        internal static void ValidateDualRailPlan(DesktopLayoutPlan plan, NativeDesktopSafeGrid safeGrid)
+        {
+            int outOfSafeGrid = plan.Items.Count(item => item.IsStableIdentity && !item.IsShellNamespace &&
+                (item.TargetX - plan.WorkAreaLeft + safeGrid.IconSpacingX + safeGrid.RightSafetyMargin > safeGrid.ClientWidth ||
+                 item.TargetY - plan.WorkAreaTop + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin > safeGrid.ClientHeight));
+            if (plan.AutoArrangeEnabled)
+                throw new InvalidOperationException("DUAL_RAIL_APPLY_BLOCKED_AUTO_ARRANGE_ENABLED");
+            if (plan.DuplicateTargetCoordinates != 0 || plan.TargetOutsideDesktopWorkArea != 0 ||
+                !plan.CentralClearZonePreserved || outOfSafeGrid != 0)
+            {
+                throw new InvalidOperationException(
+                    $"DUAL_RAIL_DRY_RUN_FAILED DuplicateTargets={plan.DuplicateTargetCoordinates}; " +
+                    $"OutOfBounds={plan.TargetOutsideDesktopWorkArea}; OutOfSafeGrid={outOfSafeGrid}; " +
+                    $"CentralViolations={!plan.CentralClearZonePreserved}");
+            }
+        }
+
+        internal static string GetDualRailPlanPath(string auditDirectory) =>
+            Path.Combine(auditDirectory, DualRailPlanJsonName);
 
         private static DesktopLayoutPlan LoadDualRailPlan(string auditDirectory)
         {

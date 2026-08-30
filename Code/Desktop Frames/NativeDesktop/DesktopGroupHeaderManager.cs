@@ -21,6 +21,7 @@ namespace Desktop_Frames.NativeDesktop
         private static DesktopLayoutPlan? _plan;
         private static string _planPath = string.Empty;
         private static bool _editMode;
+        private static bool _resizeInProgress;
 
         public static int WindowCount
         {
@@ -178,11 +179,27 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>
-        /// The user dropped a resize handle. The new size is validated and
-        /// stored, then the layout is re-run once so the icons fill the zone the
-        /// user actually asked for.
+        /// Finish mouse-up before rebuilding windows. Validation, saving and
+        /// application then run as one UI operation, so another gesture cannot
+        /// overwrite rollback state between saving and applying.
         /// </summary>
         private static void OnZoneResized(NativeDesktopLayoutGroupId groupId, int columns, int rows)
+        {
+            if (_resizeInProgress || Application.Current == null)
+            {
+                lock (SyncRoot)
+                    if (Zones.TryGetValue(groupId, out DesktopGroupZoneWindow? zone)) zone.SnapBack();
+                return;
+            }
+            _resizeInProgress = true;
+            RunAfterCurrentInput(() =>
+            {
+                try { ResizeAndRefresh(groupId, columns, rows); }
+                finally { _resizeInProgress = false; }
+            });
+        }
+
+        private static void ResizeAndRefresh(NativeDesktopLayoutGroupId groupId, int columns, int rows)
         {
             DesktopGroupZoneWindow? zone;
             lock (SyncRoot) Zones.TryGetValue(groupId, out zone);
@@ -202,6 +219,8 @@ namespace Desktop_Frames.NativeDesktop
                 LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General,
                     $"Zone resize failed for {groupId}: {ex.Message}");
                 zone?.SnapBack();
+                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
+                    Desktop_Frames.Localization.Strings.Get("GroupResizeLayoutRejected", ex.Message));
                 return;
             }
 
@@ -216,9 +235,88 @@ namespace Desktop_Frames.NativeDesktop
                 return;
             }
 
+            try
+            {
+                DesktopLayoutPlan previousPlan = _plan;
+                string previousPlanPath = _planPath;
+                string auditDirectory = AuditDirectory;
+                if (string.IsNullOrWhiteSpace(auditDirectory))
+                    auditDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "audit");
+                string planFile = NativeDesktopLayoutApplicationService.GetDualRailPlanPath(auditDirectory);
+                byte[]? previousPlanFile = File.Exists(planFile) ? File.ReadAllBytes(planFile) : null;
+                var layout = new NativeDesktopIconLayoutService();
+                NativeDesktopLayoutSnapshot before = layout.CaptureSnapshot();
+
+                result = DesktopGroupZoneService.CommitResize(groupId, result,
+                    () => NativeDesktopLayoutApplicationService.RefreshDualRailLayoutForHeaders(auditDirectory),
+                    () => RestoreResizeLayout(previousPlan, previousPlanPath, planFile, previousPlanFile, layout, before));
+            }
+            catch (Exception ex)
+            {
+                // Preparation/capture failed before CommitResize could write.
+                result.Accepted = false;
+                result.Reason = "LAYOUT_INVALID";
+                result.Detail = ex.Message;
+            }
+
+            if (!result.Accepted)
+            {
+                lock (SyncRoot)
+                    if (Zones.TryGetValue(groupId, out DesktopGroupZoneWindow? currentZone)) currentZone.SnapBack();
+                LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
+                    $"Zone resize rejected: {result.Reason}; {result.Detail}");
+                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName, ResizeRejectionMessage(result));
+                return;
+            }
             LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
                 $"Zone {groupId} resized to {columns}x{rows}");
-            RunAfterCurrentInput(() => RefreshLayout());
+        }
+
+        private static void RestoreResizeLayout(DesktopLayoutPlan previousPlan, string previousPlanPath,
+            string planFile, byte[]? previousPlanFile, NativeDesktopIconLayoutService layout,
+            NativeDesktopLayoutSnapshot before)
+        {
+            var failures = new List<string>();
+            // Apply normally restores its failed moves. Keep an outer snapshot
+            // too: saving the plan or rebuilding chrome can fail after moving.
+            // Reuse the existing Explorer restore API without changing it.
+            try
+            {
+                // A pre-apply rejection, or Apply's own successful rollback,
+                // needs no coordinate writes at all.
+                if (!NativeCoordinatesMatch(before, layout.CaptureSnapshot()))
+                {
+                    NativeDesktopRestoreResult restored = layout.Restore(before);
+                    if (restored.Failed != 0)
+                        failures.Add("native positions: " + string.Join("; ", restored.Errors));
+                }
+            }
+            catch (Exception ex) { failures.Add("native positions: " + ex.Message); }
+            try
+            {
+                if (previousPlanFile == null) File.Delete(planFile);
+                else File.WriteAllBytes(planFile, previousPlanFile);
+            }
+            catch (Exception ex) { failures.Add("plan file: " + ex.Message); }
+
+            _plan = previousPlan;
+            _planPath = previousPlanPath;
+            try { Show(previousPlan, previousPlanPath); }
+            catch (Exception ex) { failures.Add("windows: " + ex.Message); }
+            if (failures.Count > 0) throw new InvalidOperationException(string.Join("; ", failures));
+        }
+
+        private static bool NativeCoordinatesMatch(NativeDesktopLayoutSnapshot before, NativeDesktopLayoutSnapshot after)
+        {
+            static IEnumerable<(string Identity, string Path, string Label, NativeIconIdentityStatus Status,
+                int Ordinal, int X, int Y)> Ordered(NativeDesktopLayoutSnapshot snapshot) =>
+                snapshot.Icons.OrderBy(icon => icon.Identity, StringComparer.Ordinal)
+                    .ThenBy(icon => icon.OriginalPath, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(icon => icon.DisplayName, StringComparer.Ordinal)
+                    .ThenBy(icon => icon.LabelOrdinal)
+                    .Select(icon => (icon.Identity, icon.OriginalPath, icon.DisplayName,
+                        icon.IdentityStatus, icon.LabelOrdinal, icon.X, icon.Y));
+            return Ordered(before).SequenceEqual(Ordered(after));
         }
 
         /// <summary>Re-plans and reapplies, then rebuilds the chrome. Manual choices survive.</summary>
@@ -275,6 +373,9 @@ namespace Desktop_Frames.NativeDesktop
                 Desktop_Frames.Localization.Strings.Get("GroupResizeTooSmall", result.RequiredSlots),
             "OUTSIDE_SAFE_GRID" => Desktop_Frames.Localization.Strings.GroupDragOutsideGrid,
             "GROUP_LOCKED" => Desktop_Frames.Localization.Strings.GroupDragLocked,
+            "LAYOUT_INVALID" => Desktop_Frames.Localization.Strings.Get("GroupResizeLayoutRejected", result.Detail),
+            "APPLY_FAILED_ROLLED_BACK" => Desktop_Frames.Localization.Strings.Get("GroupResizeRolledBack", result.Detail),
+            "ROLLBACK_FAILED" => Desktop_Frames.Localization.Strings.Get("GroupResizeRollbackFailed", result.Detail),
             _ => Desktop_Frames.Localization.Strings.GroupResizeFailed
         };
 

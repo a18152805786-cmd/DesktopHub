@@ -121,6 +121,28 @@ namespace Desktop_Frames.NativeDesktop
 
         public static bool IsLocked(NativeDesktopLayoutGroupId group) => Get(group).Locked;
 
+        /// <summary>
+        /// Captures the exact file before a resize commit, including absence.
+        /// Bind the path now so a rollback can never target a different profile.
+        /// </summary>
+        internal static Action CaptureRollback()
+        {
+            lock (SyncRoot)
+            {
+                string path = Path;
+                byte[]? contents = File.Exists(path) ? File.ReadAllBytes(path) : null;
+                return () =>
+                {
+                    lock (SyncRoot)
+                    {
+                        if (contents == null) File.Delete(path);
+                        else if (!File.Exists(path) || !File.ReadAllBytes(path).AsSpan().SequenceEqual(contents))
+                            File.WriteAllBytes(path, contents);
+                    }
+                };
+            }
+        }
+
         /// <summary>Hands the group's position back to the automatic planner.</summary>
         public static void ClearPosition(NativeDesktopLayoutGroupId group) =>
             Update(group, zone =>

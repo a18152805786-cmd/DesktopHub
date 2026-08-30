@@ -2016,4 +2016,13 @@ Path: {1}</value>
   <data name="AutoOrgInvalidRuleTitle" xml:space="preserve">
     <value>Cannot save auto-organize rules</value>
   </data>
+  <data name="GroupResizeLayoutRejected" xml:space="preserve">
+    <value>The complete layout cannot use this size. The original size was kept. Try a smaller zone or choose Reset automatic size. Reason: {0}</value>
+  </data>
+  <data name="GroupResizeRolledBack" xml:space="preserve">
+    <value>The resize could not be applied. The previous size and layout were restored. Try a smaller zone or refresh the layout. Reason: {0}</value>
+  </data>
+  <data name="GroupResizeRollbackFailed" xml:space="preserve">
+    <value>The resize failed and recovery was incomplete. Choose Reset automatic size, then refresh the layout. If icons are displaced, use your saved layout snapshot. Details: {0}</value>
+  </data>
 </root>

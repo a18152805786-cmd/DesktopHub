@@ -2088,4 +2088,13 @@
   <data name="AutoOrgInvalidRuleTitle" xml:space="preserve">
     <value>无法保存自动整理规则</value>
   </data>
+  <data name="GroupResizeLayoutRejected" xml:space="preserve">
+    <value>完整布局无法容纳这个尺寸，原大小未改动。请缩小分组，或选择“恢复自动大小”。原因：{0}</value>
+  </data>
+  <data name="GroupResizeRolledBack" xml:space="preserve">
+    <value>未能应用新尺寸，已恢复原大小和布局。请尝试缩小分组，或刷新布局后重试。原因：{0}</value>
+  </data>
+  <data name="GroupResizeRollbackFailed" xml:space="preserve">
+    <value>调整大小失败，且未能完整恢复。请先选择“恢复自动大小”，再刷新布局；若图标位置异常，请使用已保存的布局快照恢复。详情：{0}</value>
+  </data>
 </root>
