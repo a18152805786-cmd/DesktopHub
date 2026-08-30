@@ -305,6 +305,7 @@ namespace Desktop_Frames.NativeDesktop
                 throw new InvalidOperationException("FULL_APPLY_BLOCKED_AUTO_ARRANGE_ENABLED");
 
             NativeDesktopLayoutSnapshot baseline = NativeDesktopIconLayoutService.LoadSnapshot(baselinePath);
+            baseline = HealRestorePoint(layout, baseline, baselinePath);
             NativeDesktopSnapshotValidationResult validation = layout.ValidateSnapshot(baseline);
             if (validation.AutoArrangeEnabled || validation.Missing != 0 || validation.Ambiguous != 0)
             {
@@ -750,6 +751,7 @@ namespace Desktop_Frames.NativeDesktop
                 throw new InvalidOperationException("DUAL_RAIL_APPLY_BLOCKED_AUTO_ARRANGE_ENABLED");
 
             NativeDesktopLayoutSnapshot baseline = NativeDesktopIconLayoutService.LoadSnapshot(baselinePath);
+            baseline = HealRestorePoint(layout, baseline, baselinePath);
             NativeDesktopSnapshotValidationResult validation = layout.ValidateSnapshot(baseline);
             if (validation.AutoArrangeEnabled || validation.Missing != 0 || validation.Ambiguous != 0)
             {
@@ -935,6 +937,33 @@ namespace Desktop_Frames.NativeDesktop
                 relativeY + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin <= safeGrid.ClientHeight;
         }
 
+        /// <summary>
+        /// Drops restore-point entries whose desktop item is gone and writes the
+        /// snapshot back.
+        ///
+        /// The baseline is captured once and never refreshed, so every icon the
+        /// user later deletes or moves off the Desktop left a dead entry behind.
+        /// The preflight counted those as Missing and refused the apply, which
+        /// meant a single tidy-up permanently broke every layout refresh with
+        /// SNAPSHOT_DRY_RUN_FAILED until someone edited the file by hand.
+        ///
+        /// A deleted icon is not a hazard to a forward apply and is not
+        /// restorable either way, so it is pruned here instead. Ambiguity and
+        /// auto-arrange remain hard blocks: those really can put an icon back in
+        /// the wrong place.
+        /// </summary>
+        private static NativeDesktopLayoutSnapshot HealRestorePoint(NativeDesktopIconLayoutService layout,
+            NativeDesktopLayoutSnapshot baseline, string baselinePath)
+        {
+            NativeDesktopLayoutSnapshot healed = layout.PruneMissing(baseline, out int pruned);
+            if (pruned == 0) return baseline;
+
+            NativeDesktopIconLayoutService.ReplaceSnapshot(healed, baselinePath);
+            LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                $"Restore point healed: dropped {pruned} entr{(pruned == 1 ? "y" : "ies")} whose desktop item no longer exists.");
+            return healed;
+        }
+
         private static DesktopLayoutPlan LoadDualRailPlan(string auditDirectory)
         {
             string path = Path.Combine(auditDirectory, DualRailPlanJsonName);
@@ -1003,6 +1032,7 @@ namespace Desktop_Frames.NativeDesktop
             if (!File.Exists(baselinePath)) throw new FileNotFoundException("Native Desktop layout baseline was not found.", baselinePath);
             var layout = new NativeDesktopIconLayoutService();
             NativeDesktopLayoutSnapshot baseline = NativeDesktopIconLayoutService.LoadSnapshot(baselinePath);
+            baseline = HealRestorePoint(layout, baseline, baselinePath);
             NativeDesktopSnapshotValidationResult validation = layout.ValidateSnapshot(baseline);
             if (validation.AutoArrangeEnabled || validation.Missing != 0 || validation.Ambiguous != 0)
                 throw new InvalidOperationException($"RESTORE_DRY_RUN_FAILED: CanResolve={validation.CanResolve}; Missing={validation.Missing}; Ambiguous={validation.Ambiguous}; AutoArrange={validation.AutoArrangeEnabled}");
@@ -1064,6 +1094,7 @@ namespace Desktop_Frames.NativeDesktop
             if (!File.Exists(baselinePath))
                 NativeDesktopIconLayoutService.SaveSnapshot(layout.CaptureSnapshot(), baselinePath);
             NativeDesktopLayoutSnapshot baseline = NativeDesktopIconLayoutService.LoadSnapshot(baselinePath);
+            baseline = HealRestorePoint(layout, baseline, baselinePath);
             NativeDesktopSnapshotValidationResult validation = layout.ValidateSnapshot(baseline);
             if (validation.AutoArrangeEnabled || validation.Missing != 0 || validation.Ambiguous != 0)
             {

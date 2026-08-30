@@ -296,6 +296,47 @@ namespace Desktop_Frames.NativeDesktop
             return result;
         }
 
+        /// <summary>
+        /// Returns the snapshot without the entries whose desktop item no longer
+        /// exists, and reports how many were dropped.
+        ///
+        /// The snapshot is a restore point, not a precondition. An icon the user
+        /// deleted or moved off the Desktop can never be restored, so holding on
+        /// to its entry only makes the restore point read as broken and refuses
+        /// every later layout apply. Dropping it costs nothing that was still
+        /// recoverable and keeps the restore point usable for everything else.
+        ///
+        /// Unresolved entries are kept: those were never restorable in the first
+        /// place and are counted separately as SkippedUnmanaged.
+        /// </summary>
+        public NativeDesktopLayoutSnapshot PruneMissing(NativeDesktopLayoutSnapshot snapshot, out int pruned)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            HashSet<string> current = EnumerateDesktopIcons()
+                .Where(icon => icon.IdentityStatus.IsResolved())
+                .Select(icon => NormalizePath(icon.OriginalPath))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            List<NativeDesktopIconSnapshotItem> kept = snapshot.Icons
+                .Where(item => !item.IdentityStatus.IsResolved()
+                    || current.Contains(NormalizePath(item.OriginalPath)))
+                .ToList();
+
+            pruned = snapshot.Icons.Count - kept.Count;
+            if (pruned == 0) return snapshot;
+
+            return new NativeDesktopLayoutSnapshot
+            {
+                Version = snapshot.Version,
+                CreatedUtc = snapshot.CreatedUtc,
+                AutoArrangeEnabled = snapshot.AutoArrangeEnabled,
+                AlignToGridEnabled = snapshot.AlignToGridEnabled,
+                GridSpacingX = snapshot.GridSpacingX,
+                GridSpacingY = snapshot.GridSpacingY,
+                Icons = kept
+            };
+        }
+
         /// <summary>Read-only identity preflight used before a restore or a production layout apply.</summary>
         public NativeDesktopSnapshotValidationResult ValidateSnapshot(NativeDesktopLayoutSnapshot snapshot)
         {
@@ -335,6 +376,29 @@ namespace Desktop_Frames.NativeDesktop
             using FileStream stream = new(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             using StreamWriter writer = new(stream, new UTF8Encoding(false));
             writer.Write(JsonConvert.SerializeObject(snapshot, Formatting.Indented));
+        }
+
+        /// <summary>
+        /// Replaces an existing snapshot file.
+        ///
+        /// <see cref="SaveSnapshot"/> uses FileMode.CreateNew on purpose, so a
+        /// restore point can never be clobbered by a stray call. Pruning entries
+        /// that are no longer restorable is the one case where replacing it is
+        /// the whole intent, so it gets its own method rather than weakening that
+        /// guard. The write goes through a temporary file and an atomic move: a
+        /// crash midway must not leave the only restore point truncated.
+        /// </summary>
+        public static void ReplaceSnapshot(NativeDesktopLayoutSnapshot snapshot, string path)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Snapshot path is required.", nameof(path));
+            string fullPath = Path.GetFullPath(path);
+            string? directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+
+            string staging = fullPath + ".healing";
+            File.WriteAllText(staging, JsonConvert.SerializeObject(snapshot, Formatting.Indented), new UTF8Encoding(false));
+            File.Move(staging, fullPath, overwrite: true);
         }
 
         public static NativeDesktopLayoutSnapshot LoadSnapshot(string path)

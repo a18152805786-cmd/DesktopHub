@@ -348,7 +348,27 @@ namespace Desktop_Frames.NativeDesktop
 
             Rectangle centralClearZone = new(plan.CentralClearZoneLeft, plan.CentralClearZoneTop,
                 plan.CentralClearZoneWidth, plan.CentralClearZoneHeight);
+
+            // A group the user pinned by hand is an explicit instruction about
+            // where it belongs, so it is exempt from the clear-zone check.
+            //
+            // The zone is not a fixed region here: it is whatever gap is left
+            // between the two automatic rails, and the rails are resolved AFTER
+            // PlaceAnchoredGroups has already pinned the anchored groups. Move a
+            // group toward the middle and the rails close in behind it, so the
+            // gap grows and swallows the very group the user just placed. Every
+            // later apply is then refused, and moving the group further out only
+            // moves the wall with it - the user cannot win by hand.
+            //
+            // The zone exists to stop the automatic planner from filling the
+            // wallpaper. It has no business overruling a deliberate placement.
+            HashSet<string> anchoredGroups = plan.Groups
+                .Where(group => group.HasManualAnchor)
+                .Select(group => group.GroupId.ToString())
+                .ToHashSet(StringComparer.Ordinal);
+
             plan.CentralClearZonePreserved = !plan.Items.Any(item => IsFullMovableCandidate(item) &&
+                !anchoredGroups.Contains(item.LayoutGroupId) &&
                 Contains(centralClearZone, item.TargetX, item.TargetY));
             return plan;
         }
@@ -549,14 +569,18 @@ namespace Desktop_Frames.NativeDesktop
             group.IconBoundingRight = group.IconBoundingLeft + (columns * safeGrid.IconSpacingX);
             group.IconBoundingBottom = group.IconBoundingTop + (rows * safeGrid.IconSpacingY);
 
-            // SYSTEM_TEMP keeps its rhythm row but draws no chrome: a pair of
-            // shell shortcuts does not deserve a real group's visual weight.
-            group.ShowHeader = group.GroupId != NativeDesktopLayoutGroupId.SYSTEM_TEMP;
+            // SYSTEM_TEMP used to be drawn without a header, on the grounds that
+            // a pair of shell shortcuts did not deserve a real group's visual
+            // weight. But the header is not decoration - it carries the entire
+            // context menu. Hiding it left that group as the only one the user
+            // could not resize, lock, or reset, and gave them no way to tell what
+            // the empty rectangle on their wallpaper even was.
+            group.ShowHeader = true;
             group.HeaderHeight = DesktopLayoutSpacing.HeaderHeight;
             group.HeaderLeft = group.IconBoundingLeft;
             group.HeaderTop = Math.Max(0, group.IconBoundingTop
                 - DesktopLayoutSpacing.HeaderToFirstIcon - DesktopLayoutSpacing.HeaderHeight);
-            group.HeaderWidth = group.ShowHeader ? columns * safeGrid.IconSpacingX : 0;
+            group.HeaderWidth = columns * safeGrid.IconSpacingX;
 
             for (int index = 0; index < movableItems.Count; index++)
             {

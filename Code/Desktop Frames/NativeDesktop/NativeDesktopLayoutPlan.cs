@@ -119,7 +119,11 @@ namespace Desktop_Frames.NativeDesktop
         public int RailColumn { get; set; }
         /// <summary>Grid row the group's first icon row occupies.</summary>
         public int RailRow { get; set; }
-        /// <summary>A visually weightless group (SYSTEM_TEMP) reserves its rhythm row but draws no header.</summary>
+        /// <summary>
+        /// Whether the group draws a header. The header carries the group's name
+        /// and its whole context menu, so a group without one cannot be resized,
+        /// locked, or reset by the user. Every dual-rail group draws one.
+        /// </summary>
         public bool ShowHeader { get; set; } = true;
         /// <summary>True when the user dragged this group and the position is pinned.</summary>
         public bool HasManualAnchor { get; set; }
