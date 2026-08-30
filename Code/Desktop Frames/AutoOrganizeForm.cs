@@ -678,6 +678,18 @@ namespace Desktop_Frames
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
+            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            var desktopTargetRule = _localRules.FirstOrDefault(rule =>
+                AutoOrganizeManager.AreSameDirectory(rule.TargetFolderPath, desktopPath));
+            if (desktopTargetRule != null)
+            {
+                _rulesList.SelectedItem = desktopTargetRule;
+                MessageBoxesManager.ShowOKOnlyMessageBoxForm(
+                    Strings.Get("AutoOrgSameDirectoryInvalid", desktopTargetRule.Name),
+                    Strings.Get("AutoOrgInvalidRuleTitle"));
+                return;
+            }
+
             for (int i = 0; i < _localRules.Count; i++) _localRules[i].Priority = i;
             AutoOrganizeManager.Rules = _localRules;
             AutoOrganizeManager.SaveRules();

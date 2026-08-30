@@ -2010,4 +2010,10 @@ Path: {1}</value>
   <data name="TrayRefreshDesktopLayout" xml:space="preserve">
     <value>Refresh desktop layout</value>
   </data>
+  <data name="AutoOrgSameDirectoryInvalid" xml:space="preserve">
+    <value>Rule “{0}” cannot use the Desktop root as its target because it could repeatedly rename Desktop files. Choose a Desktop subfolder or another folder.</value>
+  </data>
+  <data name="AutoOrgInvalidRuleTitle" xml:space="preserve">
+    <value>Cannot save auto-organize rules</value>
+  </data>
 </root>

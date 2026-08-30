@@ -257,9 +257,41 @@ namespace Desktop_Frames
             return true;
         }
 
+        internal static bool AreSameDirectory(string? firstPath, string? secondPath)
+        {
+            if (string.IsNullOrWhiteSpace(firstPath) || string.IsNullOrWhiteSpace(secondPath)) return false;
+
+            try
+            {
+                string firstDirectory = Path.GetFullPath(firstPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string secondDirectory = Path.GetFullPath(secondPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                return string.Equals(firstDirectory, secondDirectory, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static async Task ExecuteMoveAsync(string sourcePath, OrganizeRule rule, CancellationToken cancellationToken = default)
         {
             if (cancellationToken.IsCancellationRequested || !SettingsManager.EnableAutoOrganize) return;
+
+            string? sourceDirectory;
+            try { sourceDirectory = Path.GetDirectoryName(Path.GetFullPath(sourcePath)); }
+            catch (Exception ex)
+            {
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General, $"Auto-Organize skipped {sourcePath}: invalid source path ({ex.Message}).");
+                return;
+            }
+
+            // Moving back into the watched source folder would rename the file and
+            // enqueue our own rename event indefinitely. Skip before any disk change.
+            if (AreSameDirectory(sourceDirectory, rule.TargetFolderPath))
+            {
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General, $"Auto-Organize skipped {Path.GetFileName(sourcePath)}: source and target folders are the same.");
+                return;
+            }
 
             if (!Directory.Exists(rule.TargetFolderPath))
             {
