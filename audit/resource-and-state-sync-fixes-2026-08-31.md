@@ -98,6 +98,6 @@ msbuild "Code\Desktop Frames.sln" -p:Configuration=Release -p:Platform="Any CPU"
 
 部署前停止了原 `Desktop Frames` 进程，只覆盖 21 个 Release 构建产物，然后从实际 Release 目录重新启动。部署 DLL 哈希与已验证产物完全一致。`ProfileOptions.json`、`Profiles\`、`Desktop_Frames.log` 和 `audit\` 的部署前后哈希/清单差异为 0。部署后只读预览退出码为 0，`StableIconCount` 仍为 86。
 
-Explorer 在本轮前后保持同一 PID 和启动时间，进程可响应；没有观察到崩溃、重启或桌面图标丢失。部署窗口内的用户桌面和公共桌面快照差异为 0。
+Explorer 在本轮前后保持同一 PID 和启动时间，进程可响应；没有观察到崩溃、重启或桌面图标丢失。停止进程、复制 21 个产物并重启程序这一部署操作的即时前后快照差异为 0。
 
-会话最初快照到最终检查之间另观察到三项并发差异：`HUNNU-Research-Harness.zip` 被移除，`HarnessOutputOwnershipAudit_20260830` 目录被创建，已有 `HUNNU-Research-Harness` 目录的修改时间由 `2026-08-30T14:57:57.0504732Z` 变为 `2026-08-30T16:22:26.6695174Z`。本轮命令、测试和部署均未引用这些路径，也没有尝试恢复、删除或改写它们。由于无法替用户判定这些外部变化是否预期，本轮整体文件系统验收保守标记为待确认；修复与部署窗口自身的意外移动、删除、重命名和复制均为 0。
+会话最初快照到收尾检查之间另观察到三项并发差异：`HUNNU-Research-Harness.zip` 被移除，`HarnessOutputOwnershipAudit_20260830` 目录被创建，已有 `HUNNU-Research-Harness` 目录的修改时间不再等于初始值，并且在收尾复核期间仍由外部活动继续变化。本轮命令、测试和部署均未引用这些路径，也没有尝试恢复、删除或改写它们。由于无法替用户判定这些外部变化是否预期，本轮整体文件系统验收保守标记为待确认；本轮修复和部署操作自身的意外移动、删除、重命名和复制均为 0。
