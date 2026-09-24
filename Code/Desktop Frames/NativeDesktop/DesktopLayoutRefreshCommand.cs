@@ -24,7 +24,10 @@ namespace Desktop_Frames.NativeDesktop
         public static void Run(string auditDirectory, bool askAboutDroppedIcons = true)
         {
             DesktopLayoutPlan? live = DesktopGroupHeaderManager.CurrentPlan;
-            if (askAboutDroppedIcons && live != null)
+            // Zone bounds from a plan made for another resolution say nothing
+            // about where icons belong now. Asking would offer to regroup every
+            // icon Explorer merely reflowed into an old rectangle.
+            if (askAboutDroppedIcons && live != null && DesktopGroupHeaderManager.PlanStillFitsDesktop(live))
             {
                 IReadOnlyList<DesktopZoneMismatch> mismatches =
                     DesktopGroupZoneService.FindIconsDroppedIntoOtherZones(live);

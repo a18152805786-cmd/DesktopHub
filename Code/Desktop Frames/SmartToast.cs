@@ -44,7 +44,7 @@ namespace Desktop_Frames
 
             StackPanel sp = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center };
             sp.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.Bold, Foreground = Brushes.White, FontSize = 14, Margin = new Thickness(0, 0, 0, 5) });
-            sp.Children.Add(new TextBlock { Text = message, Foreground = new SolidColorBrush(Color.FromRgb(220, 230, 240)), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
+            sp.Children.Add(new TextBlock { Text = message, Foreground = new SolidColorBrush(Color.FromRgb(220, 230, 240)), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.Wrap });
 
             mainBorder.Child = sp;
             Content = mainBorder;

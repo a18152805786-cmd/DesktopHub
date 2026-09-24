@@ -67,6 +67,13 @@ namespace Desktop_Frames.NativeDesktop
                 result.Reason = "AUTO_ARRANGE_ENABLED";
                 return result;
             }
+            // Started before a scaling change, this process would mix its stale
+            // coordinates with Explorer's real ones and move the wrong cells.
+            if (DesktopChromeDpi.IsProcessDpiStale(DesktopChromeDpi.WindowDpi(state.Handle)))
+            {
+                result.Reason = "DPI_CONTEXT_STALE";
+                return result;
+            }
 
             NativeDesktopSafeGrid safeGrid = layout.GetSafeDesktopGrid();
             Rectangle workArea = Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
@@ -205,10 +212,11 @@ namespace Desktop_Frames.NativeDesktop
             group.IconBoundingBottom += deltaY;
             group.HeaderLeft = group.IconBoundingLeft;
             group.HeaderTop = Math.Max(0, group.IconBoundingTop
-                - DesktopLayoutSpacing.HeaderToFirstIcon - DesktopLayoutSpacing.HeaderHeight);
+                - DesktopLayoutSpacing.HeaderToFirstIconAt(plan.Dpi) - DesktopLayoutSpacing.HeaderHeightAt(plan.Dpi));
             group.HasManualAnchor = true;
 
-            DesktopGroupZoneStore.SavePosition(groupId, newColumn, newRow, group.ExtraColumns);
+            DesktopGroupZoneStore.SavePosition(groupId, newColumn, newRow, group.ExtraColumns,
+                safeGrid.SafeColumns, safeGrid.SafeRows);
             result.InternalLayoutPreserved = true;
             result.Moved = true;
             result.Reason = "MOVED";

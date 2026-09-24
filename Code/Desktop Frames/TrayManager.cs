@@ -266,8 +266,22 @@ namespace Desktop_Frames
             };
             trayMenu.Items.Add(_editLayoutMenuItem);
             trayMenu.Items.Add(Strings.TrayRefreshDesktopLayout, null, (s, e) =>
-                Desktop_Frames.NativeDesktop.DesktopLayoutRefreshCommand.Run(
-                    Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.AuditDirectory));
+            {
+                try
+                {
+                    Desktop_Frames.NativeDesktop.DesktopLayoutRefreshCommand.Run(
+                        Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.AuditDirectory);
+                }
+                catch (Exception ex)
+                {
+                    // A layout that cannot be placed must end in an explanation,
+                    // not an unhandled exception that takes the tray down with it.
+                    LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
+                        $"Desktop layout refresh failed: {ex.Message}");
+                    System.Windows.MessageBox.Show(ex.Message, Strings.AppName,
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                }
+            });
             trayMenu.Items.Add(new ToolStripSeparator());
 
             // Profiles Submenu

@@ -26,6 +26,15 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>True when the user placed this group; the planner must not move it.</summary>
         public bool IsManualPosition { get; set; }
 
+        /// <summary>
+        /// Safe grid the position was chosen on. A slot only means something on
+        /// the grid it came from: column 28 of a 33-column desktop does not exist
+        /// once scaling leaves 22. Zero means an older entry that did not record it.
+        /// </summary>
+        public int GridColumns { get; set; }
+
+        public int GridRows { get; set; }
+
         /// <summary>Zone width in grid columns, when the user has chosen one.</summary>
         public int ManualColumns { get; set; }
 
@@ -94,13 +103,16 @@ namespace Desktop_Frames.NativeDesktop
                 : new DesktopGroupZone();
 
         /// <summary>Records the position the user dragged a group to.</summary>
-        public static void SavePosition(NativeDesktopLayoutGroupId group, int column, int row, int extraColumns)
+        public static void SavePosition(NativeDesktopLayoutGroupId group, int column, int row, int extraColumns,
+            int gridColumns, int gridRows)
         {
             Update(group, zone =>
             {
                 zone.Column = column;
                 zone.Row = row;
                 zone.ExtraColumns = extraColumns;
+                zone.GridColumns = gridColumns;
+                zone.GridRows = gridRows;
                 zone.IsManualPosition = true;
             });
         }
@@ -151,6 +163,8 @@ namespace Desktop_Frames.NativeDesktop
                 zone.Column = 0;
                 zone.Row = 0;
                 zone.ExtraColumns = 0;
+                zone.GridColumns = 0;
+                zone.GridRows = 0;
             });
 
         /// <summary>Hands the group's size back to automatic sizing.</summary>

@@ -2025,4 +2025,10 @@ Path: {1}</value>
   <data name="GroupResizeRollbackFailed" xml:space="preserve">
     <value>The resize failed and recovery was incomplete. Choose Reset automatic size, then refresh the layout. If icons are displaced, use your saved layout snapshot. Details: {0}</value>
   </data>
+  <data name="DesktopLayoutDisplayChanged" xml:space="preserve">
+    <value>Display resolution or scaling changed. Choose Refresh desktop layout in the tray menu.</value>
+  </data>
+  <data name="DesktopLayoutRestartRequired" xml:space="preserve">
+    <value>Display scaling changed. Restart DesktopHub, then refresh the desktop layout.</value>
+  </data>
 </root>

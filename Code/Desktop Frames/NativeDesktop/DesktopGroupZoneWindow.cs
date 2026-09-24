@@ -71,7 +71,7 @@ namespace Desktop_Frames.NativeDesktop
         private bool _hovered;
         private bool _locked;
         private ZoneResizeEdge _resizing = ZoneResizeEdge.None;
-        private Point _resizeOriginScreen;
+        private Point _resizeOriginDevice;
         private int _previewColumns;
         private int _previewRows;
 
@@ -138,7 +138,12 @@ namespace Desktop_Frames.NativeDesktop
 
             MouseMove += OnMouseMove;
             MouseLeftButtonUp += OnMouseLeftButtonUp;
-            SourceInitialized += (_, _) => ApplyExtendedStyle();
+            SourceInitialized += (_, _) =>
+            {
+                ApplyExtendedStyle();
+                // The window now knows its real DPI; place it again from the plan pixels.
+                ApplyBounds(_previewColumns, _previewRows);
+            };
         }
 
         private Border BuildHandle(HorizontalAlignment horizontal, VerticalAlignment vertical,
@@ -193,10 +198,19 @@ namespace Desktop_Frames.NativeDesktop
 
         private void ApplyBounds(int columns, int rows)
         {
-            Left = _originLeft - Inset;
-            Top = _originTop - Inset;
-            Width = (columns * _spacingX) + (Inset * 2);
-            Height = (rows * _spacingY) + (Inset * 2);
+            // Origin and spacing are the plan's physical pixels; the window is
+            // placed in DIPs, and the inset is a DIP measure of its own.
+            double scale = DesktopChromeDpi.ScaleOf(this);
+            Left = (_originLeft / scale) - Inset;
+            Top = (_originTop / scale) - Inset;
+            Width = (columns * _spacingX / scale) + (Inset * 2);
+            Height = (rows * _spacingY / scale) + (Inset * 2);
+        }
+
+        protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+        {
+            base.OnDpiChanged(oldDpi, newDpi);
+            if (_resizing == ZoneResizeEdge.None) ApplyBounds(_columns, _rows);
         }
 
         private void UpdateBadge(int columns, int rows)
@@ -254,7 +268,7 @@ namespace Desktop_Frames.NativeDesktop
             _resizing = edge;
             _previewColumns = _columns;
             _previewRows = _rows;
-            _resizeOriginScreen = GetCursorScreenPoint();
+            _resizeOriginDevice = GetCursorDevicePoint();
             _outline.BorderBrush = EdgeActive;
             _outline.BorderThickness = new Thickness(2);
             CaptureMouse();
@@ -264,7 +278,7 @@ namespace Desktop_Frames.NativeDesktop
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
             if (_resizing == ZoneResizeEdge.None) return;
-            Point now = GetCursorScreenPoint();
+            Point now = GetCursorDevicePoint();
 
             // The preview snaps to whole grid cells, so the user can never end up
             // with a zone that is three and a half columns wide.
@@ -272,12 +286,12 @@ namespace Desktop_Frames.NativeDesktop
             int rows = _previewRows;
             if (_resizing is ZoneResizeEdge.Right or ZoneResizeEdge.BottomRight)
             {
-                int delta = (int)Math.Round((now.X - _resizeOriginScreen.X) / _spacingX);
+                int delta = (int)Math.Round((now.X - _resizeOriginDevice.X) / _spacingX);
                 columns = Math.Max(DesktopGroupZoneService.MinimumColumns, _columns + delta);
             }
             if (_resizing is ZoneResizeEdge.Bottom or ZoneResizeEdge.BottomRight)
             {
-                int delta = (int)Math.Round((now.Y - _resizeOriginScreen.Y) / _spacingY);
+                int delta = (int)Math.Round((now.Y - _resizeOriginDevice.Y) / _spacingY);
                 rows = Math.Max(DesktopGroupZoneService.MinimumRows, _rows + delta);
             }
             if (columns == _previewColumns && rows == _previewRows) return;
@@ -335,12 +349,11 @@ namespace Desktop_Frames.NativeDesktop
             SetWindowLong(handle, GWL_EXSTYLE, style);
         }
 
-        private Point GetCursorScreenPoint()
+        /// <summary>Pointer position in device pixels, the unit the zone's grid spacing is measured in.</summary>
+        private static Point GetCursorDevicePoint()
         {
             GetCursorPos(out NativeZonePoint point);
-            Matrix transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice
-                ?? Matrix.Identity;
-            return transform.Transform(new Point(point.X, point.Y));
+            return new Point(point.X, point.Y);
         }
 
         [StructLayout(LayoutKind.Sequential)]
