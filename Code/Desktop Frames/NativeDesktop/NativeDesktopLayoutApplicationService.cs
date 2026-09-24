@@ -123,6 +123,15 @@ namespace Desktop_Frames.NativeDesktop
                     return 0;
                 }
 
+                string? simulate = ExtractValue(args, "--native-layout-dualrail-simulate=");
+                if (!string.IsNullOrWhiteSpace(simulate))
+                {
+                    SimulateDualRail(auditDirectory, simulate,
+                        ExtractValue(args, "--native-layout-simulate-cell="),
+                        ExtractValue(args, "--native-layout-simulate-workarea="));
+                    return 0;
+                }
+
                 if (args.Any(arg => arg.Equals("--native-layout-dualrail-refresh", StringComparison.OrdinalIgnoreCase)))
                 {
                     DesktopLayoutPlan plan = CreateAndWriteDualRailPreview(auditDirectory);
@@ -581,11 +590,68 @@ namespace Desktop_Frames.NativeDesktop
         internal static DesktopLayoutPlan CreateDualRailPlan(
             IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>? proposedZones = null)
         {
+            // The zones come from the scheme of the display being planned for.
+            DesktopDisplaySchemes.Refresh();
             var metadata = new NativeDesktopLayoutMetadataStore();
             ManualLayoutResolution manual = metadata.LoadManualResolution();
             var planner = new NativeDesktopLayoutPlanner(new NativeDesktopIconLayoutService(),
                 manual.Groups, manual.UnmappedManualPaths, proposedZones ?? DesktopGroupZoneStore.Load());
             return planner.PlanDualRailLayout();
+        }
+
+        /// <summary>
+        /// Plans today's desktop for a display that is not connected, from that
+        /// display's own scheme, and writes the preview beside a would-it-apply
+        /// verdict. Explorer is only read; nothing moves.
+        /// </summary>
+        /// <param name="display">The display, e.g. 2560x1440@96.</param>
+        /// <param name="cell">Explorer's icon cell on that display, e.g. 75x100.</param>
+        /// <param name="workArea">Work area when the taskbar takes space, e.g. 2560x1392; the whole display otherwise.</param>
+        private static DesktopLayoutPlan SimulateDualRail(string auditDirectory, string display, string? cell, string? workArea)
+        {
+            if (!DesktopDisplayKey.TryParse(display, out DesktopDisplayKey key))
+                throw new ArgumentException($"--native-layout-dualrail-simulate expects WIDTHxHEIGHT@DPI, got '{display}'.");
+            (int cellX, int cellY) = TryParseSize(cell) ?? throw new ArgumentException(
+                "--native-layout-simulate-cell is required: the icon cell Explorer uses on that display, e.g. 75x100.");
+            (int areaWidth, int areaHeight) = TryParseSize(workArea) ?? (key.Width, key.Height);
+
+            NativeDesktopSafeGrid grid = NativeDesktopIconLayoutService.SafeGridFor(key.Width, key.Height, cellX, cellY);
+            var metadata = new NativeDesktopLayoutMetadataStore();
+            ManualLayoutResolution manual = metadata.LoadManualResolution();
+            var planner = new NativeDesktopLayoutPlanner(new NativeDesktopIconLayoutService(),
+                manual.Groups, manual.UnmappedManualPaths, DesktopGroupZoneStore.Load(key));
+            DesktopLayoutPlan plan = planner.SimulateDualRailLayout(grid, new Drawing.Rectangle(0, 0, areaWidth, areaHeight), key.Dpi);
+
+            string verdict;
+            try
+            {
+                ValidateDualRailPlan(plan, grid);
+                verdict = "WouldApply=PASS";
+            }
+            catch (InvalidOperationException ex)
+            {
+                verdict = "WouldApply=FAIL\nReason=" + ex.Message;
+            }
+
+            Directory.CreateDirectory(auditDirectory);
+            File.WriteAllText(Path.Combine(auditDirectory, "ui-display-simulation-plan.json"),
+                JsonConvert.SerializeObject(plan, Formatting.Indented), new UTF8Encoding(false));
+            WriteFullPreview(Path.Combine(auditDirectory, "ui-display-simulation-preview.md"), plan);
+            WriteFullLayoutMap(Path.Combine(auditDirectory, "ui-display-simulation-map.svg"), plan);
+            WriteDualRailResults(auditDirectory, plan,
+                $"Simulation=PASS\nDisplay={key}\nScheme={DesktopDisplaySchemes.ZoneFile(key)}\n{verdict}",
+                "ui-display-simulation-results.md");
+            return plan;
+        }
+
+        private static (int Width, int Height)? TryParseSize(string? text)
+        {
+            string[] parts = (text ?? string.Empty).Split('x', 'X');
+            return parts.Length == 2 &&
+                   int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out int width) && width > 0 &&
+                   int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out int height) && height > 0
+                ? (width, height)
+                : null;
         }
 
         private static void WriteIdentityClassificationAudit(string path, DesktopLayoutPlan plan)
@@ -988,7 +1054,8 @@ namespace Desktop_Frames.NativeDesktop
                 ?? throw new InvalidDataException("Dual-Rail layout plan is empty or invalid.");
         }
 
-        private static void WriteDualRailResults(string auditDirectory, DesktopLayoutPlan plan, string header)
+        private static void WriteDualRailResults(string auditDirectory, DesktopLayoutPlan plan, string header,
+            string fileName = "ui-phase5-5-apply-results.md")
         {
             var markdown = new StringBuilder("# UI Phase 5.5 Dual-Rail Layout Results\n\n");
             markdown.AppendLine(header);
@@ -1033,8 +1100,7 @@ namespace Desktop_Frames.NativeDesktop
             markdown.AppendLine("FilesystemDelete=false");
             markdown.AppendLine("FilesystemRename=false");
             markdown.AppendLine("FilesystemCopy=false");
-            File.WriteAllText(Path.Combine(auditDirectory, "ui-phase5-5-apply-results.md"),
-                markdown.ToString(), new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(auditDirectory, fileName), markdown.ToString(), new UTF8Encoding(false));
         }
 
         public static NativeDesktopLayoutBatchResult ApplyNativeDesktopLayout(string auditDirectory, NativeDesktopLayoutGroupId group) =>

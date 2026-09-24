@@ -24,7 +24,11 @@ namespace Desktop_Frames.NativeDesktop
         private static string _planPath = string.Empty;
         private static bool _editMode;
         private static bool _resizeInProgress;
+        private static bool _applyingScheme;
         private static DispatcherTimer? _displayCheck;
+        // A display whose automatic apply failed is not retried on every later
+        // notification; the tray refresh is the way to try again.
+        private static DesktopDisplayKey? _autoApplyFailedFor;
 
         public static int WindowCount
         {
@@ -63,6 +67,8 @@ namespace Desktop_Frames.NativeDesktop
         {
             CloseAll();
             EnsureDisplayWatch();
+            // A layout that made it onto the screen clears an earlier failed attempt.
+            _autoApplyFailedFor = null;
             _plan = plan;
             if (!string.IsNullOrWhiteSpace(planPath)) _planPath = planPath;
             IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> zones = DesktopGroupZoneStore.Load();
@@ -80,7 +86,7 @@ namespace Desktop_Frames.NativeDesktop
                 // user was missing.
                 var zoneWindow = new DesktopGroupZoneWindow(group.GroupId) { Locked = locked };
                 zoneWindow.SetGeometry(group.IconBoundingLeft, group.IconBoundingTop,
-                    group.Columns, group.Rows, spacingX, spacingY, managed);
+                    group.Columns, group.Rows, spacingX, spacingY, managed, plan.Dpi);
                 zoneWindow.ZoneResized += OnZoneResized;
                 lock (SyncRoot) Zones[group.GroupId] = zoneWindow;
                 zoneWindow.Show();
@@ -95,7 +101,8 @@ namespace Desktop_Frames.NativeDesktop
                     group.HeaderLeft,
                     group.HeaderTop,
                     group.HeaderWidth,
-                    group.HeaderHeight)
+                    group.HeaderHeight,
+                    plan.Dpi)
                 {
                     HasManualAnchor = stored?.IsManualPosition ?? false,
                     HasManualSize = stored?.IsManualSize ?? false,
@@ -364,7 +371,6 @@ namespace Desktop_Frames.NativeDesktop
             "GROUP_LOCKED" => Desktop_Frames.Localization.Strings.GroupDragLocked,
             "OUTSIDE_SAFE_GRID" => Desktop_Frames.Localization.Strings.GroupDragOutsideGrid,
             "AUTO_ARRANGE_ENABLED" => Desktop_Frames.Localization.Strings.GroupDragAutoArrange,
-            "DPI_CONTEXT_STALE" => Desktop_Frames.Localization.Strings.DesktopLayoutRestartRequired,
             _ when reason.StartsWith("GROUP_COLLISION", StringComparison.Ordinal) ||
                    reason.StartsWith("HEADER_ROW_COLLISION", StringComparison.Ordinal) ||
                    reason.StartsWith("DISPLACED_OTHER_ICON", StringComparison.Ordinal)
@@ -448,17 +454,16 @@ namespace Desktop_Frames.NativeDesktop
         /// is pixels on one particular grid; after a resolution or scaling change
         /// its headers and zones point at cells that no longer exist.
         /// </summary>
-        internal static bool PlanMatchesLiveDesktop(DesktopLayoutPlan plan, out bool restartRequired, out string detail)
+        internal static bool PlanMatchesLiveDesktop(DesktopLayoutPlan plan, out string detail)
         {
             var layout = new NativeDesktopIconLayoutService();
             NativeDesktopListViewState state = layout.GetListViewState();
             NativeDesktopSafeGrid grid = layout.GetSafeDesktopGrid();
             int dpi = DesktopChromeDpi.WindowDpi(state.Handle);
-            restartRequired = DesktopChromeDpi.IsProcessDpiStale(dpi);
             detail = $"plan {plan.ListViewClientWidth}x{plan.ListViewClientHeight} at {plan.Dpi} DPI, " +
                      $"cell {plan.GridSpacingX}x{plan.GridSpacingY}; desktop {grid.ClientWidth}x{grid.ClientHeight} " +
                      $"at {dpi} DPI, cell {grid.IconSpacingX}x{grid.IconSpacingY}; process {DesktopChromeDpi.ProcessDpi} DPI";
-            return !restartRequired && plan.Dpi == dpi &&
+            return plan.Dpi == dpi &&
                    plan.ListViewClientWidth == grid.ClientWidth && plan.ListViewClientHeight == grid.ClientHeight &&
                    plan.GridSpacingX == grid.IconSpacingX && plan.GridSpacingY == grid.IconSpacingY;
         }
@@ -468,7 +473,7 @@ namespace Desktop_Frames.NativeDesktop
         {
             try
             {
-                return PlanMatchesLiveDesktop(plan, out _, out _);
+                return PlanMatchesLiveDesktop(plan, out _);
             }
             catch
             {
@@ -477,11 +482,10 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>
-        /// Hides the chrome as soon as the display stops matching the plan.
-        /// Headers drawn for the old grid sit over unrelated icons and swallow
-        /// their clicks, and a drag computed from them would move the wrong cells.
-        /// The layout is never redone behind the user's back; a toast says what
-        /// to do instead.
+        /// Follows the display. Headers drawn for the old grid sit over unrelated
+        /// icons and swallow their clicks, so they are hidden as soon as the display
+        /// stops matching the plan. The new display's own scheme is then applied,
+        /// unless the user turned that off - then a toast says how to do it by hand.
         /// </summary>
         private static void EnsureDisplayWatch()
         {
@@ -496,7 +500,7 @@ namespace Desktop_Frames.NativeDesktop
             timer.Tick += (_, _) =>
             {
                 timer.Stop();
-                HideIfDisplayChanged();
+                OnDisplaySettled();
             };
             _displayCheck = timer;
             SystemEvents.DisplaySettingsChanged += (_, _) => RestartDisplayCheck();
@@ -515,32 +519,128 @@ namespace Desktop_Frames.NativeDesktop
                 _displayCheck?.Start();
             }));
 
-        private static void HideIfDisplayChanged()
+        private static void OnDisplaySettled()
         {
+            if (_resizeInProgress || _applyingScheme)
+            {
+                // Look again once the gesture or the apply has finished.
+                RestartDisplayCheck();
+                return;
+            }
             DesktopLayoutPlan? plan = _plan;
-            bool chromeShown;
-            lock (SyncRoot) chromeShown = Windows.Count > 0 || Zones.Count > 0;
-            if (plan == null || !chromeShown || _resizeInProgress) return;
+            // Nothing to follow until the desktop has been laid out at least once.
+            if (plan == null && string.IsNullOrWhiteSpace(_planPath)) return;
 
             bool current;
-            bool restartRequired;
-            string detail;
+            string detail = "no plan shown";
             try
             {
-                current = PlanMatchesLiveDesktop(plan, out restartRequired, out detail);
+                current = plan != null && PlanMatchesLiveDesktop(plan, out detail);
             }
             catch
             {
                 return; // Explorer is restarting; the next notification looks again.
             }
-            if (current) return;
+            bool chromeShown;
+            lock (SyncRoot) chromeShown = Windows.Count > 0 || Zones.Count > 0;
+            if (current && chromeShown) return;
 
+            if (!DesktopDisplaySchemes.AutoApplyOnDisplayChange)
+            {
+                // Hide the stale chrome and say so once; the user refreshes by hand.
+                if (!chromeShown) return;
+                CloseAll();
+                LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                    $"Display changed; desktop group chrome hidden until the layout is refreshed ({detail}).");
+                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
+                    Desktop_Frames.Localization.Strings.DesktopLayoutDisplayChanged);
+                return;
+            }
             CloseAll();
             LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
-                $"Display changed; desktop group chrome hidden until the layout is refreshed ({detail}).");
-            SmartToast.Show(Desktop_Frames.Localization.Strings.AppName, restartRequired
-                ? Desktop_Frames.Localization.Strings.DesktopLayoutRestartRequired
-                : Desktop_Frames.Localization.Strings.DesktopLayoutDisplayChanged);
+                $"Display changed; applying the layout scheme of the new display ({detail}).");
+            ApplySchemeForCurrentDisplay(attempt: 1);
+        }
+
+        /// <summary>
+        /// Lays the desktop out from the scheme of the display Explorer is showing
+        /// now - exactly what "refresh desktop layout" does, minus the question
+        /// about dropped icons: after a display change every icon sits wherever
+        /// Explorer reflowed it, which says nothing about where the user wants it.
+        /// </summary>
+        private static void ApplySchemeForCurrentDisplay(int attempt)
+        {
+            // A delayed start-up apply and a display notification can both ask;
+            // whichever comes second finds the work done.
+            DesktopLayoutPlan? shown = _plan;
+            bool chromeShown;
+            lock (SyncRoot) chromeShown = Windows.Count > 0 || Zones.Count > 0;
+            if (shown != null && chromeShown && PlanStillFitsDesktop(shown)) return;
+
+            DesktopDisplayKey key;
+            try
+            {
+                key = DesktopDisplaySchemes.Refresh();
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General,
+                    $"Desktop layout scheme not applied, the desktop is not readable: {ex.Message}");
+                return;
+            }
+            // A failure only holds for the display it happened on.
+            if (_autoApplyFailedFor.HasValue && _autoApplyFailedFor != key) _autoApplyFailedFor = null;
+            if (_autoApplyFailedFor == key) return;
+
+            _applyingScheme = true;
+            try
+            {
+                DesktopLayoutRefreshCommand.Run(AuditDirectory, askAboutDroppedIcons: false);
+                _autoApplyFailedFor = null;
+                LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                    $"Desktop layout scheme {key} applied after a display change.");
+                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
+                    Desktop_Frames.Localization.Strings.Get("DesktopLayoutSchemeApplied", DesktopDisplaySchemes.Describe(key)));
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General,
+                    $"Desktop layout scheme {key} not applied (attempt {attempt}): {ex.Message}");
+                if (attempt == 1)
+                {
+                    // Explorer can still be reflowing icons a few seconds after the
+                    // change, and a move into a slot it is about to fill is rolled back.
+                    RunLater(TimeSpan.FromSeconds(5), () => ApplySchemeForCurrentDisplay(attempt: 2));
+                    return;
+                }
+                _autoApplyFailedFor = key;
+                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
+                    Desktop_Frames.Localization.Strings.Get("DesktopLayoutSchemeApplyFailed",
+                        DesktopDisplaySchemes.Describe(key), FirstLine(ex.Message)));
+            }
+            finally
+            {
+                _applyingScheme = false;
+            }
+        }
+
+        private static void RunLater(TimeSpan delay, Action action)
+        {
+            Application? application = Application.Current;
+            if (application == null) return;
+            var timer = new DispatcherTimer(DispatcherPriority.Background, application.Dispatcher) { Interval = delay };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                action();
+            };
+            timer.Start();
+        }
+
+        private static string FirstLine(string message)
+        {
+            string line = message.Split('\n')[0].Trim();
+            return line.Length <= 120 ? line : line.Substring(0, 117) + "...";
         }
 
         public static DesktopLayoutPlan? CurrentPlan => _plan;
@@ -560,27 +660,36 @@ namespace Desktop_Frames.NativeDesktop
             if (!File.Exists(path)) return false;
             DesktopLayoutPlan? plan = JsonConvert.DeserializeObject<DesktopLayoutPlan>(File.ReadAllText(path, Encoding.UTF8));
             if (plan == null || plan.LayoutMode != NativeDesktopLayoutMode.DualRail.ToString()) return false;
+            // Remember where the plan lives, so a refresh replaces it in place,
+            // and follow the display from now on even if nothing is drawn yet.
+            _planPath = Path.GetFullPath(path);
+            EnsureDisplayWatch();
 
             bool current = true;
             string detail = string.Empty;
             try
             {
-                current = PlanMatchesLiveDesktop(plan, out _, out detail);
+                current = PlanMatchesLiveDesktop(plan, out detail);
             }
             catch
             {
-                // Explorer is not up yet; the saved plan is the best information there is.
+                // Explorer is not up yet; the saved plan is the best information
+                // there is. Compare again once it is, in case the display changed.
+                RunLater(TimeSpan.FromSeconds(5), OnDisplaySettled);
             }
             if (!current)
             {
-                // Drawing this plan would put headers over icons it no longer
-                // describes. Remember where it lives, so a refresh replaces it in
-                // place, and tell the user how to get their groups back.
-                _planPath = Path.GetFullPath(path);
+                // The display changed while DesktopHub was not running - typically
+                // the laptop went home or came back. Drawing this plan would put
+                // headers over icons it no longer describes.
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
                     $"Desktop group chrome not restored: the display changed since the layout was planned ({detail}).");
-                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
-                    Desktop_Frames.Localization.Strings.DesktopLayoutDisplayChanged);
+                if (DesktopDisplaySchemes.AutoApplyOnDisplayChange)
+                    // At sign-in Explorer is still placing icons; let it finish first.
+                    RunLater(TimeSpan.FromSeconds(4), () => ApplySchemeForCurrentDisplay(attempt: 1));
+                else
+                    SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
+                        Desktop_Frames.Localization.Strings.DesktopLayoutDisplayChanged);
                 return false;
             }
             Show(plan, path);

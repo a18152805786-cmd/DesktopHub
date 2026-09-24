@@ -31,6 +31,7 @@ namespace Desktop_Frames
         private const string RUN_KEY_PATH = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         // Null until the tray menu is built.
         private ToolStripMenuItem? _editLayoutMenuItem;
+        private ToolStripMenuItem? _displaySchemesMenuItem;
         private const string APP_NAME = "Desktop Frames +"; // --- FIX: Ensures new registry entries use the correct name ---
 
         private static readonly List<HiddenFrame> HiddenFrames = new List<HiddenFrame>();
@@ -93,6 +94,95 @@ namespace Desktop_Frames
 
 
             Instance = this; // Set singleton instance
+        }
+
+        private static void RefreshDesktopLayout()
+        {
+            try
+            {
+                Desktop_Frames.NativeDesktop.DesktopLayoutRefreshCommand.Run(
+                    Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.AuditDirectory);
+            }
+            catch (Exception ex)
+            {
+                // A layout that cannot be placed must end in an explanation,
+                // not an unhandled exception that takes the tray down with it.
+                LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
+                    $"Desktop layout refresh failed: {ex.Message}");
+                System.Windows.MessageBox.Show(ex.Message, Strings.AppName,
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Lists every display that has a layout, the connected one checked. Only
+        /// the connected display's layout can be applied; the others wait until
+        /// their display comes back.
+        /// </summary>
+        private void UpdateDisplaySchemesMenu()
+        {
+            if (_displaySchemesMenuItem == null) return;
+            _displaySchemesMenuItem.DropDownItems.Clear();
+
+            Desktop_Frames.NativeDesktop.DesktopDisplayKey? current = null;
+            IReadOnlyList<Desktop_Frames.NativeDesktop.DesktopDisplayKey> known;
+            try
+            {
+                current = Desktop_Frames.NativeDesktop.DesktopDisplaySchemes.Refresh();
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(LogManager.LogLevel.Warn, LogManager.LogCategory.General,
+                    $"Desktop display not readable for the scheme menu: {ex.Message}");
+            }
+            try
+            {
+                known = Desktop_Frames.NativeDesktop.DesktopDisplaySchemes.Known();
+            }
+            catch
+            {
+                known = Array.Empty<Desktop_Frames.NativeDesktop.DesktopDisplayKey>();
+            }
+
+            foreach (Desktop_Frames.NativeDesktop.DesktopDisplayKey key in known)
+            {
+                bool connected = current == key;
+                string text = Desktop_Frames.NativeDesktop.DesktopDisplaySchemes.Describe(key);
+                var item = new ToolStripMenuItem(connected ? Strings.Get("TrayDisplaySchemeCurrent", text) : text)
+                {
+                    Checked = connected
+                };
+                if (connected)
+                {
+                    item.ToolTipText = Strings.TrayDisplaySchemeApplyTip;
+                    item.Click += (s, e) => RefreshDesktopLayout();
+                }
+                else
+                {
+                    item.Enabled = false;
+                    item.ToolTipText = Strings.TrayDisplaySchemeInactiveTip;
+                }
+                _displaySchemesMenuItem.DropDownItems.Add(item);
+            }
+            if (known.Count == 0)
+                _displaySchemesMenuItem.DropDownItems.Add(new ToolStripMenuItem(Strings.TrayDisplaySchemeNone) { Enabled = false });
+
+            _displaySchemesMenuItem.DropDownItems.Add(new ToolStripSeparator());
+            var autoApply = new ToolStripMenuItem(Strings.TrayDisplaySchemeAutoApply)
+            {
+                CheckOnClick = true,
+                Checked = Desktop_Frames.NativeDesktop.DesktopDisplaySchemes.AutoApplyOnDisplayChange
+            };
+            autoApply.Click += (s, e) =>
+            {
+                try { Desktop_Frames.NativeDesktop.DesktopDisplaySchemes.AutoApplyOnDisplayChange = autoApply.Checked; }
+                catch (Exception ex)
+                {
+                    LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
+                        $"Display scheme setting not saved: {ex.Message}");
+                }
+            };
+            _displaySchemesMenuItem.DropDownItems.Add(autoApply);
         }
 
         /// <summary>Keeps the tray entry in step with the live edit-mode state.</summary>
@@ -265,23 +355,14 @@ namespace Desktop_Frames
                 UpdateDesktopLayoutMenu();
             };
             trayMenu.Items.Add(_editLayoutMenuItem);
-            trayMenu.Items.Add(Strings.TrayRefreshDesktopLayout, null, (s, e) =>
-            {
-                try
-                {
-                    Desktop_Frames.NativeDesktop.DesktopLayoutRefreshCommand.Run(
-                        Desktop_Frames.NativeDesktop.DesktopGroupHeaderManager.AuditDirectory);
-                }
-                catch (Exception ex)
-                {
-                    // A layout that cannot be placed must end in an explanation,
-                    // not an unhandled exception that takes the tray down with it.
-                    LogManager.Log(LogManager.LogLevel.Error, LogManager.LogCategory.General,
-                        $"Desktop layout refresh failed: {ex.Message}");
-                    System.Windows.MessageBox.Show(ex.Message, Strings.AppName,
-                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                }
-            });
+            trayMenu.Items.Add(Strings.TrayRefreshDesktopLayout, null, (s, e) => RefreshDesktopLayout());
+
+            // One layout per display. The list is read when the submenu opens,
+            // so it always names the display that is connected right now.
+            _displaySchemesMenuItem = new ToolStripMenuItem(Strings.TrayDesktopLayoutSchemes);
+            _displaySchemesMenuItem.DropDownItems.Add(new ToolStripMenuItem(Strings.TrayDisplaySchemeNone) { Enabled = false });
+            _displaySchemesMenuItem.DropDownOpening += (s, e) => UpdateDisplaySchemesMenu();
+            trayMenu.Items.Add(_displaySchemesMenuItem);
             trayMenu.Items.Add(new ToolStripSeparator());
 
             // Profiles Submenu

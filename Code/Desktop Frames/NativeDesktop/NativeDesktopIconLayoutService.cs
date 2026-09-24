@@ -62,17 +62,26 @@ namespace Desktop_Frames.NativeDesktop
             long spacing = Send(listView, LvmGetItemSpacing, IntPtr.Zero, IntPtr.Zero).ToInt64();
             int spacingX = Math.Max(1, (int)unchecked((ushort)(spacing & 0xffff)));
             int spacingY = Math.Max(1, (int)unchecked((ushort)((spacing >> 16) & 0xffff)));
-            if (!GetClientRect(listView, out NativeRect client) || client.Right <= 0 || client.Bottom <= 0)
+            // The item spacing arrives in Explorer's pixels whatever this process's
+            // DPI; the client rect is rescaled unless it is read per-monitor aware.
+            (bool readable, NativeRect client) = DesktopChromeDpi.InPhysicalPixels(() =>
+                (GetClientRect(listView, out NativeRect rect), rect));
+            if (!readable || client.Right <= 0 || client.Bottom <= 0)
                 throw new InvalidOperationException("Desktop ListView client rect was not readable.");
+            return SafeGridFor(client.Right, client.Bottom, spacingX, spacingY);
+        }
 
+        /// <summary>The slots of a desktop of this size that an icon can occupy without being clipped.</summary>
+        internal static NativeDesktopSafeGrid SafeGridFor(int clientWidth, int clientHeight, int spacingX, int spacingY)
+        {
             int rightMargin = Math.Max(1, (int)Math.Ceiling(spacingX * 0.25));
             int bottomMargin = Math.Max(1, (int)Math.Ceiling(spacingY * 0.25));
-            int safeColumns = Math.Max(1, (client.Right - rightMargin) / spacingX);
-            int safeRows = Math.Max(1, (client.Bottom - bottomMargin) / spacingY);
+            int safeColumns = Math.Max(1, (clientWidth - rightMargin) / spacingX);
+            int safeRows = Math.Max(1, (clientHeight - bottomMargin) / spacingY);
             return new NativeDesktopSafeGrid
             {
-                ClientWidth = client.Right,
-                ClientHeight = client.Bottom,
+                ClientWidth = clientWidth,
+                ClientHeight = clientHeight,
                 IconSpacingX = spacingX,
                 IconSpacingY = spacingY,
                 SafeColumns = safeColumns,

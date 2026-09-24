@@ -1,8 +1,7 @@
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Media;
-using Desktop_Frames.Localization;
+using Forms = System.Windows.Forms;
 
 namespace Desktop_Frames.NativeDesktop
 {
@@ -14,26 +13,33 @@ namespace Desktop_Frames.NativeDesktop
     /// are the same number, which is how the chrome got away with mixing them;
     /// at 150% a header told to sit at x=115 lands at 172, and the right rail
     /// ends up beyond the edge of the screen.
+    ///
+    /// DesktopHub is system-DPI aware, so its DPI is fixed when the process
+    /// starts. Moving between a laptop at 150% and a monitor at 100% leaves it
+    /// running at the old DPI, and Windows then rescales every coordinate the
+    /// process reads or writes by the ratio of the two - while Explorer keeps
+    /// answering in real pixels. Everything here therefore works in physical
+    /// pixels and converts only at the edge, using the desktop's real DPI.
     /// </summary>
     internal static class DesktopChromeDpi
     {
-        private const int DpiAwarenessPerMonitor = 2;
-
-        /// <summary>Physical pixels per DIP for a window, or for this process before the window has a handle.</summary>
-        public static double ScaleOf(Visual? visual)
-        {
-            if (visual != null && PresentationSource.FromVisual(visual) != null)
-            {
-                double scale = VisualTreeHelper.GetDpi(visual).DpiScaleX;
-                if (scale > 0) return scale;
-            }
-            return ProcessDpi / 96.0;
-        }
+        private static readonly IntPtr PerMonitorAwareV2 = new(-4);
+        private const uint MonitorDefaultToPrimary = 1;
 
         /// <summary>
-        /// The DPI this process renders at. DesktopHub is system-DPI aware, so
-        /// the value is fixed when the process starts and does not follow a
-        /// later scaling change.
+        /// Physical pixels per DIP for chrome drawn over a desktop at
+        /// <paramref name="desktopDpi"/>.
+        ///
+        /// A window's position in DIPs is multiplied by the process DPI and then,
+        /// if the desktop's DPI differs, rescaled by Windows by desktop/process.
+        /// The process DPI cancels out, so the desktop's DPI alone decides where
+        /// the window lands, whether or not the process outlived a scaling change.
+        /// </summary>
+        public static double ScaleFor(int desktopDpi) => (desktopDpi > 0 ? desktopDpi : ProcessDpi) / 96.0;
+
+        /// <summary>
+        /// The DPI this process renders at. It is fixed when the process starts
+        /// and does not follow a later scaling change.
         /// </summary>
         public static int ProcessDpi
         {
@@ -66,31 +72,71 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>
-        /// True when the display scaling changed after this process started.
-        /// Windows then rescales every coordinate this process reads into its
-        /// old DPI, while Explorer keeps answering in real pixels. No layout
-        /// computed from that mixture is safe to apply; only a restart fixes it.
+        /// Runs <paramref name="read"/> with this thread briefly per-monitor aware,
+        /// so window rectangles, monitor areas and the cursor come back in the
+        /// physical pixels Explorer uses, not rescaled to a stale process DPI.
         /// </summary>
-        public static bool IsProcessDpiStale(int desktopDpi)
+        public static T InPhysicalPixels<T>(Func<T> read)
         {
-            if (desktopDpi <= 0) return false;
+            IntPtr previous;
             try
             {
-                if (GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) == DpiAwarenessPerMonitor)
-                    return false;
+                previous = SetThreadDpiAwarenessContext(PerMonitorAwareV2);
             }
             catch (EntryPointNotFoundException)
             {
-                return false;
+                return read();
             }
-            return desktopDpi != ProcessDpi;
+            try
+            {
+                return read();
+            }
+            finally
+            {
+                if (previous != IntPtr.Zero) SetThreadDpiAwarenessContext(previous);
+            }
         }
 
-        public static void ThrowIfProcessDpiStale(int desktopDpi)
+        /// <summary>Work area of the primary display, in physical pixels.</summary>
+        public static Rectangle PrimaryWorkArea() => InPhysicalPixels(() =>
         {
-            if (IsProcessDpiStale(desktopDpi))
-                throw new InvalidOperationException(
-                    $"DPI_CONTEXT_STALE ProcessDpi={ProcessDpi}; DesktopDpi={desktopDpi}. {Strings.DesktopLayoutRestartRequired}");
+            IntPtr monitor = MonitorFromPoint(new NativePoint(), MonitorDefaultToPrimary);
+            var info = new NativeMonitorInfo { Size = Marshal.SizeOf<NativeMonitorInfo>() };
+            if (monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info))
+                return Rectangle.FromLTRB(info.Work.Left, info.Work.Top, info.Work.Right, info.Work.Bottom);
+            return Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens[0].WorkingArea;
+        });
+
+        /// <summary>Pointer position in physical pixels, the unit the desktop grid spacing is measured in.</summary>
+        public static System.Windows.Point CursorPosition() => InPhysicalPixels(() =>
+        {
+            GetCursorPos(out NativePoint point);
+            return new System.Windows.Point(point.X, point.Y);
+        });
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativePoint
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeRect
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeMonitorInfo
+        {
+            public int Size;
+            public NativeRect Monitor;
+            public NativeRect Work;
+            public uint Flags;
         }
 
         [DllImport("user32.dll")]
@@ -100,9 +146,15 @@ namespace Desktop_Frames.NativeDesktop
         private static extern uint GetDpiForWindow(IntPtr hwnd);
 
         [DllImport("user32.dll")]
-        private static extern IntPtr GetThreadDpiAwarenessContext();
+        private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
 
         [DllImport("user32.dll")]
-        private static extern int GetAwarenessFromDpiAwarenessContext(IntPtr value);
+        private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetMonitorInfo(IntPtr monitor, ref NativeMonitorInfo info);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out NativePoint point);
     }
 }

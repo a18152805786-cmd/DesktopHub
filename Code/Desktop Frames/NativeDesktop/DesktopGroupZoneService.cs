@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using Forms = System.Windows.Forms;
 
 namespace Desktop_Frames.NativeDesktop
 {
@@ -260,8 +259,7 @@ namespace Desktop_Frames.NativeDesktop
                 safeGrid.SafeColumns, safeGrid.SafeRows);
         }
 
-        public static Rectangle GetWorkArea() =>
-            Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
+        public static Rectangle GetWorkArea() => DesktopChromeDpi.PrimaryWorkArea();
 
         private static NativeDesktopLayoutGroupId ParseGroup(string value) =>
             Enum.TryParse(value, true, out NativeDesktopLayoutGroupId group)

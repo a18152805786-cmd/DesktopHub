@@ -69,22 +69,30 @@ namespace Desktop_Frames.NativeDesktop
     /// automatic Dual-Rail planner on every later refresh and restart, which is
     /// the whole point: a refresh must never undo something the user did on
     /// purpose.
+    ///
+    /// Every display keeps its own file (see <see cref="DesktopDisplaySchemes"/>),
+    /// so arranging the laptop screen never disturbs the monitor's arrangement.
     /// </summary>
     internal static class DesktopGroupZoneStore
     {
-        private const string FileName = "native-desktop-group-anchors.json";
         private static readonly object SyncRoot = new();
 
-        private static string Path => System.IO.Path.Combine(ProfileManager.CurrentProfileDir, FileName);
+        private static string Path => DesktopDisplaySchemes.CurrentZoneFile();
 
-        public static IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> Load()
+        public static IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> Load() => Load(() => Path);
+
+        /// <summary>The zones of another display's scheme, for a preview of a display that is not connected.</summary>
+        public static IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> Load(DesktopDisplayKey display) =>
+            Load(() => DesktopDisplaySchemes.ZoneFile(display));
+
+        private static IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> Load(Func<string> path)
         {
             var result = new Dictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>();
             try
             {
                 lock (SyncRoot)
                 {
-                    foreach (KeyValuePair<string, DesktopGroupZone> pair in Read().Groups)
+                    foreach (KeyValuePair<string, DesktopGroupZone> pair in Read(path()).Groups)
                         if (Enum.TryParse(pair.Key, true, out NativeDesktopLayoutGroupId group) && pair.Value != null)
                             result[group] = pair.Value;
                 }
@@ -180,7 +188,9 @@ namespace Desktop_Frames.NativeDesktop
         {
             lock (SyncRoot)
             {
-                DesktopGroupZoneDocument document = Read();
+                // Read and write the same file even if the display changes in between.
+                string path = Path;
+                DesktopGroupZoneDocument document = Read(path);
                 string key = group.ToString();
                 if (!document.Groups.TryGetValue(key, out DesktopGroupZone? zone) || zone == null)
                 {
@@ -192,15 +202,14 @@ namespace Desktop_Frames.NativeDesktop
                 // An entry that no longer says anything is removed rather than
                 // left behind as an empty record.
                 if (!zone.HasAnything) document.Groups.Remove(key);
-                Write(document);
+                Write(path, document);
             }
         }
 
-        private static DesktopGroupZoneDocument Read()
+        private static DesktopGroupZoneDocument Read(string path)
         {
             try
             {
-                string path = Path;
                 if (!File.Exists(path)) return new DesktopGroupZoneDocument();
                 DesktopGroupZoneDocument document =
                     JsonConvert.DeserializeObject<DesktopGroupZoneDocument>(File.ReadAllText(path, Encoding.UTF8))
@@ -227,9 +236,8 @@ namespace Desktop_Frames.NativeDesktop
             document.Version = 2;
         }
 
-        private static void Write(DesktopGroupZoneDocument document)
+        private static void Write(string path, DesktopGroupZoneDocument document)
         {
-            string path = Path;
             string? directory = System.IO.Path.GetDirectoryName(path);
             if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
             File.WriteAllText(path, JsonConvert.SerializeObject(document, Formatting.Indented), new UTF8Encoding(false));
