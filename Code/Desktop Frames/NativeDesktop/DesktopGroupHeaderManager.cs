@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
+using System.Windows.Threading;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 namespace Desktop_Frames.NativeDesktop
@@ -22,6 +24,7 @@ namespace Desktop_Frames.NativeDesktop
         private static string _planPath = string.Empty;
         private static bool _editMode;
         private static bool _resizeInProgress;
+        private static DispatcherTimer? _displayCheck;
 
         public static int WindowCount
         {
@@ -59,6 +62,7 @@ namespace Desktop_Frames.NativeDesktop
         public static void Show(DesktopLayoutPlan plan, string planPath)
         {
             CloseAll();
+            EnsureDisplayWatch();
             _plan = plan;
             if (!string.IsNullOrWhiteSpace(planPath)) _planPath = planPath;
             IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> zones = DesktopGroupZoneStore.Load();
@@ -360,6 +364,7 @@ namespace Desktop_Frames.NativeDesktop
             "GROUP_LOCKED" => Desktop_Frames.Localization.Strings.GroupDragLocked,
             "OUTSIDE_SAFE_GRID" => Desktop_Frames.Localization.Strings.GroupDragOutsideGrid,
             "AUTO_ARRANGE_ENABLED" => Desktop_Frames.Localization.Strings.GroupDragAutoArrange,
+            "DPI_CONTEXT_STALE" => Desktop_Frames.Localization.Strings.DesktopLayoutRestartRequired,
             _ when reason.StartsWith("GROUP_COLLISION", StringComparison.Ordinal) ||
                    reason.StartsWith("HEADER_ROW_COLLISION", StringComparison.Ordinal) ||
                    reason.StartsWith("DISPLACED_OTHER_ICON", StringComparison.Ordinal)
@@ -438,6 +443,106 @@ namespace Desktop_Frames.NativeDesktop
             }
         }
 
+        /// <summary>
+        /// Whether a plan still describes the desktop Explorer is showing. A plan
+        /// is pixels on one particular grid; after a resolution or scaling change
+        /// its headers and zones point at cells that no longer exist.
+        /// </summary>
+        internal static bool PlanMatchesLiveDesktop(DesktopLayoutPlan plan, out bool restartRequired, out string detail)
+        {
+            var layout = new NativeDesktopIconLayoutService();
+            NativeDesktopListViewState state = layout.GetListViewState();
+            NativeDesktopSafeGrid grid = layout.GetSafeDesktopGrid();
+            int dpi = DesktopChromeDpi.WindowDpi(state.Handle);
+            restartRequired = DesktopChromeDpi.IsProcessDpiStale(dpi);
+            detail = $"plan {plan.ListViewClientWidth}x{plan.ListViewClientHeight} at {plan.Dpi} DPI, " +
+                     $"cell {plan.GridSpacingX}x{plan.GridSpacingY}; desktop {grid.ClientWidth}x{grid.ClientHeight} " +
+                     $"at {dpi} DPI, cell {grid.IconSpacingX}x{grid.IconSpacingY}; process {DesktopChromeDpi.ProcessDpi} DPI";
+            return !restartRequired && plan.Dpi == dpi &&
+                   plan.ListViewClientWidth == grid.ClientWidth && plan.ListViewClientHeight == grid.ClientHeight &&
+                   plan.GridSpacingX == grid.IconSpacingX && plan.GridSpacingY == grid.IconSpacingY;
+        }
+
+        /// <summary>Like <see cref="PlanMatchesLiveDesktop"/>, but a desktop that cannot be read counts as a mismatch.</summary>
+        internal static bool PlanStillFitsDesktop(DesktopLayoutPlan plan)
+        {
+            try
+            {
+                return PlanMatchesLiveDesktop(plan, out _, out _);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Hides the chrome as soon as the display stops matching the plan.
+        /// Headers drawn for the old grid sit over unrelated icons and swallow
+        /// their clicks, and a drag computed from them would move the wrong cells.
+        /// The layout is never redone behind the user's back; a toast says what
+        /// to do instead.
+        /// </summary>
+        private static void EnsureDisplayWatch()
+        {
+            Application? application = Application.Current;
+            if (_displayCheck != null || application == null) return;
+            // Explorer re-spaces its grid a moment after the display changes, so
+            // the check waits out the burst of notifications one change produces.
+            var timer = new DispatcherTimer(DispatcherPriority.Background, application.Dispatcher)
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                HideIfDisplayChanged();
+            };
+            _displayCheck = timer;
+            SystemEvents.DisplaySettingsChanged += (_, _) => RestartDisplayCheck();
+            SystemEvents.UserPreferenceChanged += (_, args) =>
+            {
+                if (args.Category is UserPreferenceCategory.Desktop or UserPreferenceCategory.Window or
+                    UserPreferenceCategory.General)
+                    RestartDisplayCheck();
+            };
+        }
+
+        private static void RestartDisplayCheck() =>
+            Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _displayCheck?.Stop();
+                _displayCheck?.Start();
+            }));
+
+        private static void HideIfDisplayChanged()
+        {
+            DesktopLayoutPlan? plan = _plan;
+            bool chromeShown;
+            lock (SyncRoot) chromeShown = Windows.Count > 0 || Zones.Count > 0;
+            if (plan == null || !chromeShown || _resizeInProgress) return;
+
+            bool current;
+            bool restartRequired;
+            string detail;
+            try
+            {
+                current = PlanMatchesLiveDesktop(plan, out restartRequired, out detail);
+            }
+            catch
+            {
+                return; // Explorer is restarting; the next notification looks again.
+            }
+            if (current) return;
+
+            CloseAll();
+            LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                $"Display changed; desktop group chrome hidden until the layout is refreshed ({detail}).");
+            SmartToast.Show(Desktop_Frames.Localization.Strings.AppName, restartRequired
+                ? Desktop_Frames.Localization.Strings.DesktopLayoutRestartRequired
+                : Desktop_Frames.Localization.Strings.DesktopLayoutDisplayChanged);
+        }
+
         public static DesktopLayoutPlan? CurrentPlan => _plan;
 
         public static void Save(DesktopLayoutPlan plan, string path)
@@ -455,6 +560,29 @@ namespace Desktop_Frames.NativeDesktop
             if (!File.Exists(path)) return false;
             DesktopLayoutPlan? plan = JsonConvert.DeserializeObject<DesktopLayoutPlan>(File.ReadAllText(path, Encoding.UTF8));
             if (plan == null || plan.LayoutMode != NativeDesktopLayoutMode.DualRail.ToString()) return false;
+
+            bool current = true;
+            string detail = string.Empty;
+            try
+            {
+                current = PlanMatchesLiveDesktop(plan, out _, out detail);
+            }
+            catch
+            {
+                // Explorer is not up yet; the saved plan is the best information there is.
+            }
+            if (!current)
+            {
+                // Drawing this plan would put headers over icons it no longer
+                // describes. Remember where it lives, so a refresh replaces it in
+                // place, and tell the user how to get their groups back.
+                _planPath = Path.GetFullPath(path);
+                LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
+                    $"Desktop group chrome not restored: the display changed since the layout was planned ({detail}).");
+                SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
+                    Desktop_Frames.Localization.Strings.DesktopLayoutDisplayChanged);
+                return false;
+            }
             Show(plan, path);
             return true;
         }

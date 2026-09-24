@@ -799,6 +799,8 @@ namespace Desktop_Frames.Localization
         public static string TrayEditDesktopLayout => Get("TrayEditDesktopLayout");
         public static string TrayExitEditDesktopLayout => Get("TrayExitEditDesktopLayout");
         public static string TrayRefreshDesktopLayout => Get("TrayRefreshDesktopLayout");
+        public static string DesktopLayoutDisplayChanged => Get("DesktopLayoutDisplayChanged");
+        public static string DesktopLayoutRestartRequired => Get("DesktopLayoutRestartRequired");
         public static string ManualGroupingTitle => Get("ManualGroupingTitle");
         public static string ManualGroupingHint => Get("ManualGroupingHint");
         public static string ManualGroupingColumnItem => Get("ManualGroupingColumnItem");

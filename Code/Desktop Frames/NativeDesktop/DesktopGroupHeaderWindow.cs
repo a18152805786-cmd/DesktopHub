@@ -29,11 +29,14 @@ namespace Desktop_Frames.NativeDesktop
 
         private readonly Border _chip;
         private readonly NativeDesktopLayoutGroupId _groupId;
-        private readonly double _homeLeft;
-        private readonly double _homeTop;
+        // Where the plan puts the header, in the physical pixels the desktop grid is measured in.
+        private readonly int _homeLeft;
+        private readonly int _homeTop;
+        private readonly int _width;
+        private readonly int _height;
 
         private bool _dragging;
-        private Point _dragOriginScreen;
+        private Point _dragOriginDevice;
         private int _previewDeltaColumns;
         private int _previewDeltaRows;
 
@@ -67,6 +70,8 @@ namespace Desktop_Frames.NativeDesktop
             _groupId = groupId;
             _homeLeft = left;
             _homeTop = top;
+            _width = width;
+            _height = height;
             Title = title;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -77,10 +82,7 @@ namespace Desktop_Frames.NativeDesktop
             Topmost = false;
             SnapsToDevicePixels = true;
             UseLayoutRounding = true;
-            Left = left;
-            Top = top;
-            Width = Math.Max(80, width);
-            Height = Math.Max(DesktopLayoutSpacing.HeaderHeight, height);
+            PlaceAt(0, 0, 0, 0);
 
             _chip = BuildChip(title);
             Content = BuildContent(_chip);
@@ -234,7 +236,7 @@ namespace Desktop_Frames.NativeDesktop
             _dragging = true;
             _previewDeltaColumns = 0;
             _previewDeltaRows = 0;
-            _dragOriginScreen = GetCursorScreenPoint();
+            _dragOriginDevice = GetCursorDevicePoint();
             _chip.Background = ChipDrag;
             _chip.BorderBrush = ChipBorderActive;
             CaptureMouse();
@@ -245,16 +247,15 @@ namespace Desktop_Frames.NativeDesktop
         {
             if (!_dragging) return;
             (int spacingX, int spacingY) = GetGridSpacing();
-            Point now = GetCursorScreenPoint();
+            Point now = GetCursorDevicePoint();
             // The preview snaps cell by cell. Explorer is never called while the
             // pointer moves; only this one lightweight window is repositioned.
-            int deltaColumns = (int)Math.Round((now.X - _dragOriginScreen.X) / spacingX);
-            int deltaRows = (int)Math.Round((now.Y - _dragOriginScreen.Y) / spacingY);
+            int deltaColumns = (int)Math.Round((now.X - _dragOriginDevice.X) / spacingX);
+            int deltaRows = (int)Math.Round((now.Y - _dragOriginDevice.Y) / spacingY);
             if (deltaColumns == _previewDeltaColumns && deltaRows == _previewDeltaRows) return;
             _previewDeltaColumns = deltaColumns;
             _previewDeltaRows = deltaRows;
-            Left = _homeLeft + (deltaColumns * spacingX);
-            Top = _homeTop + (deltaRows * spacingY);
+            PlaceAt(deltaColumns, deltaRows, spacingX, spacingY);
         }
 
         private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -280,10 +281,29 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>Returns the header to the position the plan says it belongs at.</summary>
         public void SnapHome()
         {
-            Left = _homeLeft;
-            Top = _homeTop;
+            PlaceAt(0, 0, 0, 0);
             _previewDeltaColumns = 0;
             _previewDeltaRows = 0;
+        }
+
+        /// <summary>
+        /// Positions the header from plan pixels, offset by a grid delta while it
+        /// is dragged. WPF places windows in DIPs, so every pixel is divided by
+        /// this window's scale; at 100% that division is by one.
+        /// </summary>
+        private void PlaceAt(int deltaColumns, int deltaRows, int spacingX, int spacingY)
+        {
+            double scale = DesktopChromeDpi.ScaleOf(this);
+            Left = (_homeLeft + (deltaColumns * spacingX)) / scale;
+            Top = (_homeTop + (deltaRows * spacingY)) / scale;
+            Width = Math.Max(80, _width / scale);
+            Height = Math.Max(DesktopLayoutSpacing.HeaderHeight, _height / scale);
+        }
+
+        protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+        {
+            base.OnDpiChanged(oldDpi, newDpi);
+            if (!_dragging) PlaceAt(0, 0, 0, 0);
         }
 
         private static (int SpacingX, int SpacingY) GetGridSpacing()
@@ -299,13 +319,11 @@ namespace Desktop_Frames.NativeDesktop
             }
         }
 
-        /// <summary>Pointer position in the same device-independent units as Left/Top.</summary>
-        private Point GetCursorScreenPoint()
+        /// <summary>Pointer position in device pixels, the unit the desktop grid spacing is measured in.</summary>
+        private static Point GetCursorDevicePoint()
         {
             GetCursorPos(out NativePointerPoint point);
-            Matrix transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice
-                ?? Matrix.Identity;
-            return transform.Transform(new Point(point.X, point.Y));
+            return new Point(point.X, point.Y);
         }
 
         private void OnSourceInitialized(object? sender, EventArgs e)
@@ -315,6 +333,8 @@ namespace Desktop_Frames.NativeDesktop
             // NOACTIVATE keeps focus with whatever the user was doing; TRANSPARENT
             // is deliberately absent so the header can be grabbed and dragged.
             SetWindowLong(handle, GWL_EXSTYLE, style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+            // The window now knows its real DPI; place it again from the plan pixels.
+            PlaceAt(0, 0, 0, 0);
         }
 
         [StructLayout(LayoutKind.Sequential)]

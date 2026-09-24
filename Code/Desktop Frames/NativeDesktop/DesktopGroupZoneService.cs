@@ -99,6 +99,8 @@ namespace Desktop_Frames.NativeDesktop
             {
                 Column = previous?.Column ?? 0,
                 Row = previous?.Row ?? 0,
+                GridColumns = previous?.GridColumns ?? 0,
+                GridRows = previous?.GridRows ?? 0,
                 IsManualPosition = previous?.IsManualPosition ?? false,
                 ExtraColumns = previous?.ExtraColumns ?? 0,
                 Locked = previous?.Locked ?? false,

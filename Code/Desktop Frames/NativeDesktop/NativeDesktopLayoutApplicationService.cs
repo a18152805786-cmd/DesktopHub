@@ -895,7 +895,12 @@ namespace Desktop_Frames.NativeDesktop
                 (int requestedColumn, int requestedRow) = ToSlot(item.TargetX, item.TargetY, plan, spacingX, spacingY);
                 (int actualColumn, int actualRow) = ToSlot(actual.Value.X, actual.Value.Y, plan, spacingX, spacingY);
                 bool sameSlot = requestedColumn == actualColumn && requestedRow == actualRow;
-                bool insideSafe = IsInsideSafeGrid(actual.Value.X, actual.Value.Y, plan, safeGrid);
+                // The safe grid is a set of slots, so judge the slot. Explorer draws
+                // an icon a few pixels inside its cell; at 150% scaling the raw
+                // coordinate of an icon in the last safe column overruns the pixel
+                // margin even though the cell it occupies is entirely on screen.
+                bool insideSafe = actualColumn >= 0 && actualRow >= 0 &&
+                    actualColumn < safeGrid.SafeColumns && actualRow < safeGrid.SafeRows;
 
                 item.TargetSatisfied = sameSlot && insideSafe;
                 if (item.DeltaX == 0 && item.DeltaY == 0)
@@ -925,15 +930,6 @@ namespace Desktop_Frames.NativeDesktop
         private static (int Column, int Row) ToSlot(int x, int y, DesktopLayoutPlan plan, int spacingX, int spacingY) =>
             ((int)Math.Round((x - plan.WorkAreaLeft) / (double)spacingX),
              (int)Math.Round((y - plan.WorkAreaTop) / (double)spacingY));
-
-        private static bool IsInsideSafeGrid(int x, int y, DesktopLayoutPlan plan, NativeDesktopSafeGrid safeGrid)
-        {
-            int relativeX = x - plan.WorkAreaLeft;
-            int relativeY = y - plan.WorkAreaTop;
-            return relativeX >= 0 && relativeY >= 0 &&
-                relativeX + safeGrid.IconSpacingX + safeGrid.RightSafetyMargin <= safeGrid.ClientWidth &&
-                relativeY + safeGrid.IconSpacingY + safeGrid.BottomSafetyMargin <= safeGrid.ClientHeight;
-        }
 
         /// <summary>
         /// Drops restore-point entries whose desktop item is gone and writes the
@@ -1016,6 +1012,8 @@ namespace Desktop_Frames.NativeDesktop
             markdown.AppendLine($"RightRailX={plan.RightRailX} (column {plan.RightRailColumn})");
             markdown.AppendLine($"LeftRailAligned={plan.LeftRailAligned}");
             markdown.AppendLine($"RightRailAligned={plan.RightRailAligned}");
+            markdown.AppendLine($"LeftRailStacks={plan.LeftRailStackCount}");
+            markdown.AppendLine($"RightRailStacks={plan.RightRailStackCount}");
             markdown.AppendLine($"GroupSpacingConsistent={plan.GroupSpacingConsistent}");
             markdown.AppendLine($"HeaderToFirstIconGap={plan.HeaderToFirstIconGap}");
             markdown.AppendLine($"GroupSeparationGap={plan.GroupSeparationGap}");

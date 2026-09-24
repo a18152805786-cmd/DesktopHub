@@ -68,6 +68,9 @@ namespace Desktop_Frames.NativeDesktop
         public int RightRailColumn { get; set; }
         public bool LeftRailAligned { get; set; }
         public bool RightRailAligned { get; set; }
+        /// <summary>Columns of groups standing side by side in each rail; 1 is the classic single column.</summary>
+        public int LeftRailStackCount { get; set; } = 1;
+        public int RightRailStackCount { get; set; } = 1;
         public bool GroupSpacingConsistent { get; set; }
         /// <summary>Spare grid rows left at the bottom of each rail.</summary>
         public int LeftRailColumnSlack { get; set; }
@@ -119,6 +122,8 @@ namespace Desktop_Frames.NativeDesktop
         public int RailColumn { get; set; }
         /// <summary>Grid row the group's first icon row occupies.</summary>
         public int RailRow { get; set; }
+        /// <summary>Which column of groups within its rail the group stands in, counted from the screen edge.</summary>
+        public int RailStack { get; set; }
         /// <summary>
         /// Whether the group draws a header. The header carries the group's name
         /// and its whole context menu, so a group without one cannot be resized,
@@ -146,6 +151,18 @@ namespace Desktop_Frames.NativeDesktop
         public const int HeaderHeight = 26;
         /// <summary>Rows reserved above every group, header drawn or not, so the rhythm never varies.</summary>
         public const int GroupLeadingRows = 1;
+
+        /// <summary>
+        /// <see cref="HeaderToFirstIcon"/> in the physical pixels of a plan made
+        /// at <paramref name="dpi"/>. Plans are pixels; the header is drawn in DIPs.
+        /// </summary>
+        public static int HeaderToFirstIconAt(int dpi) => ToPixels(HeaderToFirstIcon, dpi);
+
+        /// <summary><see cref="HeaderHeight"/> in the physical pixels of a plan made at <paramref name="dpi"/>.</summary>
+        public static int HeaderHeightAt(int dpi) => ToPixels(HeaderHeight, dpi);
+
+        private static int ToPixels(int dip, int dpi) =>
+            dpi <= 96 ? dip : (int)Math.Round(dip * dpi / 96.0, MidpointRounding.AwayFromZero);
     }
 
     public sealed class DesktopLayoutItem

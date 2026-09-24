@@ -2097,4 +2097,10 @@
   <data name="GroupResizeRollbackFailed" xml:space="preserve">
     <value>调整大小失败，且未能完整恢复。请先选择“恢复自动大小”，再刷新布局；若图标位置异常，请使用已保存的布局快照恢复。详情：{0}</value>
   </data>
+  <data name="DesktopLayoutDisplayChanged" xml:space="preserve">
+    <value>显示器分辨率或缩放已变化，请在托盘菜单中选择“刷新桌面布局”。</value>
+  </data>
+  <data name="DesktopLayoutRestartRequired" xml:space="preserve">
+    <value>显示缩放已变化，请重启 DesktopHub 后再刷新桌面布局。</value>
+  </data>
 </root>
