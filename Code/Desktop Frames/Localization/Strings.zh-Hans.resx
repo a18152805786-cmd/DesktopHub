@@ -2100,7 +2100,31 @@
   <data name="DesktopLayoutDisplayChanged" xml:space="preserve">
     <value>显示器分辨率或缩放已变化，请在托盘菜单中选择“刷新桌面布局”。</value>
   </data>
-  <data name="DesktopLayoutRestartRequired" xml:space="preserve">
-    <value>显示缩放已变化，请重启 DesktopHub 后再刷新桌面布局。</value>
+  <data name="DesktopLayoutSchemeApplied" xml:space="preserve">
+    <value>已套用 {0} 的桌面布局。</value>
+  </data>
+  <data name="DesktopLayoutSchemeApplyFailed" xml:space="preserve">
+    <value>{0} 的桌面布局没有套用成功：{1}。可以在托盘菜单中选择“刷新桌面布局”重试。</value>
+  </data>
+  <data name="DisplaySchemeWithLabel" xml:space="preserve">
+    <value>{0}（{1}）</value>
+  </data>
+  <data name="TrayDesktopLayoutSchemes" xml:space="preserve">
+    <value>桌面布局方案</value>
+  </data>
+  <data name="TrayDisplaySchemeCurrent" xml:space="preserve">
+    <value>{0} · 当前显示器</value>
+  </data>
+  <data name="TrayDisplaySchemeApplyTip" xml:space="preserve">
+    <value>重新套用这个显示器的布局。</value>
+  </data>
+  <data name="TrayDisplaySchemeInactiveTip" xml:space="preserve">
+    <value>接上这个显示器时会自动使用。</value>
+  </data>
+  <data name="TrayDisplaySchemeNone" xml:space="preserve">
+    <value>还没有布局，请先选择“刷新桌面布局”</value>
+  </data>
+  <data name="TrayDisplaySchemeAutoApply" xml:space="preserve">
+    <value>换显示器时自动套用</value>
   </data>
 </root>

@@ -34,6 +34,8 @@ namespace Desktop_Frames.NativeDesktop
         private readonly int _homeTop;
         private readonly int _width;
         private readonly int _height;
+        // DPI of the desktop the plan was measured on; it decides the DIP conversion.
+        private readonly int _desktopDpi;
 
         private bool _dragging;
         private Point _dragOriginDevice;
@@ -65,13 +67,14 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         public DesktopGroupHeaderWindow(NativeDesktopLayoutGroupId groupId, string title,
-            int left, int top, int width, int height)
+            int left, int top, int width, int height, int desktopDpi)
         {
             _groupId = groupId;
             _homeLeft = left;
             _homeTop = top;
             _width = width;
             _height = height;
+            _desktopDpi = desktopDpi;
             Title = title;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -289,11 +292,11 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>
         /// Positions the header from plan pixels, offset by a grid delta while it
         /// is dragged. WPF places windows in DIPs, so every pixel is divided by
-        /// this window's scale; at 100% that division is by one.
+        /// the desktop's scale; at 100% that division is by one.
         /// </summary>
         private void PlaceAt(int deltaColumns, int deltaRows, int spacingX, int spacingY)
         {
-            double scale = DesktopChromeDpi.ScaleOf(this);
+            double scale = DesktopChromeDpi.ScaleFor(_desktopDpi);
             Left = (_homeLeft + (deltaColumns * spacingX)) / scale;
             Top = (_homeTop + (deltaRows * spacingY)) / scale;
             Width = Math.Max(80, _width / scale);
@@ -320,11 +323,7 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>Pointer position in device pixels, the unit the desktop grid spacing is measured in.</summary>
-        private static Point GetCursorDevicePoint()
-        {
-            GetCursorPos(out NativePointerPoint point);
-            return new Point(point.X, point.Y);
-        }
+        private static Point GetCursorDevicePoint() => DesktopChromeDpi.CursorPosition();
 
         private void OnSourceInitialized(object? sender, EventArgs e)
         {
@@ -335,13 +334,6 @@ namespace Desktop_Frames.NativeDesktop
             SetWindowLong(handle, GWL_EXSTYLE, style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
             // The window now knows its real DPI; place it again from the plan pixels.
             PlaceAt(0, 0, 0, 0);
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct NativePointerPoint
-        {
-            public int X;
-            public int Y;
         }
 
         private static Brush Frozen(Color color)
@@ -356,9 +348,6 @@ namespace Desktop_Frames.NativeDesktop
             brush.Freeze();
             return brush;
         }
-
-        [DllImport("user32.dll")]
-        private static extern bool GetCursorPos(out NativePointerPoint point);
 
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);

@@ -253,14 +253,54 @@ namespace Desktop_Frames.NativeDesktop
         {
             NativeDesktopListViewState listState = _layout.GetListViewState();
             int dpi = TryGetDpi(listState.Handle);
-            // A process that outlived a scaling change reads coordinates rescaled
-            // to its old DPI next to Explorer's real pixels. Nothing planned from
-            // that mixture can be applied safely.
-            DesktopChromeDpi.ThrowIfProcessDpiStale(dpi);
+            // Grid, work area and icon positions are all physical pixels, so a
+            // process that outlived a scaling change plans exactly as a new one would.
             NativeDesktopSafeGrid safeGrid = _layout.GetSafeDesktopGrid();
-            Rectangle workArea = Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
-            IReadOnlyList<NativeDesktopIconState> nativeIcons = _layout.EnumerateDesktopIcons();
+            Rectangle workArea = DesktopChromeDpi.PrimaryWorkArea();
+            IReadOnlyList<NativeDesktopIconState> nativeIcons = ReadDesktopIcons();
             return PlanDualRailLayout(listState, safeGrid, workArea, dpi, nativeIcons.Select(ToLayoutItem).ToList());
+        }
+
+        /// <summary>
+        /// Explorer answers a label request with nothing while it is busy
+        /// rebuilding the desktop - right after a display change, for one. A plan
+        /// made from that read treats every unnamed icon as an unknown obstacle and
+        /// lays out a fraction of the desktop, so the read is retried, and a desktop
+        /// that stays unreadable is refused rather than planned.
+        /// </summary>
+        private IReadOnlyList<NativeDesktopIconState> ReadDesktopIcons()
+        {
+            for (int attempt = 1; ; attempt++)
+            {
+                IReadOnlyList<NativeDesktopIconState> icons = _layout.EnumerateDesktopIcons();
+                int unreadable = icons.Count(icon => string.IsNullOrEmpty(icon.DisplayName));
+                if (unreadable == 0) return icons;
+                if (attempt == 3)
+                    throw new InvalidOperationException(
+                        $"DESKTOP_LABELS_UNREADABLE Unreadable={unreadable}; Icons={icons.Count}");
+                System.Threading.Thread.Sleep(300);
+            }
+        }
+
+        /// <summary>
+        /// Plans today's desktop items for a display that is not connected, so its
+        /// scheme can be checked in advance. Each icon keeps its grid slot, clamped
+        /// onto the other grid; only the icons DesktopHub never moves care where
+        /// they start. Nothing is applied.
+        /// </summary>
+        internal DesktopLayoutPlan SimulateDualRailLayout(NativeDesktopSafeGrid safeGrid, Rectangle workArea, int dpi)
+        {
+            NativeDesktopListViewState listState = _layout.GetListViewState();
+            NativeDesktopSafeGrid live = _layout.GetSafeDesktopGrid();
+            var items = new List<DesktopLayoutItem>();
+            foreach (NativeDesktopIconState icon in ReadDesktopIcons())
+            {
+                int column = Math.Clamp((int)Math.Round(icon.X / (double)live.IconSpacingX), 0, safeGrid.SafeColumns - 1);
+                int row = Math.Clamp((int)Math.Round(icon.Y / (double)live.IconSpacingY), 0, safeGrid.SafeRows - 1);
+                items.Add(ToLayoutItem(icon, workArea.Left + (column * safeGrid.IconSpacingX),
+                    workArea.Top + (row * safeGrid.IconSpacingY)));
+            }
+            return PlanDualRailLayout(listState, safeGrid, workArea, dpi, items);
         }
 
         /// <summary>
@@ -1139,19 +1179,22 @@ namespace Desktop_Frames.NativeDesktop
             string.Equals(item.ClassificationConfidence, "HIGH", StringComparison.Ordinal) &&
             (!item.IsManualOverride || ParseGroup(item.LayoutGroupId) != NativeDesktopLayoutGroupId.UNASSIGNED);
 
-        private DesktopLayoutItem ToLayoutItem(NativeDesktopIconState icon)
+        private DesktopLayoutItem ToLayoutItem(NativeDesktopIconState icon) => ToLayoutItem(icon, icon.X, icon.Y);
+
+        /// <summary>Classifies an icon as if it stood at (<paramref name="x"/>, <paramref name="y"/>).</summary>
+        private DesktopLayoutItem ToLayoutItem(NativeDesktopIconState icon, int x, int y)
         {
             ClassifiedDesktopItem classified = NativeDesktopItemClassificationService.Classify(
                 icon, _manualLayoutGroups, _manualButUnmappedPaths);
             return NewItem(icon, classified.FinalGroup, classified.GroupDisplayName,
                 classified.Confidence, classified.IsManualOverride, classified.Reason,
                 classified.Reference?.ReferenceType.ToString() ?? icon.CandidateType?.ToString(),
-                classified.Reference, classified.ClassifierGroup);
+                classified.Reference, classified.ClassifierGroup, x, y);
         }
 
         private static DesktopLayoutItem NewItem(NativeDesktopIconState icon, NativeDesktopLayoutGroupId group,
             string displayGroup, string confidence, bool isManual, string reason, string? type = null,
-            ReferenceFrameItem? reference = null, string? classifierGroup = null) => new()
+            ReferenceFrameItem? reference = null, string? classifierGroup = null, int? x = null, int? y = null) => new()
             {
                 LayoutGroupId = group.ToString(),
                 GroupDisplayName = displayGroup,
@@ -1167,10 +1210,10 @@ namespace Desktop_Frames.NativeDesktop
                 Arguments = reference?.Arguments ?? string.Empty,
                 Uri = reference?.Uri ?? string.Empty,
                 ClassifierGroup = classifierGroup ?? group.ToString(),
-                CurrentX = icon.X,
-                CurrentY = icon.Y,
-                TargetX = icon.X,
-                TargetY = icon.Y,
+                CurrentX = x ?? icon.X,
+                CurrentY = y ?? icon.Y,
+                TargetX = x ?? icon.X,
+                TargetY = y ?? icon.Y,
                 ClassificationConfidence = confidence,
                 ClassificationReason = reason,
                 IsStableIdentity = icon.IdentityStatus.IsResolved(),

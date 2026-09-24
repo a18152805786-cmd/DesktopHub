@@ -800,7 +800,11 @@ namespace Desktop_Frames.Localization
         public static string TrayExitEditDesktopLayout => Get("TrayExitEditDesktopLayout");
         public static string TrayRefreshDesktopLayout => Get("TrayRefreshDesktopLayout");
         public static string DesktopLayoutDisplayChanged => Get("DesktopLayoutDisplayChanged");
-        public static string DesktopLayoutRestartRequired => Get("DesktopLayoutRestartRequired");
+        public static string TrayDesktopLayoutSchemes => Get("TrayDesktopLayoutSchemes");
+        public static string TrayDisplaySchemeApplyTip => Get("TrayDisplaySchemeApplyTip");
+        public static string TrayDisplaySchemeInactiveTip => Get("TrayDisplaySchemeInactiveTip");
+        public static string TrayDisplaySchemeNone => Get("TrayDisplaySchemeNone");
+        public static string TrayDisplaySchemeAutoApply => Get("TrayDisplaySchemeAutoApply");
         public static string ManualGroupingTitle => Get("ManualGroupingTitle");
         public static string ManualGroupingHint => Get("ManualGroupingHint");
         public static string ManualGroupingColumnItem => Get("ManualGroupingColumnItem");

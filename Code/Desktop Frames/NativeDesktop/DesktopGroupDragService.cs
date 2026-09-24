@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using Forms = System.Windows.Forms;
 
 namespace Desktop_Frames.NativeDesktop
 {
@@ -67,16 +66,9 @@ namespace Desktop_Frames.NativeDesktop
                 result.Reason = "AUTO_ARRANGE_ENABLED";
                 return result;
             }
-            // Started before a scaling change, this process would mix its stale
-            // coordinates with Explorer's real ones and move the wrong cells.
-            if (DesktopChromeDpi.IsProcessDpiStale(DesktopChromeDpi.WindowDpi(state.Handle)))
-            {
-                result.Reason = "DPI_CONTEXT_STALE";
-                return result;
-            }
 
             NativeDesktopSafeGrid safeGrid = layout.GetSafeDesktopGrid();
-            Rectangle workArea = Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
+            Rectangle workArea = DesktopChromeDpi.PrimaryWorkArea();
             int newColumn = group.RailColumn + deltaColumns;
             int newRow = group.RailRow + deltaRows;
             result.NewColumn = newColumn;
@@ -325,7 +317,7 @@ namespace Desktop_Frames.NativeDesktop
         {
             var layout = new NativeDesktopIconLayoutService();
             NativeDesktopSafeGrid safeGrid = layout.GetSafeDesktopGrid();
-            Rectangle workArea = Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens.First().WorkingArea;
+            Rectangle workArea = DesktopChromeDpi.PrimaryWorkArea();
             return (safeGrid.IconSpacingX, safeGrid.IconSpacingY, workArea.Left, workArea.Top);
         }
 

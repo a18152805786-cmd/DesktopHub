@@ -66,6 +66,7 @@ namespace Desktop_Frames.NativeDesktop
         private int _columns;
         private int _rows;
         private int _minimumSlots;
+        private int _desktopDpi;
 
         private bool _editMode;
         private bool _hovered;
@@ -181,8 +182,9 @@ namespace Desktop_Frames.NativeDesktop
 
         /// <summary>Places the zone from grid coordinates. All geometry comes from the live grid.</summary>
         public void SetGeometry(int originLeft, int originTop, int columns, int rows,
-            int spacingX, int spacingY, int minimumSlots)
+            int spacingX, int spacingY, int minimumSlots, int desktopDpi)
         {
+            _desktopDpi = desktopDpi;
             _originLeft = originLeft;
             _originTop = originTop;
             _columns = Math.Max(1, columns);
@@ -200,7 +202,7 @@ namespace Desktop_Frames.NativeDesktop
         {
             // Origin and spacing are the plan's physical pixels; the window is
             // placed in DIPs, and the inset is a DIP measure of its own.
-            double scale = DesktopChromeDpi.ScaleOf(this);
+            double scale = DesktopChromeDpi.ScaleFor(_desktopDpi);
             Left = (_originLeft / scale) - Inset;
             Top = (_originTop / scale) - Inset;
             Width = (columns * _spacingX / scale) + (Inset * 2);
@@ -350,18 +352,7 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>Pointer position in device pixels, the unit the zone's grid spacing is measured in.</summary>
-        private static Point GetCursorDevicePoint()
-        {
-            GetCursorPos(out NativeZonePoint point);
-            return new Point(point.X, point.Y);
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct NativeZonePoint
-        {
-            public int X;
-            public int Y;
-        }
+        private static Point GetCursorDevicePoint() => DesktopChromeDpi.CursorPosition();
 
         private static Brush Frozen(Color color)
         {
@@ -369,9 +360,6 @@ namespace Desktop_Frames.NativeDesktop
             brush.Freeze();
             return brush;
         }
-
-        [DllImport("user32.dll")]
-        private static extern bool GetCursorPos(out NativeZonePoint point);
 
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
