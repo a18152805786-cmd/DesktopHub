@@ -239,7 +239,8 @@ namespace Desktop_Frames.NativeDesktop
             {
                 LogManager.Log(LogManager.LogLevel.Info, LogManager.LogCategory.General,
                     $"Zone resize rejected for {groupId}: {result.Reason} " +
-                    $"(requested {columns}x{rows}, needs {result.RequiredSlots} slots)");
+                    $"(requested {columns}x{rows}, needs {result.RequiredSlots} slots)" +
+                    (string.IsNullOrEmpty(result.Detail) ? string.Empty : "; " + result.Detail));
                 zone?.SnapBack();
                 SmartToast.Show(Desktop_Frames.Localization.Strings.AppName,
                     ResizeRejectionMessage(result));

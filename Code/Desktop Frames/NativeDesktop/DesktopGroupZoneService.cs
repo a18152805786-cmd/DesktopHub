@@ -31,7 +31,8 @@ namespace Desktop_Frames.NativeDesktop
         public const int MinimumRows = 1;
 
         /// <summary>
-        /// Validates the entire candidate layout without storing the size.
+        /// Validates the entire candidate layout without storing the size, down
+        /// to every group pinned on screen keeping its slot.
         /// CommitResize owns persistence and rolls it back if application fails.
         /// </summary>
         public static DesktopGroupResizeResult Resize(
@@ -40,6 +41,7 @@ namespace Desktop_Frames.NativeDesktop
             int columns,
             int rows)
             => Resize(plan, groupId, columns, rows,
+                () => DesktopGroupZoneStore.Load(),
                 () => new NativeDesktopIconLayoutService().GetSafeDesktopGrid(),
                 zones => NativeDesktopLayoutApplicationService.CreateDualRailPlan(zones));
 
@@ -50,6 +52,7 @@ namespace Desktop_Frames.NativeDesktop
             NativeDesktopLayoutGroupId groupId,
             int columns,
             int rows,
+            Func<IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>> loadZones,
             Func<NativeDesktopSafeGrid> getSafeGrid,
             Func<IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone>, DesktopLayoutPlan> createPlan)
         {
@@ -62,7 +65,9 @@ namespace Desktop_Frames.NativeDesktop
             }
             // A restored plan may predate the last lock/unlock command.
             // The store is the authority for both drag and resize decisions.
-            if (DesktopGroupZoneStore.IsLocked(groupId))
+            IReadOnlyDictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> zones = loadZones();
+            zones.TryGetValue(groupId, out DesktopGroupZone? previous);
+            if (previous?.Locked == true)
             {
                 result.Reason = "GROUP_LOCKED";
                 return result;
@@ -92,8 +97,7 @@ namespace Desktop_Frames.NativeDesktop
                 return result;
             }
 
-            var proposedZones = DesktopGroupZoneStore.Load().ToDictionary(pair => pair.Key, pair => pair.Value);
-            proposedZones.TryGetValue(groupId, out DesktopGroupZone? previous);
+            var proposedZones = zones.ToDictionary(pair => pair.Key, pair => pair.Value);
             proposedZones[groupId] = new DesktopGroupZone
             {
                 Column = previous?.Column ?? 0,
@@ -114,6 +118,13 @@ namespace Desktop_Frames.NativeDesktop
                 // resized rectangle: neighbours, anchors and clear space count.
                 DesktopLayoutPlan candidate = createPlan(proposedZones);
                 NativeDesktopLayoutApplicationService.ValidateDualRailPlan(candidate, safeGrid);
+                string? anchorLost = FirstAnchorLost(plan, candidate, () => createPlan(zones));
+                if (anchorLost != null)
+                {
+                    result.Reason = "LAYOUT_INVALID";
+                    result.Detail = anchorLost;
+                    return result;
+                }
             }
             catch (Exception ex)
             {
@@ -126,6 +137,74 @@ namespace Desktop_Frames.NativeDesktop
             result.Reason = "VALIDATED";
             return result;
         }
+
+        /// <summary>
+        /// The first group the plan on screen shows pinned that the candidate plan
+        /// no longer keeps at the same slot, described for the rejection, or null.
+        ///
+        /// A valid layout can still have let a pin go: PlaceAnchoredGroups skips,
+        /// without a word, a pinned group whose icons would reach into the block
+        /// of a group pinned before it, and the skipped group flows automatically,
+        /// often into the middle of the screen. Which pins survive is the
+        /// planner's decision, so each one is looked up in the plan it made
+        /// rather than predicted here.
+        ///
+        /// The plan on screen can be stale: a drop the planner does not honour, or
+        /// icons added since the last refresh, can leave a pin on screen that the
+        /// next refresh drops whatever the size. A missing pin therefore counts
+        /// against the resize only if the layout without it keeps that pin, and
+        /// that layout is planned only once a pin has gone missing.
+        /// </summary>
+        private static string? FirstAnchorLost(DesktopLayoutPlan current, DesktopLayoutPlan candidate,
+            Func<DesktopLayoutPlan> planWithoutResize)
+        {
+            List<DesktopLayoutGroup> missing = current.Groups
+                .Where(group => group.HasManualAnchor && group.Columns > 0 &&
+                    !IsAnchoredAt(candidate, group.GroupId, group.RailColumn, group.RailRow))
+                .ToList();
+            if (missing.Count == 0) return null;
+
+            DesktopLayoutPlan? unchanged;
+            try
+            {
+                unchanged = planWithoutResize();
+            }
+            catch
+            {
+                // Nothing then shows that a missing pin was lost already, so each one counts.
+                unchanged = null;
+            }
+
+            var lost = new List<(DesktopLayoutGroup Group, int Column, int Row)>();
+            foreach (DesktopLayoutGroup group in missing)
+            {
+                if (unchanged == null)
+                {
+                    lost.Add((group, group.RailColumn, group.RailRow));
+                    continue;
+                }
+                // Only a slot the next refresh keeps is the resize's to lose; that
+                // refresh may already drop the pin, or move it because the group grew.
+                DesktopLayoutGroup? kept = unchanged.Groups.FirstOrDefault(other => other.GroupId == group.GroupId);
+                if (kept is { HasManualAnchor: true } &&
+                    !IsAnchoredAt(candidate, kept.GroupId, kept.RailColumn, kept.RailRow))
+                    lost.Add((group, kept.RailColumn, kept.RailRow));
+            }
+            if (lost.Count == 0) return null;
+
+            (DesktopLayoutGroup first, int column, int row) = lost[0];
+            DesktopLayoutGroup? after = candidate.Groups.FirstOrDefault(other => other.GroupId == first.GroupId);
+            string outcome = after == null || after.Columns <= 0 ? "would no longer be laid out"
+                : after.HasManualAnchor ? $"would move to ({after.RailColumn},{after.RailRow})"
+                : $"would flow automatically to ({after.RailColumn},{after.RailRow})";
+            string others = lost.Count > 1 ? $"; {lost.Count - 1} more pinned group(s) would move too" : string.Empty;
+            return $"ANCHOR_LOST '{first.GroupDisplayName}' ({first.GroupId}) is pinned at ({column},{row}) " +
+                $"but {outcome}{others}";
+        }
+
+        private static bool IsAnchoredAt(DesktopLayoutPlan plan, NativeDesktopLayoutGroupId groupId, int column, int row) =>
+            plan.Groups.Any(group => group.GroupId == groupId && group.HasManualAnchor &&
+                group.RailColumn == column && group.RailRow == row);
 
         /// <summary>
         /// One synchronous commit after the mouse event has unwound. The

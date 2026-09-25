@@ -84,6 +84,15 @@ Columns × Rows >= managed item count
 A zone that would drop its own icons is refused, and the toast says how many
 slots the group needs.
 
+A size is also refused when it would cost a pinned group its place. The planner
+pins groups first, in a fixed order, and silently lets a pin go when the group's
+icons would reach into the block of a group pinned before it, header row
+included; that group then flows automatically, often into the middle of the
+screen. So every proposed size is planned in full, and each group pinned on
+screen must still be pinned at the same slot. A pin the next refresh would drop
+anyway, after new icons or a drop the planner does not honour, does not count
+against the resize. The toast names the group that would have moved.
+
 ## What outranks what
 
 ```text

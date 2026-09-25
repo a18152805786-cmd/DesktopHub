@@ -65,6 +65,12 @@ namespace Desktop_Frames.NativeDesktop
                     return 0;
                 }
 
+                if (args.Any(arg => arg.Equals("--native-layout-group-resize-tests", StringComparison.OrdinalIgnoreCase)))
+                {
+                    NativeDesktopGroupResizeTestHarness.Run(auditDirectory);
+                    return 0;
+                }
+
                 if (args.Any(arg => arg.Equals("--native-layout-compact-preview", StringComparison.OrdinalIgnoreCase)))
                 {
                     DesktopLayoutPlan plan = CreateAndWriteCompactPreview(auditDirectory);
