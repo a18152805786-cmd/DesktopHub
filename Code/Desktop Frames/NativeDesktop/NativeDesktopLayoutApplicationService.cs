@@ -46,6 +46,12 @@ namespace Desktop_Frames.NativeDesktop
                     return 0;
                 }
 
+                if (args.Any(arg => arg.Equals("--native-layout-group-drag-tests", StringComparison.OrdinalIgnoreCase)))
+                {
+                    NativeDesktopGroupDragTestHarness.Run(auditDirectory);
+                    return 0;
+                }
+
                 string? liveIdentityLabel = ExtractValue(args, "--native-layout-live-identity-label=");
                 if (!string.IsNullOrWhiteSpace(liveIdentityLabel))
                 {

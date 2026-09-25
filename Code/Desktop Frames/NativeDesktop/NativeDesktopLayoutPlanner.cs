@@ -547,6 +547,17 @@ namespace Desktop_Frames.NativeDesktop
         }
 
         /// <summary>
+        /// The slots a laid-out group holds, in grid columns and rows: its icon
+        /// rows and the leading row above them that its header is drawn in. An
+        /// anchored group reserves exactly this block, so a later anchor whose
+        /// icons reach into it is refused, and a header drag checks its
+        /// destination against the blocks of every other group.
+        /// </summary>
+        internal static Rectangle GroupBlock(int column, int iconRow, int columns, int rows) =>
+            new(column, iconRow - DesktopLayoutSpacing.GroupLeadingRows,
+                columns, rows + DesktopLayoutSpacing.GroupLeadingRows);
+
+        /// <summary>
         /// Places every group the user positioned by hand at its stored grid
         /// anchor and reserves those slots, and records lock and manual-size
         /// state on every group that has any. A manual position always wins over
@@ -581,14 +592,22 @@ namespace Desktop_Frames.NativeDesktop
                 int column = Math.Clamp(zone.Column, 0, Math.Max(0, safeGrid.SafeColumns - columns));
                 int iconRow = Math.Clamp(zone.Row, DesktopLayoutSpacing.GroupLeadingRows,
                     Math.Max(DesktopLayoutSpacing.GroupLeadingRows, safeGrid.SafeRows - rows));
+                // The anchor's own header row is deliberately not checked. A
+                // refused anchor flows automatically, so every extra reason to
+                // refuse one moves a group the user placed. A header row that
+                // lands on an earlier group's last icon row - that group gained
+                // icons or was resized - keeps the anchor, header over that row.
+                // A drag cannot create the overlap: DesktopGroupDragService
+                // refuses any destination that reaches into another group's block.
                 if (!RailBandIsClear(column, columns, iconRow, rows, obstacles, workArea, safeGrid))
                     continue; // A stale anchor never overlaps an icon we cannot move.
 
                 group.HasManualAnchor = true;
                 ApplyGroupGeometry(plan, group, movableItems, column, iconRow, columns, rows, workArea, safeGrid,
                     zone.ExtraColumns);
-                for (int row = iconRow - DesktopLayoutSpacing.GroupLeadingRows; row < iconRow + rows; row++)
-                    for (int col = column; col < column + columns; col++)
+                Rectangle block = GroupBlock(column, iconRow, columns, rows);
+                for (int row = block.Top; row < block.Bottom; row++)
+                    for (int col = block.Left; col < block.Right; col++)
                         obstacles.Add(SlotKey(workArea.Left + (col * safeGrid.IconSpacingX),
                             workArea.Top + (row * safeGrid.IconSpacingY), workArea,
                             safeGrid.IconSpacingX, safeGrid.IconSpacingY));

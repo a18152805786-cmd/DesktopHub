@@ -64,7 +64,11 @@ the whole icon group is repositioned exactly once.
 
 A move is refused, leaving the desktop untouched, unless it lands inside the safe
 grid and every destination cell — the reserved header row included — is free of
-icons outside the group. The rejection names the blocking icon.
+icons outside the group and outside every other group's zone, that zone's
+reserved header row included. A header row holds no icon, so zones are checked
+against the plan: the planner refuses a pin whose icons sit in another group's
+header row, and the drag must not accept one either. The rejection names the
+blocking icon or group.
 
 ## Resizing a group
 
