@@ -102,6 +102,7 @@ namespace Desktop_Frames.NativeDesktop
                 GridRows = previous?.GridRows ?? 0,
                 IsManualPosition = previous?.IsManualPosition ?? false,
                 ExtraColumns = previous?.ExtraColumns ?? 0,
+                PinnedMembers = previous?.PinnedMembers ?? 0,
                 Locked = previous?.Locked ?? false,
                 IsManualSize = true,
                 ManualColumns = columns,

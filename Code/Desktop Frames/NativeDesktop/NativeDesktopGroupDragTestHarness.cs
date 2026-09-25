@@ -63,6 +63,7 @@ namespace Desktop_Frames.NativeDesktop
             ReasonCases(body, failures);
             LiveLaptopCase(body, failures);
             GrowthCase(body, failures);
+            GainedIconsCase(body, failures);
             SweepCases(body, failures, new List<SweepTally>
             {
                 Sweep("laptop, anchors as stored", Laptop, LaptopZones()),
@@ -113,13 +114,13 @@ namespace Desktop_Frames.NativeDesktop
                 drag == "HEADER_ROW_COLLISION at slot (9,6) in the header row of '待整理' (UNASSIGNED)",
                 $"the drag now refuses (9,1): {drag ?? "accepted"}");
 
-            DesktopLayoutGroup refused = GroupOf(Plan(Laptop, WithAnchor(zones, games, 9, 1, Laptop.Grid)),
+            DesktopLayoutGroup refused = GroupOf(Plan(Laptop, WithAnchor(before, zones, games, 9, 1, Laptop.Grid)),
                 NativeDesktopLayoutGroupId.GAMES);
             Check(body, failures, !refused.HasManualAnchor,
                 $"the planner refuses an anchor at (9,1), 游戏 flows instead: {Describe(refused)}");
 
             (_, drag) = DragVerdict(Laptop, before, games, 10, 1);
-            DesktopLayoutGroup kept = GroupOf(Plan(Laptop, WithAnchor(zones, games, 10, 1, Laptop.Grid)),
+            DesktopLayoutGroup kept = GroupOf(Plan(Laptop, WithAnchor(before, zones, games, 10, 1, Laptop.Grid)),
                 NativeDesktopLayoutGroupId.GAMES);
             Check(body, failures, drag == null && IsAnchoredAt(kept, 10, 1, 3, 6),
                 $"one column to the right both accept (10,1): drag {drag ?? "accepted"}, planner {Describe(kept)}");
@@ -230,6 +231,44 @@ namespace Desktop_Frames.NativeDesktop
             body.AppendLine();
         }
 
+        /// <summary>
+        /// The refresh of 2026-09-24: 日常工具 had been dropped 8x2 at (13,4)
+        /// holding 16 icons, then gained a 17th. At its dropped width that needs a
+        /// third row, which is 游戏's header row, and 游戏 was pushed into the
+        /// middle. Having gained an icon, 日常工具 widens to 9x2 instead and 游戏
+        /// keeps the right edge. A group that has gained nothing since its drop
+        /// keeps the shape it was dropped with.
+        /// </summary>
+        private static void GainedIconsCase(StringBuilder body, List<string> failures)
+        {
+            body.AppendLine("## A dropped group widens only after gaining icons");
+            body.AppendLine();
+            Dictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> zones = LaptopZones();
+            DesktopGroupZone daily = Anchor(13, 4, 4, Laptop.Grid);
+            daily.PinnedMembers = 16;
+            zones[NativeDesktopLayoutGroupId.DAILY_TOOLS] = daily;
+            DesktopLayoutPlan plan = Plan(Laptop, zones);
+            DesktopLayoutGroup grown = GroupOf(plan, NativeDesktopLayoutGroupId.DAILY_TOOLS);
+            DesktopLayoutGroup games = GroupOf(plan, NativeDesktopLayoutGroupId.GAMES);
+            Check(body, failures, IsAnchoredAt(grown, 13, 4, 9, 2) && grown.GrowthColumns == 1,
+                $"日常工具, dropped 8x2 with 16 icons, now holding 17: {Describe(grown)}, widened by {grown.GrowthColumns}");
+            Check(body, failures, !games.HasManualAnchor && games.RailColumn == 16 && games.RailRow == 7 &&
+                games.Columns == 6 && games.Rows == 3, $"游戏 keeps the right edge: {Describe(games)}");
+
+            daily.PinnedMembers = 17;
+            try
+            {
+                DesktopLayoutGroup kept = GroupOf(Plan(Laptop, zones), NativeDesktopLayoutGroupId.DAILY_TOOLS);
+                Check(body, failures, IsAnchoredAt(kept, 13, 4, 8, 3) && kept.GrowthColumns == 0,
+                    $"dropped while holding 17, it keeps its dropped shape: {Describe(kept)}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                Check(body, failures, false, $"dropped while holding 17, the laptop could not be planned: {ex.Message}");
+            }
+            body.AppendLine();
+        }
+
         private static void SweepCases(StringBuilder body, List<string> failures, List<SweepTally> tallies)
         {
             body.AppendLine("## Every drop, checked against the planner");
@@ -288,7 +327,7 @@ namespace Desktop_Frames.NativeDesktop
                     DesktopLayoutPlan after;
                     try
                     {
-                        after = Plan(display, WithAnchor(zones, group, column, row, grid));
+                        after = Plan(display, WithAnchor(before, zones, group, column, row, grid));
                     }
                     catch (InvalidOperationException ex)
                     {
@@ -475,7 +514,7 @@ namespace Desktop_Frames.NativeDesktop
         };
 
         /// <summary>The zones after a drop, exactly as DesktopGroupDragService saves the position.</summary>
-        private static Dictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> WithAnchor(
+        private static Dictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> WithAnchor(DesktopLayoutPlan plan,
             Dictionary<NativeDesktopLayoutGroupId, DesktopGroupZone> zones, DesktopLayoutGroup group,
             int column, int row, NativeDesktopSafeGrid grid)
         {
@@ -487,6 +526,9 @@ namespace Desktop_Frames.NativeDesktop
             moved.ExtraColumns = group.ExtraColumns;
             moved.GridColumns = grid.SafeColumns;
             moved.GridRows = grid.SafeRows;
+            // MoveGroup's members: the group's icons with a stable identity.
+            moved.PinnedMembers = plan.Items.Count(item => item.LayoutGroupId == group.GroupId.ToString() &&
+                item.IsStableIdentity && !item.IsShellNamespace && !string.IsNullOrEmpty(item.OriginalPath));
             moved.IsManualPosition = true;
             result[group.GroupId] = moved;
             return result;
@@ -503,6 +545,7 @@ namespace Desktop_Frames.NativeDesktop
             ManualRows = zone.ManualRows,
             IsManualSize = zone.IsManualSize,
             ExtraColumns = zone.ExtraColumns,
+            PinnedMembers = zone.PinnedMembers,
             Locked = zone.Locked
         };
 

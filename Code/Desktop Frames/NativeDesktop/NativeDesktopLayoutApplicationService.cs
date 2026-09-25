@@ -1094,6 +1094,8 @@ namespace Desktop_Frames.NativeDesktop
             markdown.AppendLine($"RightRailSpareRows={plan.RightRailColumnSlack}");
             markdown.AppendLine($"SystemTempHeaderShown={plan.Groups.Any(g => g.GroupId == NativeDesktopLayoutGroupId.SYSTEM_TEMP && g.ShowHeader)}");
             markdown.AppendLine($"ManualGroupAnchors={plan.Groups.Count(g => g.HasManualAnchor)}");
+            string grown = string.Join(",", plan.Groups.Where(g => g.GrowthColumns > 0).Select(g => $"{g.GroupId}+{g.GrowthColumns}"));
+            markdown.AppendLine($"PinnedGroupsWidened={(grown.Length == 0 ? "none" : grown)}");
             markdown.AppendLine($"ManagedIconsOutsideAssignedBounds={plan.ManagedIconsOutsideAssignedBounds}");
             markdown.AppendLine($"UnassignedIconsOutsideUnassignedBounds={plan.UnassignedIconsOutsideUnassignedBounds}");
             markdown.AppendLine($"CentralClearZone={plan.CentralClearZoneLeft},{plan.CentralClearZoneTop} {plan.CentralClearZoneWidth}x{plan.CentralClearZoneHeight}");

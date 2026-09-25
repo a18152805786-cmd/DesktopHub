@@ -118,6 +118,13 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>Extra columns this group was widened by so its rail fit the screen.</summary>
         public int ExtraColumns { get; set; }
 
+        /// <summary>
+        /// Columns a pinned group took from the free space to its right, beyond
+        /// the width it was pinned with, so that icons it gained did not push a
+        /// row into the group below. Already included in <see cref="ExtraColumns"/>.
+        /// </summary>
+        public int GrowthColumns { get; set; }
+
         /// <summary>Grid column the group's first icon column occupies.</summary>
         public int RailColumn { get; set; }
         /// <summary>Grid row the group's first icon row occupies.</summary>
