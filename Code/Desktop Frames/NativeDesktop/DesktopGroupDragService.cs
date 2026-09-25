@@ -199,7 +199,7 @@ namespace Desktop_Frames.NativeDesktop
             group.HasManualAnchor = true;
 
             DesktopGroupZoneStore.SavePosition(groupId, newColumn, newRow, group.ExtraColumns,
-                safeGrid.SafeColumns, safeGrid.SafeRows);
+                safeGrid.SafeColumns, safeGrid.SafeRows, members.Count);
             result.InternalLayoutPreserved = true;
             result.Moved = true;
             result.Reason = "MOVED";

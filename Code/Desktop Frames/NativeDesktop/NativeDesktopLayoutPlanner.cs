@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Forms = System.Windows.Forms;
 
@@ -23,6 +24,23 @@ namespace Desktop_Frames.NativeDesktop
 
         /// <summary>Smallest gap, in grid columns, kept between the two rails.</summary>
         private const int MinimumCentralColumns = 4;
+
+        /// <summary>
+        /// First column of the centre band: the columns within one column of the
+        /// screen's vertical centre line, two on an even grid and three on an odd
+        /// one. No automatic rail group may cover them, so a rail pushed off its
+        /// screen edge by pinned groups cannot slide across the wallpaper to
+        /// wherever a hole happens to be. A group the user pinned there is theirs.
+        ///
+        /// The band is deliberately narrower than <see cref="MinimumCentralColumns"/>:
+        /// the gap between the rails need not sit dead centre, only around it.
+        /// </summary>
+        private static int CentreBandStart(NativeDesktopSafeGrid safeGrid) =>
+            Math.Max(0, (safeGrid.SafeColumns / 2) - 1);
+
+        /// <summary>First column past the centre band.</summary>
+        private static int CentreBandEnd(NativeDesktopSafeGrid safeGrid) =>
+            ((safeGrid.SafeColumns + 1) / 2) + 1;
 
         /// <summary>Most extra columns a rail may take on to fit the screen height.</summary>
         private const int MaximumRailWidening = 6;
@@ -311,25 +329,92 @@ namespace Desktop_Frames.NativeDesktop
         /// first and used whenever it fits, so a desktop it suits gets exactly the
         /// plan it always got. Only when the screen is too short for it, as at
         /// 150% scaling, are groups stood side by side within a rail.
+        ///
+        /// A group the user pinned keeps the width it was pinned with, so every
+        /// icon it gains goes into a new row below it - even when that row is
+        /// the header row of the group underneath. That group then has to move,
+        /// and on a crowded screen the only hole left can be anywhere. So a
+        /// pinned group that could shed a row by widening into the free columns
+        /// to its right is laid out both ways, and it widens only when that
+        /// leaves the rest of the desktop tidier by more than the widening
+        /// itself costs (see <see cref="LayoutTidiness"/>). A pinned group with
+        /// room below it simply grows downward, as before.
         /// </summary>
         internal DesktopLayoutPlan PlanDualRailLayout(NativeDesktopListViewState listState, NativeDesktopSafeGrid safeGrid,
             Rectangle workArea, int dpi, IReadOnlyList<DesktopLayoutItem> items)
         {
+            var growth = new Dictionary<NativeDesktopLayoutGroupId, int>();
+            DesktopLayoutPlan? best = null;
+            LayoutTidiness bestTidiness = default;
+            InvalidOperationException? failure = null;
             try
             {
-                return PlanDualRail(listState, safeGrid, workArea, dpi, items, stacked: false);
+                best = PlanDualRailOnce(listState, safeGrid, workArea, dpi, items, growth);
+                bestTidiness = Tidiness(best, safeGrid, workArea);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // A widened group may still make room, so this is not final yet.
+                failure = ex;
+            }
+
+            bool itemsHoldBest = best != null;
+            foreach (IGrouping<NativeDesktopLayoutGroupId, int> options in GrowthOptions(items, safeGrid))
+            {
+                Dictionary<NativeDesktopLayoutGroupId, int> accepted = growth;
+                foreach (int widening in options)
+                {
+                    var trial = new Dictionary<NativeDesktopLayoutGroupId, int>(growth) { [options.Key] = widening };
+                    itemsHoldBest = false;
+                    try
+                    {
+                        DesktopLayoutPlan candidate = PlanDualRailOnce(listState, safeGrid, workArea, dpi, items, trial);
+                        LayoutTidiness tidiness = Tidiness(candidate, safeGrid, workArea);
+                        if (best != null && !tidiness.IsTidierThan(bestTidiness))
+                            continue;
+                        best = candidate;
+                        bestTidiness = tidiness;
+                        accepted = trial;
+                        itemsHoldBest = true;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // This width does not fit; the others are still worth trying.
+                    }
+                }
+                growth = accepted;
+            }
+
+            if (best == null)
+                ExceptionDispatchInfo.Throw(failure!);
+            // Every attempt writes its targets onto the same items, so they must
+            // be written once more if a later attempt lost.
+            return itemsHoldBest ? best : PlanDualRailOnce(listState, safeGrid, workArea, dpi, items, growth);
+        }
+
+        /// <summary>One complete layout: the classic rails, or stacked rails when those do not fit.</summary>
+        private DesktopLayoutPlan PlanDualRailOnce(NativeDesktopListViewState listState, NativeDesktopSafeGrid safeGrid,
+            Rectangle workArea, int dpi, IReadOnlyList<DesktopLayoutItem> items,
+            IReadOnlyDictionary<NativeDesktopLayoutGroupId, int> growth)
+        {
+            // An earlier attempt may already have placed part of the desktop.
+            foreach (DesktopLayoutItem item in items)
+                ResetPlacement(item);
+            try
+            {
+                return PlanDualRail(listState, safeGrid, workArea, dpi, items, growth, stacked: false);
             }
             catch (InvalidOperationException ex) when (IsCapacityFailure(ex))
             {
-                // The failed attempt may already have placed part of the desktop.
                 foreach (DesktopLayoutItem item in items)
                     ResetPlacement(item);
-                return PlanDualRail(listState, safeGrid, workArea, dpi, items, stacked: true);
+                return PlanDualRail(listState, safeGrid, workArea, dpi, items, growth, stacked: true);
             }
         }
 
         private DesktopLayoutPlan PlanDualRail(NativeDesktopListViewState listState, NativeDesktopSafeGrid safeGrid,
-            Rectangle workArea, int dpi, IReadOnlyList<DesktopLayoutItem> items, bool stacked)
+            Rectangle workArea, int dpi, IReadOnlyList<DesktopLayoutItem> items,
+            IReadOnlyDictionary<NativeDesktopLayoutGroupId, int> growth, bool stacked)
         {
             var plan = new DesktopLayoutPlan
             {
@@ -371,7 +456,7 @@ namespace Desktop_Frames.NativeDesktop
             // A group the user dragged is pinned first, and its slots become
             // obstacles so the automatic rail flows around it instead of
             // silently reclaiming the position.
-            PlaceAnchoredGroups(plan, obstacles, workArea, safeGrid);
+            PlaceAnchoredGroups(plan, obstacles, workArea, safeGrid, growth);
 
             (int leftColumn, int leftWidth, int rightColumn) = stacked
                 ? PlanStackedRails(plan, obstacles, workArea, safeGrid)
@@ -481,13 +566,17 @@ namespace Desktop_Frames.NativeDesktop
         private static int MovableCount(DesktopLayoutPlan plan, NativeDesktopLayoutGroupId groupId) =>
             plan.Items.Count(item => ParseGroup(item.LayoutGroupId) == groupId && IsFullMovableCandidate(item));
 
-        /// <summary>The left rail hugs the left edge: the first column whose whole band is clear.</summary>
+        /// <summary>
+        /// The left rail hugs the left edge: the first column whose whole band is
+        /// clear, short of the centre band. A rail that finds no room there is
+        /// a capacity failure, which hands the desktop to the stacked layout.
+        /// </summary>
         private static int ResolveLeftRailColumn(int width, int requiredRows, int startRow,
             ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
         {
             if (width <= 0) return 0;
             int rows = Math.Min(safeGrid.SafeRows - startRow, Math.Max(1, requiredRows));
-            for (int column = 0; column + width <= safeGrid.SafeColumns; column++)
+            for (int column = 0; column + width <= CentreBandStart(safeGrid); column++)
             {
                 if (RailBandIsClear(column, width, startRow, rows, obstacles, workArea, safeGrid))
                     return column;
@@ -498,14 +587,15 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>
         /// The right rail is mirrored: its preferred inset from the right edge
         /// equals the left rail's inset from the left edge, so both rails read
-        /// as one deliberate frame around the central clear zone.
+        /// as one deliberate frame around the central clear zone. It may slide
+        /// inward past obstacles, but never into the centre band.
         /// </summary>
         private static int ResolveRightRailColumn(int leftColumn, int leftWidth, int width, int requiredRows,
             int startRow, ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
         {
             if (width <= 0) return Math.Max(0, safeGrid.SafeColumns - 1);
             int rows = Math.Min(safeGrid.SafeRows - startRow, Math.Max(1, requiredRows));
-            int minimum = leftColumn + leftWidth + MinimumCentralColumns;
+            int minimum = Math.Max(leftColumn + leftWidth + MinimumCentralColumns, CentreBandEnd(safeGrid));
             int maximum = safeGrid.SafeColumns - width;
             if (maximum < minimum)
                 throw new InvalidOperationException($"DUAL_RAIL_TOO_NARROW Rail=Right; Width={width}");
@@ -562,10 +652,11 @@ namespace Desktop_Frames.NativeDesktop
         /// anchor and reserves those slots, and records lock and manual-size
         /// state on every group that has any. A manual position always wins over
         /// the planner; a manual size alone still lets the group flow normally,
-        /// it just flows at the shape the user chose.
+        /// it just flows at the shape the user chose. <paramref name="growth"/>
+        /// widens a pinned group beyond its pinned width (see <see cref="GrowthOptions"/>).
         /// </summary>
         private void PlaceAnchoredGroups(DesktopLayoutPlan plan, ISet<string> obstacles,
-            Rectangle workArea, NativeDesktopSafeGrid safeGrid)
+            Rectangle workArea, NativeDesktopSafeGrid safeGrid, IReadOnlyDictionary<NativeDesktopLayoutGroupId, int> growth)
         {
             foreach (DesktopLayoutGroup group in plan.Groups)
             {
@@ -588,7 +679,8 @@ namespace Desktop_Frames.NativeDesktop
                 if (movableItems.Count == 0)
                     continue;
 
-                (int columns, int rows) = ResolveShape(group.GroupId, movableItems.Count, zone.ExtraColumns);
+                int extraColumns = zone.ExtraColumns + growth.GetValueOrDefault(group.GroupId);
+                (int columns, int rows) = ResolveShape(group.GroupId, movableItems.Count, extraColumns);
                 int column = Math.Clamp(zone.Column, 0, Math.Max(0, safeGrid.SafeColumns - columns));
                 int iconRow = Math.Clamp(zone.Row, DesktopLayoutSpacing.GroupLeadingRows,
                     Math.Max(DesktopLayoutSpacing.GroupLeadingRows, safeGrid.SafeRows - rows));
@@ -604,7 +696,8 @@ namespace Desktop_Frames.NativeDesktop
 
                 group.HasManualAnchor = true;
                 ApplyGroupGeometry(plan, group, movableItems, column, iconRow, columns, rows, workArea, safeGrid,
-                    zone.ExtraColumns);
+                    extraColumns);
+                group.GrowthColumns = columns - ResolveShape(group.GroupId, movableItems.Count, zone.ExtraColumns).Columns;
                 Rectangle block = GroupBlock(column, iconRow, columns, rows);
                 for (int row = block.Top; row < block.Bottom; row++)
                     for (int col = block.Left; col < block.Right; col++)
@@ -901,10 +994,14 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>
         /// Lays both rails out as stacks of groups standing side by side.
         ///
-        /// Candidates are ranked by how far their groups stray from their
-        /// preferred shapes, then by how few stacks they need, then by how much
-        /// clear space they leave in the middle. The first whose groups can all
-        /// be placed around the icons DesktopHub may not move is used.
+        /// Neither rail may reach into the centre band. Of the candidates whose
+        /// groups can all be placed around the icons DesktopHub may not move, the
+        /// one whose rails stay closest to their screen edges is used: a group
+        /// pushed inward past pinned groups reads as a stray block on the
+        /// wallpaper, however well shaped it is. Candidates that stay equally
+        /// close are ranked by how far their groups stray from their preferred
+        /// shapes, then by how few stacks they need, then by how much clear space
+        /// they leave in the middle.
         /// </summary>
         private (int LeftColumn, int LeftWidth, int RightColumn) PlanStackedRails(DesktopLayoutPlan plan,
             ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
@@ -919,9 +1016,11 @@ namespace Desktop_Frames.NativeDesktop
                     $"DUAL_RAIL_TOO_TALL Rail={(left.Count == 0 ? DesktopRail.Left : DesktopRail.Right)}; " +
                     $"SafeRows={safeGrid.SafeRows}; Stacked=True");
 
+            int bandStart = CentreBandStart(safeGrid);
+            int bandEnd = CentreBandEnd(safeGrid);
             List<(StackedRail Left, StackedRail Right)> candidates = left.Values
                 .SelectMany(_ => right.Values, (leftRail, rightRail) => (Left: leftRail, Right: rightRail))
-                .Where(pair => pair.Left.Width + pair.Right.Width + MinimumCentralColumns <= safeGrid.SafeColumns)
+                .Where(pair => pair.Left.Width <= bandStart && pair.Right.Width <= safeGrid.SafeColumns - bandEnd)
                 .OrderBy(pair => pair.Left.Cost + pair.Right.Cost)
                 .ThenBy(pair => pair.Left.Stacks.Count + pair.Right.Stacks.Count)
                 .ThenBy(pair => pair.Left.Width + pair.Right.Width)
@@ -931,65 +1030,84 @@ namespace Desktop_Frames.NativeDesktop
             if (candidates.Count == 0)
                 throw new InvalidOperationException(
                     $"DUAL_RAIL_TOO_NARROW SafeColumns={safeGrid.SafeColumns}; LeftWidth={left.Keys.Min()}; " +
-                    $"RightWidth={right.Keys.Min()}; Stacked=True");
+                    $"RightWidth={right.Keys.Min()}; CentreBand={bandStart}-{bandEnd - 1}; Stacked=True");
 
+            StackedLayout? best = null;
             foreach ((StackedRail leftRail, StackedRail rightRail) in candidates)
             {
-                int railStartRow = Math.Max(0, (safeGrid.SafeRows - Math.Max(leftRail.Rows, rightRail.Rows)) / 2);
+                StackedLayout? layout = TryPlaceStackedRails(leftRail, rightRail, obstacles, workArea, safeGrid);
+                if (layout == null || (best != null && layout.EdgeDrift >= best.EdgeDrift))
+                    continue;
+                best = layout;
+                if (best.EdgeDrift == 0)
+                    break; // Flush with both edges; nothing later in the ranking can beat it.
+            }
+            if (best == null)
+                throw new InvalidOperationException(
+                    $"DUAL_RAIL_NO_ALIGNED_COLUMN Stacked=True; CandidatesTried={candidates.Count}; " +
+                    $"CentreBand={bandStart}-{bandEnd - 1}");
 
-                int leftColumn = -1;
-                List<StackPlacement>? leftPlacements = null;
-                for (int column = 0;
-                     column + leftRail.Width + MinimumCentralColumns + rightRail.Width <= safeGrid.SafeColumns;
-                     column++)
-                {
-                    leftPlacements = TryPlaceStackedRail(leftRail, DesktopRail.Left, column, railStartRow,
-                        obstacles, workArea, safeGrid);
-                    if (leftPlacements == null) continue;
-                    leftColumn = column;
-                    break;
-                }
-                if (leftPlacements == null) continue;
-
-                // Mirrored, as with single-column rails: the right rail's inset
-                // from the right edge matches the left rail's from the left.
-                int minimum = leftColumn + leftRail.Width + MinimumCentralColumns;
-                int maximum = safeGrid.SafeColumns - rightRail.Width;
-                int mirrored = Math.Clamp(safeGrid.SafeColumns - leftColumn - rightRail.Width, minimum, maximum);
-                int rightColumn = -1;
-                List<StackPlacement>? rightPlacements = null;
-                foreach (int column in CandidateColumnsAround(mirrored, minimum, maximum))
-                {
-                    rightPlacements = TryPlaceStackedRail(rightRail, DesktopRail.Right, column, railStartRow,
-                        obstacles, workArea, safeGrid);
-                    if (rightPlacements == null) continue;
-                    rightColumn = column;
-                    break;
-                }
-                if (rightPlacements == null) continue;
-
-                foreach (StackPlacement placement in leftPlacements.Concat(rightPlacements))
-                {
-                    DesktopLayoutGroup group = placement.Shape.Group;
-                    List<DesktopLayoutItem> movableItems = OrderedGroupItems(plan, group).Where(IsFullMovableCandidate).ToList();
-                    group.RailStack = placement.Stack;
-                    ApplyGroupGeometry(plan, group, movableItems, placement.Column, placement.IconRow,
-                        placement.Shape.Columns, placement.Shape.Rows, workArea, safeGrid, placement.Shape.Extra);
-                }
-
-                plan.LeftRailStackCount = leftRail.Stacks.Count;
-                plan.RightRailStackCount = rightRail.Stacks.Count;
-                plan.LeftRailColumn = leftColumn;
-                plan.RightRailColumn = rightColumn;
-                plan.LeftRailX = workArea.Left + (leftColumn * safeGrid.IconSpacingX);
-                plan.RightRailX = workArea.Left + (rightColumn * safeGrid.IconSpacingX);
-                plan.LeftRailColumnSlack = safeGrid.SafeRows - railStartRow - leftRail.Rows;
-                plan.RightRailColumnSlack = safeGrid.SafeRows - railStartRow - rightRail.Rows;
-                return (leftColumn, leftRail.Width, rightColumn);
+            foreach (StackPlacement placement in best.LeftPlacements.Concat(best.RightPlacements))
+            {
+                DesktopLayoutGroup group = placement.Shape.Group;
+                List<DesktopLayoutItem> movableItems = OrderedGroupItems(plan, group).Where(IsFullMovableCandidate).ToList();
+                group.RailStack = placement.Stack;
+                ApplyGroupGeometry(plan, group, movableItems, placement.Column, placement.IconRow,
+                    placement.Shape.Columns, placement.Shape.Rows, workArea, safeGrid, placement.Shape.Extra);
             }
 
-            throw new InvalidOperationException(
-                $"DUAL_RAIL_NO_ALIGNED_COLUMN Stacked=True; CandidatesTried={candidates.Count}");
+            plan.LeftRailStackCount = best.Left.Stacks.Count;
+            plan.RightRailStackCount = best.Right.Stacks.Count;
+            plan.LeftRailColumn = best.LeftColumn;
+            plan.RightRailColumn = best.RightColumn;
+            plan.LeftRailX = workArea.Left + (best.LeftColumn * safeGrid.IconSpacingX);
+            plan.RightRailX = workArea.Left + (best.RightColumn * safeGrid.IconSpacingX);
+            plan.LeftRailColumnSlack = safeGrid.SafeRows - best.StartRow - best.Left.Rows;
+            plan.RightRailColumnSlack = safeGrid.SafeRows - best.StartRow - best.Right.Rows;
+            return (best.LeftColumn, best.Left.Width, best.RightColumn);
+        }
+
+        /// <summary>
+        /// Where the two rails of one stacked candidate go, or null if either has
+        /// no room. Nothing is changed. The left rail takes the first column from
+        /// the left edge where all its groups fit; the right rail mirrors it and
+        /// slides inward only as far as it must. Neither enters the centre band.
+        /// </summary>
+        private static StackedLayout? TryPlaceStackedRails(StackedRail leftRail, StackedRail rightRail,
+            ISet<string> obstacles, Rectangle workArea, NativeDesktopSafeGrid safeGrid)
+        {
+            int railStartRow = Math.Max(0, (safeGrid.SafeRows - Math.Max(leftRail.Rows, rightRail.Rows)) / 2);
+
+            int leftColumn = -1;
+            List<StackPlacement>? leftPlacements = null;
+            for (int column = 0; column + leftRail.Width <= CentreBandStart(safeGrid); column++)
+            {
+                leftPlacements = TryPlaceStackedRail(leftRail, DesktopRail.Left, column, railStartRow,
+                    obstacles, workArea, safeGrid);
+                if (leftPlacements == null) continue;
+                leftColumn = column;
+                break;
+            }
+            if (leftPlacements == null) return null;
+
+            // Mirrored, as with single-column rails: the right rail's inset
+            // from the right edge matches the left rail's from the left.
+            int minimum = Math.Max(leftColumn + leftRail.Width + MinimumCentralColumns, CentreBandEnd(safeGrid));
+            int maximum = safeGrid.SafeColumns - rightRail.Width;
+            if (maximum < minimum) return null;
+            int mirrored = Math.Clamp(safeGrid.SafeColumns - leftColumn - rightRail.Width, minimum, maximum);
+            foreach (int column in CandidateColumnsAround(mirrored, minimum, maximum))
+            {
+                List<StackPlacement>? rightPlacements = TryPlaceStackedRail(rightRail, DesktopRail.Right, column,
+                    railStartRow, obstacles, workArea, safeGrid);
+                if (rightPlacements == null) continue;
+                // The left rail's distance from its edge, plus however far the
+                // right rail had to slide in from its mirrored position.
+                int edgeDrift = leftColumn + Math.Max(0, mirrored - column);
+                return new StackedLayout(leftRail, rightRail, railStartRow, leftColumn, leftPlacements,
+                    column, rightPlacements, edgeDrift);
+            }
+            return null;
         }
 
         /// <summary>
@@ -1187,6 +1305,141 @@ namespace Desktop_Frames.NativeDesktop
             public int Rows => Stacks.Count == 0 ? 0 : Stacks.Max(stack => stack.Rows);
             public int Cost => Stacks.Sum(stack => stack.Cost);
             public int OuterRows => Stacks.Count == 0 ? 0 : Stacks[0].Rows;
+        }
+
+        /// <summary>Both rails of a stacked candidate, placed, and how far they were pushed in from their edges.</summary>
+        private sealed record StackedLayout(StackedRail Left, StackedRail Right, int StartRow,
+            int LeftColumn, List<StackPlacement> LeftPlacements, int RightColumn, List<StackPlacement> RightPlacements,
+            int EdgeDrift);
+
+        /// <summary>
+        /// The ways each pinned, automatically sized group could grow sideways
+        /// instead of downward: for every row it could shed, the narrowest
+        /// widening that sheds it, taken from the columns to its right. The
+        /// group's pinned column never moves, and the widening stops at the
+        /// screen edge and at the centre band. Whether those columns are free
+        /// is left to the trial layout, which catches every collision.
+        ///
+        /// A size the user chose is never widened: that is a decision, and
+        /// <see cref="ResolveShape"/> already keeps its columns. Nor is a group
+        /// that has not gained icons since it was dropped: the shape it was
+        /// dropped with is the one the user saw and accepted, and reshaping it on
+        /// the next refresh would undo the drop. Pins older than
+        /// <see cref="DesktopGroupZone.PinnedMembers"/> carry no count and may widen.
+        /// </summary>
+        private IEnumerable<IGrouping<NativeDesktopLayoutGroupId, int>> GrowthOptions(
+            IReadOnlyList<DesktopLayoutItem> items, NativeDesktopSafeGrid safeGrid)
+        {
+            var options = new List<(NativeDesktopLayoutGroupId Group, int Growth)>();
+            foreach (NativeDesktopLayoutGroupId groupId in Enum.GetValues<NativeDesktopLayoutGroupId>())
+            {
+                if (!_groupZones.TryGetValue(groupId, out DesktopGroupZone? zone) || zone == null ||
+                    !zone.IsManualPosition || zone.IsManualSize || !AnchorBelongsToGrid(zone, safeGrid))
+                    continue;
+                int count = items.Count(item => ParseGroup(item.LayoutGroupId) == groupId && IsFullMovableCandidate(item));
+                if (count == 0 || (zone.PinnedMembers > 0 && count <= zone.PinnedMembers))
+                    continue;
+
+                (int pinnedColumns, int fewestRows) = DualRailShape(groupId, count, zone.ExtraColumns);
+                int firstNewColumn = zone.Column + pinnedColumns;
+                for (int growth = 1; fewestRows > 1; growth++)
+                {
+                    (int columns, int rows) = DualRailShape(groupId, count, zone.ExtraColumns + growth);
+                    int lastNewColumn = zone.Column + columns - 1;
+                    // Stop where the shape stops widening, at the screen edge,
+                    // and before the new columns would reach the centre band.
+                    if (columns != pinnedColumns + growth || lastNewColumn >= safeGrid.SafeColumns ||
+                        (lastNewColumn >= CentreBandStart(safeGrid) && firstNewColumn < CentreBandEnd(safeGrid)))
+                        break;
+                    if (rows >= fewestRows)
+                        continue;
+                    options.Add((groupId, growth));
+                    fewestRows = rows;
+                }
+            }
+            return options.GroupBy(option => option.Group, option => option.Growth);
+        }
+
+        /// <summary>
+        /// Scores a finished plan so layouts that differ only in how pinned groups
+        /// grew can be compared. See <see cref="LayoutTidiness"/>.
+        /// </summary>
+        private LayoutTidiness Tidiness(DesktopLayoutPlan plan, NativeDesktopSafeGrid safeGrid, Rectangle workArea)
+        {
+            string Slot(int column, int row) => SlotKey(workArea.Left + (column * safeGrid.IconSpacingX),
+                workArea.Top + (row * safeGrid.IconSpacingY), workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
+
+            List<DesktopLayoutGroup> placed = plan.Groups.Where(group => group.Columns > 0).ToList();
+
+            int lostAnchors = plan.Groups.Count(group => !group.HasManualAnchor &&
+                _groupZones.TryGetValue(group.GroupId, out DesktopGroupZone? zone) && zone is { IsManualPosition: true } &&
+                AnchorBelongsToGrid(zone, safeGrid) && MovableCount(plan, group.GroupId) > 0);
+
+            // A header may not sit on another group's block - the whole block,
+            // not just its icons: a half-empty last row is still that group's
+            // zone - nor on an icon the plan leaves where it is. Automatic groups
+            // reserve their header rows, so only a pinned group can clash.
+            HashSet<string> taken = plan.Items.Where(item => !IsFullMovableCandidate(item))
+                .Select(item => SlotKey(item.TargetX, item.TargetY, workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY))
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (DesktopLayoutGroup group in placed)
+                for (int row = group.RailRow; row < group.RailRow + group.Rows; row++)
+                    for (int column = group.RailColumn; column < group.RailColumn + group.Columns; column++)
+                        taken.Add(Slot(column, row));
+            int headerClashes = placed.Sum(group =>
+                Enumerable.Range(group.RailRow - DesktopLayoutSpacing.GroupLeadingRows, DesktopLayoutSpacing.GroupLeadingRows)
+                    .Sum(row => Enumerable.Range(group.RailColumn, group.Columns).Count(column => taken.Contains(Slot(column, row)))));
+
+            int edgeDrift = 0;
+            List<DesktopLayoutGroup> leftRail = placed.Where(group => group.Rail == DesktopRail.Left && !group.HasManualAnchor).ToList();
+            List<DesktopLayoutGroup> rightRail = placed.Where(group => group.Rail == DesktopRail.Right && !group.HasManualAnchor).ToList();
+            if (leftRail.Count > 0)
+                edgeDrift += leftRail.Min(group => group.RailColumn);
+            if (rightRail.Count > 0)
+                edgeDrift += safeGrid.SafeColumns - rightRail.Max(group => group.RailColumn + group.Columns);
+
+            int distortion = placed.Sum(group =>
+            {
+                int stretch = group.HasManualAnchor
+                    ? group.GrowthColumns
+                    : group.Columns - ResolveShape(group.GroupId, MovableCount(plan, group.GroupId), 0).Columns;
+                return stretch * stretch;
+            });
+
+            return new LayoutTidiness(lostAnchors, headerClashes, edgeDrift, distortion);
+        }
+
+        /// <summary>
+        /// What one column of rail drift away from a screen edge costs, in the
+        /// units of <see cref="LayoutTidiness.Distortion"/>: as much as a group
+        /// stretched or squeezed by two columns.
+        /// </summary>
+        private const int EdgeDriftCost = 4;
+
+        /// <summary>
+        /// How untidy a plan is. Compared in order: a group that lost the
+        /// position the user pinned it to; then header slots sitting on another
+        /// group's block; then <see cref="Cost"/>, which adds how far every group
+        /// was stretched or squeezed from the width it prefers - squared, as in
+        /// the stacked rails, so one badly crushed group costs more than several
+        /// small compromises - to how far the automatic rails were pushed in from
+        /// their screen edges.
+        ///
+        /// A pinned group's widening is distortion too. So it is taken to keep
+        /// a pin or clear a header, or when it spares its neighbours more than it
+        /// costs, but never merely to tidy the automatic rails at the expense of
+        /// a shape the user chose.
+        /// </summary>
+        private readonly record struct LayoutTidiness(int LostAnchors, int HeaderClashes, int EdgeDrift, int Distortion)
+        {
+            public int Cost => Distortion + (EdgeDriftCost * EdgeDrift);
+
+            public bool IsTidierThan(LayoutTidiness other)
+            {
+                if (LostAnchors != other.LostAnchors) return LostAnchors < other.LostAnchors;
+                if (HeaderClashes != other.HeaderClashes) return HeaderClashes < other.HeaderClashes;
+                return Cost < other.Cost;
+            }
         }
 
         private static bool IsPrimaryReflowGroup(NativeDesktopLayoutGroupId group) =>

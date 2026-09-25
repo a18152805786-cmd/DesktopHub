@@ -47,6 +47,13 @@ namespace Desktop_Frames.NativeDesktop
         /// <summary>Rail widening the group had when it was pinned, so an auto-sized shape survives.</summary>
         public int ExtraColumns { get; set; }
 
+        /// <summary>
+        /// Icons the group held when the user pinned it; zero for pins recorded
+        /// before this existed. A dropped group keeps the shape it was dropped
+        /// with until it gains icons, and only then may the planner widen it.
+        /// </summary>
+        public int PinnedMembers { get; set; }
+
         /// <summary>Locked zones refuse to drag and show no resize handles.</summary>
         public bool Locked { get; set; }
 
@@ -112,7 +119,7 @@ namespace Desktop_Frames.NativeDesktop
 
         /// <summary>Records the position the user dragged a group to.</summary>
         public static void SavePosition(NativeDesktopLayoutGroupId group, int column, int row, int extraColumns,
-            int gridColumns, int gridRows)
+            int gridColumns, int gridRows, int pinnedMembers)
         {
             Update(group, zone =>
             {
@@ -121,6 +128,7 @@ namespace Desktop_Frames.NativeDesktop
                 zone.ExtraColumns = extraColumns;
                 zone.GridColumns = gridColumns;
                 zone.GridRows = gridRows;
+                zone.PinnedMembers = pinnedMembers;
                 zone.IsManualPosition = true;
             });
         }
@@ -173,6 +181,7 @@ namespace Desktop_Frames.NativeDesktop
                 zone.ExtraColumns = 0;
                 zone.GridColumns = 0;
                 zone.GridRows = 0;
+                zone.PinnedMembers = 0;
             });
 
         /// <summary>Hands the group's size back to automatic sizing.</summary>
