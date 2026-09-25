@@ -98,41 +98,32 @@ namespace Desktop_Frames.NativeDesktop
                 .Select(item => NormalizePath(item.OriginalPath))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            IReadOnlyList<NativeDesktopIconState> icons = layout.EnumerateDesktopIcons();
-
-            // 2. Nothing outside the group may already occupy a destination slot,
-            //    whether that is a shell icon, another group, or a loose icon.
-            var occupied = icons
-                .Where(icon => !(!string.IsNullOrEmpty(icon.OriginalPath) &&
-                    memberPaths.Contains(NormalizePath(icon.OriginalPath))))
-                .Select(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, workArea,
-                    safeGrid.IconSpacingX, safeGrid.IconSpacingY))
-                .ToHashSet(StringComparer.Ordinal);
-
-            for (int row = newRow - DesktopLayoutSpacing.GroupLeadingRows; row < newRow + group.Rows; row++)
+            // 2. The destination must stay out of every other group's block. The
+            //    planner reserves each group's header row with its icon rows, and
+            //    on the next refresh refuses an anchor whose icons reach into an
+            //    earlier group's block - the dropped group's own, or that of a
+            //    group the drop now overlaps. A header row holds no icon, so the
+            //    icon check below cannot see it.
+            string? zoneCollision = FirstZoneCollision(plan, group, newColumn, newRow);
+            if (zoneCollision != null)
             {
-                for (int column = newColumn; column < newColumn + group.Columns; column++)
-                {
-                    string slot = NativeDesktopLayoutPlanner.SlotKey(
-                        workArea.Left + (column * safeGrid.IconSpacingX),
-                        workArea.Top + (row * safeGrid.IconSpacingY),
-                        workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
-                    if (!occupied.Contains(slot)) continue;
-                    // Naming the blocker turns "it just refused" into something
-                    // the user, and the log, can actually act on.
-                    string blocker = icons
-                        .Where(icon => !(memberPaths.Contains(NormalizePath(icon.OriginalPath))))
-                        .Where(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, workArea,
-                            safeGrid.IconSpacingX, safeGrid.IconSpacingY) == slot)
-                        .Select(icon => icon.DisplayName)
-                        .FirstOrDefault() ?? "unknown icon";
-                    result.Reason = (row < newRow ? "HEADER_ROW_COLLISION" : "GROUP_COLLISION") +
-                        $" at slot ({column},{row}) held by '{blocker}'";
-                    return result;
-                }
+                result.Reason = zoneCollision;
+                return result;
             }
 
-            // 3. Apply. The whole group shifts by one delta, so the internal
+            IReadOnlyList<NativeDesktopIconState> icons = layout.EnumerateDesktopIcons();
+
+            // 3. Nothing outside the group may already occupy a destination slot,
+            //    whether that is a shell icon, another group, or a loose icon.
+            string? iconCollision = FirstIconCollision(icons, memberPaths, group, newColumn, newRow,
+                workArea, safeGrid);
+            if (iconCollision != null)
+            {
+                result.Reason = iconCollision;
+                return result;
+            }
+
+            // 4. Apply. The whole group shifts by one delta, so the internal
             //    arrangement is preserved by construction.
             NativeDesktopLayoutSnapshot before = layout.CaptureSnapshot();
             DesktopFilesystemFingerprint filesystemBefore = DesktopFilesystemFingerprint.CaptureNames();
@@ -189,7 +180,7 @@ namespace Desktop_Frames.NativeDesktop
                 return result;
             }
 
-            // 4. Commit the new geometry into the in-memory plan so a second
+            // 5. Commit the new geometry into the in-memory plan so a second
             //    drag starts from the position the user can actually see.
             foreach (DesktopLayoutItem member in members)
             {
@@ -213,6 +204,84 @@ namespace Desktop_Frames.NativeDesktop
             result.Moved = true;
             result.Reason = "MOVED";
             return result;
+        }
+
+        /// <summary>
+        /// Why the group cannot take its first icon slot at (newColumn, newRow)
+        /// because its block - header row included - would reach into the block
+        /// of another laid-out group, or null. This is the planner's reservation,
+        /// <see cref="NativeDesktopLayoutPlanner.GroupBlock"/>, read from the plan
+        /// rather than from Explorer: a header row has no icon in it to find.
+        /// </summary>
+        internal static string? FirstZoneCollision(DesktopLayoutPlan plan, DesktopLayoutGroup group,
+            int newColumn, int newRow)
+        {
+            Rectangle destination = NativeDesktopLayoutPlanner.GroupBlock(newColumn, newRow, group.Columns, group.Rows);
+            var others = plan.Groups
+                .Where(other => other.GroupId != group.GroupId && other.Columns > 0 && other.Rows > 0)
+                .Select(other => (Group: other, Block: NativeDesktopLayoutPlanner.GroupBlock(
+                    other.RailColumn, other.RailRow, other.Columns, other.Rows)))
+                .ToList();
+
+            for (int row = destination.Top; row < destination.Bottom; row++)
+            {
+                for (int column = destination.Left; column < destination.Right; column++)
+                {
+                    foreach ((DesktopLayoutGroup other, Rectangle block) in others)
+                    {
+                        if (!block.Contains(column, row)) continue;
+                        bool otherHeaderRow = row < other.RailRow;
+                        return (row < newRow || otherHeaderRow ? "HEADER_ROW_COLLISION" : "GROUP_COLLISION") +
+                            $" at slot ({column},{row}) " + (otherHeaderRow ? "in the header row" : "inside the zone") +
+                            $" of '{other.GroupDisplayName}' ({other.GroupId})";
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Why a slot of the group's destination block, header row included, is
+        /// already held by an icon outside the group, or null.
+        /// </summary>
+        internal static string? FirstIconCollision(
+            IReadOnlyList<NativeDesktopIconState> icons,
+            ISet<string> memberPaths,
+            DesktopLayoutGroup group,
+            int newColumn,
+            int newRow,
+            Rectangle workArea,
+            NativeDesktopSafeGrid safeGrid)
+        {
+            var occupied = icons
+                .Where(icon => !(!string.IsNullOrEmpty(icon.OriginalPath) &&
+                    memberPaths.Contains(NormalizePath(icon.OriginalPath))))
+                .Select(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, workArea,
+                    safeGrid.IconSpacingX, safeGrid.IconSpacingY))
+                .ToHashSet(StringComparer.Ordinal);
+
+            for (int row = newRow - DesktopLayoutSpacing.GroupLeadingRows; row < newRow + group.Rows; row++)
+            {
+                for (int column = newColumn; column < newColumn + group.Columns; column++)
+                {
+                    string slot = NativeDesktopLayoutPlanner.SlotKey(
+                        workArea.Left + (column * safeGrid.IconSpacingX),
+                        workArea.Top + (row * safeGrid.IconSpacingY),
+                        workArea, safeGrid.IconSpacingX, safeGrid.IconSpacingY);
+                    if (!occupied.Contains(slot)) continue;
+                    // Naming the blocker turns "it just refused" into something
+                    // the user, and the log, can actually act on.
+                    string blocker = icons
+                        .Where(icon => !(memberPaths.Contains(NormalizePath(icon.OriginalPath))))
+                        .Where(icon => NativeDesktopLayoutPlanner.SlotKey(icon.X, icon.Y, workArea,
+                            safeGrid.IconSpacingX, safeGrid.IconSpacingY) == slot)
+                        .Select(icon => icon.DisplayName)
+                        .FirstOrDefault() ?? "unknown icon";
+                    return (row < newRow ? "HEADER_ROW_COLLISION" : "GROUP_COLLISION") +
+                        $" at slot ({column},{row}) held by '{blocker}'";
+                }
+            }
+            return null;
         }
 
         /// <summary>
