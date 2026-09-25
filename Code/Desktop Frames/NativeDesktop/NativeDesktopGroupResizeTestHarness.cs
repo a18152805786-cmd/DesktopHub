@@ -196,6 +196,8 @@ namespace Desktop_Frames.NativeDesktop
             }
             Check(body, failures, tallies.Sum(tally => tally.ValidUnpins) > 0,
                 "the sweep does find valid sizes that unpin a group, so the zeros above are not vacuous");
+            Check(body, failures, tallies.Any(tally => tally.StalePins.Count > 0),
+                "some scenario shows a stale pin on screen, so the resize is shown not to be blamed for one");
             body.AppendLine();
             foreach (SweepTally tally in tallies.Where(tally => tally.Examples.Count > 0))
             {
@@ -304,8 +306,9 @@ namespace Desktop_Frames.NativeDesktop
         /// pinned 3x6 at (10,2), was dropped with its first icon at (9,1), and the
         /// drag, which then checked icons only, took it: the plan on screen and the
         /// store both have 游戏 pinned there. Its last icon row is the header row of
-        /// 待整理, pinned at (5,7), so the next refresh lets the pin go whatever
-        /// size is chosen - nothing a resize should be blamed for.
+        /// 待整理, pinned at (5,7), and the planner of the day let that pin go on
+        /// the next refresh whatever the size - nothing a resize should be blamed
+        /// for. The sweep reports whether the planner still does.
         /// </summary>
         private static Scenario DroppedLaptop()
         {
@@ -315,7 +318,8 @@ namespace Desktop_Frames.NativeDesktop
             DesktopLayoutGroup games = GroupOf(onScreen, NativeDesktopLayoutGroupId.GAMES);
             DropOnScreen(onScreen, games, 9, 1);
             zones[NativeDesktopLayoutGroupId.GAMES] = Anchor(9, 1, games.ExtraColumns, Laptop.Grid);
-            return new Scenario("laptop, 游戏 just dropped at (9,1): stale pin", Laptop, onScreen, zones, RealMembers);
+            return new Scenario("laptop, 游戏 just dropped at (9,1) over 待整理's header row", Laptop, onScreen, zones,
+                RealMembers);
         }
 
         /// <summary>
@@ -329,7 +333,7 @@ namespace Desktop_Frames.NativeDesktop
             (NativeDesktopLayoutGroupId Group, int Count)[] grown = RealMembers
                 .Select(pair => pair.Group == NativeDesktopLayoutGroupId.SYSTEM_TEMP ? (pair.Group, pair.Count + 4) : pair)
                 .ToArray();
-            return new Scenario("laptop, 系统 · 临时 grew by 4 icons since the last refresh: stale pin", Laptop,
+            return new Scenario("laptop, 系统 · 临时 gained 4 icons since the last refresh", Laptop,
                 Plan(Laptop, LaptopZones(), RealMembers), LaptopZones(), grown);
         }
 
